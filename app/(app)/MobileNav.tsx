@@ -68,9 +68,9 @@ export default function MobileNav({ profileSlug, pendingIntros, unreadMessages }
           onClick={() => setOpen(v => !v)}
           aria-label={open ? 'Close menu' : 'Open menu'}
         >
-          {pendingIntros > 0 && !open && (
+          {(pendingIntros + unreadMessages > 0) && !open && (
             <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-lime text-navy text-[10px] font-bold flex items-center justify-center">
-              {pendingIntros}
+              {pendingIntros + unreadMessages > 9 ? '9+' : pendingIntros + unreadMessages}
             </span>
           )}
           {open ? (
