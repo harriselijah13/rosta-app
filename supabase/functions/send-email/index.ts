@@ -66,6 +66,8 @@ serve(async (req) => {
     const { user, email_data } = payload
     const { token_hash, email_action_type, redirect_to, site_url } = email_data
 
+    console.log(`[send-email] Hook fired — action: ${email_action_type}, to: ${user?.email}`)
+
     const confirmUrl = token_hash
       ? `${site_url}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${encodeURIComponent(redirect_to)}`
       : redirect_to
