@@ -13,10 +13,11 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient()
 
-  // Window: messages created between 25h and 24h ago — each message is only in
-  // this window for one cron run, so notifications are sent exactly once.
+  // Window: messages created between 48h and 24h ago.
+  // With a daily cron each message falls in this window exactly once,
+  // so notifications are sent at most once per message.
   const windowEnd = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-  const windowStart = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString()
+  const windowStart = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
 
   const { data: messages } = await admin
     .from('messages')
