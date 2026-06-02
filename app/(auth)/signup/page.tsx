@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
@@ -20,18 +19,16 @@ export default function SignupPage() {
     setLoading(true)
     setError('')
 
-    const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: { invite_code: inviteCode || undefined },
-      },
+    const res = await fetch('/api/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, inviteCode: inviteCode || undefined }),
     })
 
-    if (error) {
-      setError(error.message)
+    const data = await res.json()
+
+    if (!res.ok || data.error) {
+      setError(data.error || 'Something went wrong.')
       setLoading(false)
       return
     }

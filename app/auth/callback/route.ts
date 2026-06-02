@@ -8,32 +8,46 @@ export async function GET(request: NextRequest) {
   const type      = searchParams.get('type') ?? ''
   const next      = searchParams.get('next') ?? '/onboarding'
 
+  console.log('[callback] Request received', {
+    hasCode:      !!code,
+    hasTokenHash: !!tokenHash,
+    type,
+    next,
+    origin,
+  })
+
   const supabase = createClient()
 
   // PKCE flow — code exchanged for session (Supabase-native links, e.g. OAuth)
   if (code) {
+    console.log('[callback] Trying PKCE code exchange...')
     const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
+    if (error) {
+      console.error('[callback] PKCE exchange failed', { message: error.message })
+    } else {
+      console.log('[callback] PKCE exchange success, redirecting to', next)
       return NextResponse.redirect(`${origin}${next}`)
     }
   }
 
   // OTP flow — token_hash from our custom email hook (signup, recovery, email change)
   if (tokenHash && type) {
-    // Supabase verifyOtp uses 'email_change' for both current and new address steps
     const otpType = (type === 'email_change_current' || type === 'email_change_new')
       ? 'email_change'
       : type as 'signup' | 'recovery' | 'magiclink' | 'invite' | 'email'
 
+    console.log('[callback] Trying OTP verifyOtp...', { otpType, tokenHashPrefix: tokenHash.slice(0, 8) })
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: otpType })
 
-    if (!error) {
-      if (type === 'recovery') {
-        return NextResponse.redirect(`${origin}/reset-password/update`)
-      }
-      return NextResponse.redirect(`${origin}/onboarding`)
+    if (error) {
+      console.error('[callback] verifyOtp failed', { message: error.message, status: error.status })
+    } else {
+      const dest = type === 'recovery' ? '/reset-password/update' : '/onboarding'
+      console.log('[callback] verifyOtp success, redirecting to', dest)
+      return NextResponse.redirect(`${origin}${dest}`)
     }
   }
 
+  console.error('[callback] All auth paths failed — no code, no token_hash, or verification error')
   return NextResponse.redirect(`${origin}/login?error=auth_failed`)
 }

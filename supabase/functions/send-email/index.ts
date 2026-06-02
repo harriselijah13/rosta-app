@@ -66,7 +66,13 @@ serve(async (req) => {
     const { user, email_data } = payload
     const { token_hash, email_action_type, redirect_to } = email_data
 
-    console.log(`[send-email] Hook fired — action: ${email_action_type}, to: ${user?.email}`)
+    console.log('[send-email] Hook received', {
+      action:      email_action_type,
+      to:          user?.email,
+      token_hash:  token_hash ? `${token_hash.slice(0, 8)}...` : null,
+      redirect_to,
+      resend_key_set: !!RESEND_API_KEY,
+    })
 
     const confirmUrl = token_hash
       ? `https://app.onrosta.com/auth/callback?token_hash=${token_hash}&type=${email_action_type}`
@@ -74,6 +80,9 @@ serve(async (req) => {
 
     const subject = SUBJECTS[email_action_type] ?? 'ROSTA notification'
     const html = buildHtml(email_action_type, confirmUrl)
+
+    const resendPayload = { from: FROM, to: [user.email], subject, html: '[omitted]' }
+    console.log('[send-email] Calling Resend API', resendPayload)
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -84,18 +93,22 @@ serve(async (req) => {
       body: JSON.stringify({ from: FROM, to: [user.email], subject, html }),
     })
 
+    const resStatus = res.status
+    const resBody = await res.text()
+    console.log('[send-email] Resend response', { status: resStatus, body: resBody })
+
     if (!res.ok) {
-      const err = await res.text()
-      console.error('Resend error:', err)
-      return new Response(JSON.stringify({ error: err }), {
+      console.error('[send-email] Resend error', { status: resStatus, body: resBody })
+      return new Response(JSON.stringify({ error: resBody }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
       })
     }
 
-    const data = await res.json()
-    console.log('Email sent via Resend:', data.id, '→', user.email)
-    return new Response(JSON.stringify({ id: data.id }), {
+    let parsed: { id?: string } = {}
+    try { parsed = JSON.parse(resBody) } catch { /* ignore */ }
+    console.log('[send-email] Email sent', { resend_id: parsed.id, to: user.email })
+    return new Response(JSON.stringify({ id: parsed.id }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })
