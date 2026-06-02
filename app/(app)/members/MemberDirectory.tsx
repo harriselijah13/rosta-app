@@ -60,7 +60,7 @@ function MemberCard({
               <span className="text-xs text-body-grey">(you)</span>
             )}
             {hasOpenDoor && (
-              <span className="inline-flex items-center gap-1 text-xs text-lime font-medium">
+              <span className="inline-flex items-center gap-1 text-xs text-navy font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-lime inline-block" />
                 Open Door
               </span>

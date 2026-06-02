@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Badge from '@/components/ui/Badge'
 import { OPEN_TO_OPTIONS, PROFILE_MODES } from '@/lib/constants'
 
@@ -33,6 +34,8 @@ function Initials({ name }: { name: string }) {
   )
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export default async function ProfilePage({
   params,
 }: {
@@ -45,21 +48,27 @@ export default async function ProfilePage({
 
   if (!user) redirect('/login')
 
+  const PROFILE_SELECT = `id, username, first_name, last_name, avatar_url, what_i_do, building_now,
+       who_i_want_to_meet, where_i_operate, fun_fact, profile_mode,
+       onboarding_completed, updated_at`
+
+  const isUuid = UUID_RE.test(params.id)
   const { data: profile } = await supabase
     .from('profiles')
-    .select(
-      `id, first_name, last_name, avatar_url, what_i_do, building_now,
-       who_i_want_to_meet, where_i_operate, fun_fact, profile_mode,
-       onboarding_completed, updated_at,
-       signals ( open_to, working_on, need_right_now, updated_at )`
-    )
-    .eq('id', params.id)
+    .select(PROFILE_SELECT)
+    .eq(isUuid ? 'id' : 'username', params.id)
     .single()
 
   if (!profile || !profile.onboarding_completed) notFound()
 
-  const isSelf = user.id === params.id
-  const signal = (profile.signals as { open_to: string[]; working_on: string | null; need_right_now: string | null; updated_at: string }[])?.[0] ?? null
+  const { data: signalsRows } = await supabase
+    .from('signals')
+    .select('open_to, working_on, need_right_now, updated_at')
+    .eq('user_id', profile.id)
+    .limit(1)
+
+  const isSelf = user.id === profile.id
+  const signal = (signalsRows as { open_to: string[]; working_on: string | null; need_right_now: string | null; updated_at: string }[] | null)?.[0] ?? null
 
   const openTo = (signal?.open_to ?? []).filter(v => v !== 'open_door')
   const hasOpenDoor = signal?.open_to?.includes('open_door') ?? false
@@ -67,8 +76,42 @@ export default async function ProfilePage({
   const score = connectorScore(profile as Record<string, unknown>, openTo)
   const name = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Anonymous'
 
-  // Non-connections (everyone except self) get limited view
-  const canSeeFullProfile = isSelf
+  // Connection status, pending requests, and mutual connections
+  let isConnected = false
+  let hasMutuals = false
+  let hasPendingRequest = false
+
+  if (!isSelf) {
+    const admin = createAdminClient()
+    const [ua, ub] = [user.id, profile.id].sort()
+    const { data: conn } = await admin.from('connections')
+      .select('id').eq('user_a', ua).eq('user_b', ub).maybeSingle()
+    isConnected = !!conn
+
+    if (!isConnected) {
+      // Any pending request from viewer to this profile
+      const { data: pendingAny } = await admin.from('intro_requests')
+        .select('id')
+        .eq('requester_id', user.id)
+        .eq('target_id', profile.id)
+        .eq('status', 'pending')
+        .maybeSingle()
+      hasPendingRequest = !!pendingAny
+
+      // Mutual connections — only needed when no open door and no pending request
+      if (!hasOpenDoor && !hasPendingRequest) {
+        const [{ data: viewerConns }, { data: targetConns }] = await Promise.all([
+          admin.from('connections').select('user_a, user_b').or(`user_a.eq.${user.id},user_b.eq.${user.id}`),
+          admin.from('connections').select('user_a, user_b').or(`user_a.eq.${profile.id},user_b.eq.${profile.id}`),
+        ])
+        const viewerIds = new Set((viewerConns ?? []).map(c => c.user_a === user.id ? c.user_b : c.user_a))
+        const targetIds = new Set((targetConns ?? []).map(c => c.user_a === profile.id ? c.user_b : c.user_a))
+        hasMutuals = Array.from(viewerIds).some(id => targetIds.has(id))
+      }
+    }
+  }
+
+  const canSeeFullProfile = isSelf || isConnected
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-10">
@@ -101,33 +144,27 @@ export default async function ProfilePage({
 
           {/* Name + meta */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
-                <h1 className="font-display text-3xl font-bold text-navy">{name}</h1>
-                <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                  {profile.profile_mode && (
-                    <Badge variant="navy">{MODE_MAP[profile.profile_mode] ?? profile.profile_mode}</Badge>
-                  )}
-                  {/* Active Rosta indicator */}
-                  <span className="inline-flex items-center gap-1.5 text-xs text-body-grey">
-                    <span
-                      className={`w-2 h-2 rounded-full ${active ? 'bg-green-500' : 'bg-body-grey/40'}`}
-                    />
-                    {active ? 'Active on ROSTA' : 'Inactive'}
+            <div>
+              <h1 className="font-display text-3xl font-bold text-navy">{name}</h1>
+              <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                {profile.profile_mode && (
+                  <Badge variant="navy">{MODE_MAP[profile.profile_mode] ?? profile.profile_mode}</Badge>
+                )}
+                <span className="inline-flex items-center gap-1.5 text-xs text-body-grey">
+                  <span
+                    className={`w-2 h-2 rounded-full ${active ? 'bg-green-500' : 'bg-body-grey/40'}`}
+                  />
+                  {active ? 'Active on ROSTA' : 'Inactive'}
+                </span>
+                {hasOpenDoor && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-navy">
+                    <span className="w-2 h-2 rounded-full bg-lime" />
+                    Open Door
                   </span>
-                  {hasOpenDoor && (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-navy">
-                      <span className="w-2 h-2 rounded-full bg-lime" />
-                      Open Door
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Connector Score */}
-              <div className="text-right shrink-0">
-                <p className="font-display text-3xl font-bold text-navy">{score}</p>
-                <p className="text-xs text-body-grey mt-0.5">Connector Score</p>
+                )}
+                <span className="text-xs text-body-grey">
+                  Score <span className="font-medium text-navy">{score}</span>
+                </span>
               </div>
             </div>
 
@@ -155,28 +192,63 @@ export default async function ProfilePage({
         {/* Actions */}
         <div className="flex items-center gap-3 mt-6 pt-6 border-t border-border">
           {isSelf ? (
+            <>
+              <Link
+                href="/settings"
+                className="inline-flex items-center gap-1.5 text-sm font-medium bg-navy text-warm-white px-5 py-2.5 rounded-full hover:bg-navy/90 transition-colors"
+              >
+                Edit profile
+              </Link>
+              <Link
+                href="/qr"
+                className="inline-flex items-center gap-1.5 text-sm font-medium border border-border text-body-grey px-5 py-2.5 rounded-full hover:border-navy hover:text-navy transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+                My QR
+              </Link>
+            </>
+          ) : isConnected ? (
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-body-grey px-5 py-2.5 rounded-full border border-border">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Connected
+            </span>
+          ) : hasPendingRequest ? (
             <Link
-              href="/settings"
-              className="inline-flex items-center gap-1.5 text-sm font-medium bg-navy text-warm-white px-5 py-2.5 rounded-full hover:bg-navy/90 transition-colors"
+              href="/intro"
+              className="text-sm font-medium text-body-grey px-5 py-2.5 rounded-full border border-border hover:border-navy hover:text-navy transition-colors"
             >
-              Edit profile
+              Request pending
             </Link>
-          ) : (
-            <button
-              disabled
-              className="text-sm font-medium bg-navy text-warm-white px-5 py-2.5 rounded-full opacity-60 cursor-not-allowed"
-              title="Connection system coming soon"
+          ) : hasOpenDoor ? (
+            <Link
+              href={`/connections/request/${profile.id}`}
+              className="text-sm font-medium bg-navy text-warm-white px-5 py-2.5 rounded-full hover:bg-navy/90 transition-colors"
             >
               Connect
-            </button>
-          )}
+            </Link>
+          ) : hasMutuals ? (
+            <Link
+              href={`/intro/request/${profile.id}`}
+              className="text-sm font-medium bg-navy text-warm-white px-5 py-2.5 rounded-full hover:bg-navy/90 transition-colors"
+            >
+              Request intro
+            </Link>
+          ) : null}
         </div>
       </div>
 
-      {/* Limited-view notice for non-self */}
+      {/* Limited-view notice for non-connections */}
       {!canSeeFullProfile && (
         <div className="bg-surface border border-border rounded-xl px-5 py-4 mb-4 text-sm text-body-grey">
-          Connect to see the full profile — building now, who they want to meet, and more.
+          {hasOpenDoor
+            ? 'Send a connection request to unlock the full profile — building now, who they want to meet, and more.'
+            : hasMutuals
+            ? 'Request an intro to unlock the full profile — building now, who they want to meet, and more.'
+            : 'Connect to see the full profile — building now, who they want to meet, and more.'}
         </div>
       )}
 

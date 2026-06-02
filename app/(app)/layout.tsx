@@ -1,6 +1,7 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import MobileNav from './MobileNav'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
@@ -12,49 +13,52 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('onboarding_completed')
+    .select('onboarding_completed, username')
     .eq('id', user.id)
     .single()
 
   if (!profile?.onboarding_completed) redirect('/onboarding')
 
+  const admin = createAdminClient()
+  const now = new Date().toISOString()
+
+  const [{ count: pendingFacilitator }, { count: pendingOpenDoor }, { data: userConvs }] =
+    await Promise.all([
+      admin.from('intro_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('facilitator_id', user.id).eq('status', 'pending').gt('expires_at', now),
+      admin.from('intro_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('target_id', user.id).eq('type', 'open_door').eq('status', 'pending').gt('expires_at', now),
+      admin.from('conversations').select('id').or(`user_a.eq.${user.id},user_b.eq.${user.id}`),
+    ])
+
+  const pendingIntros = (pendingFacilitator ?? 0) + (pendingOpenDoor ?? 0)
+  const convIds = (userConvs ?? []).map(c => c.id)
+
+  let unreadMessages = 0
+  const activityUpdate = admin.from('profiles').update({ last_active_at: now }).eq('id', user.id)
+  if (convIds.length > 0) {
+    const [, { count }] = await Promise.all([
+      activityUpdate,
+      admin.from('messages')
+        .select('id', { count: 'exact', head: true })
+        .in('conversation_id', convIds)
+        .is('read_at', null)
+        .neq('sender_id', user.id),
+    ])
+    unreadMessages = count ?? 0
+  } else {
+    await activityUpdate
+  }
+
   return (
     <div className="min-h-screen bg-warm-white">
-      <nav className="sticky top-0 z-50 bg-white border-b border-border">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/dashboard" className="font-display text-xl font-bold text-navy">
-            ROSTA<span className="text-lime">.</span>
-          </Link>
-          <div className="flex items-center gap-6">
-            <Link
-              href="/members"
-              className="text-sm text-body-grey hover:text-navy transition-colors"
-            >
-              Members
-            </Link>
-            <Link
-              href={`/profile/${user.id}`}
-              className="text-sm text-body-grey hover:text-navy transition-colors"
-            >
-              My profile
-            </Link>
-            <Link
-              href="/settings"
-              className="text-sm font-medium border border-navy text-navy px-4 py-1.5 rounded-full hover:bg-navy hover:text-warm-white transition-colors"
-            >
-              Settings
-            </Link>
-            <form action="/auth/signout" method="post">
-              <button
-                type="submit"
-                className="text-sm text-body-grey hover:text-navy transition-colors"
-              >
-                Sign out
-              </button>
-            </form>
-          </div>
-        </div>
-      </nav>
+      <MobileNav
+        profileSlug={profile.username ?? user.id}
+        pendingIntros={pendingIntros}
+        unreadMessages={unreadMessages}
+      />
       {children}
     </div>
   )
