@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, newMessageEmail } from '@/lib/resend'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET
   if (cronSecret) {
