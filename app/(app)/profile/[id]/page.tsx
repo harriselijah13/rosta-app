@@ -4,21 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Badge from '@/components/ui/Badge'
 import { OPEN_TO_OPTIONS, PROFILE_MODES } from '@/lib/constants'
+import { computeConnectorScore } from '@/lib/connector-score'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
 const MODE_MAP = Object.fromEntries(PROFILE_MODES.map(m => [m.value, m.label]))
-
-function connectorScore(profile: Record<string, unknown>, openTo: string[]): number {
-  let s = 0
-  if (profile.avatar_url)         s += 10
-  if (profile.what_i_do)          s += 15
-  if (profile.building_now)       s += 20
-  if (profile.who_i_want_to_meet) s += 10
-  if (profile.where_i_operate)    s += 10
-  if (profile.fun_fact)           s += 10
-  s += Math.min(openTo.length * 4, 15)
-  return Math.min(99, s)
-}
 
 function isActive(signalUpdatedAt: string | null, profileUpdatedAt: string): boolean {
   const ref = signalUpdatedAt ?? profileUpdatedAt
@@ -73,8 +62,9 @@ export default async function ProfilePage({
   const openTo = (signal?.open_to ?? []).filter(v => v !== 'open_door')
   const hasOpenDoor = signal?.open_to?.includes('open_door') ?? false
   const active = isActive(signal?.updated_at ?? null, profile.updated_at)
-  const score = connectorScore(profile as Record<string, unknown>, openTo)
   const name = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Anonymous'
+
+  const { total: score } = await computeConnectorScore(profile.id)
 
   // Connection status, pending requests, and mutual connections
   let isConnected = false

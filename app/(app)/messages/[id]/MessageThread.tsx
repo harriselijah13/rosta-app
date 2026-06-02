@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import OutcomeActions from './OutcomeActions'
 
 type Message = {
   id: string
@@ -26,6 +27,10 @@ type Props = {
   currentUserId: string
   otherProfile: OtherProfile
   initialMessages: Message[]
+  hasOutcome: boolean
+  introRequestId: string | null
+  facilitatorId: string | null
+  thankYouSent: boolean
 }
 
 function initials(p: OtherProfile) {
@@ -52,6 +57,10 @@ export default function MessageThread({
   currentUserId,
   otherProfile,
   initialMessages,
+  hasOutcome,
+  introRequestId,
+  facilitatorId,
+  thankYouSent,
 }: Props) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [input, setInput] = useState('')
@@ -200,6 +209,16 @@ export default function MessageThread({
         })}
         <div ref={bottomRef} />
       </div>
+
+      {/* Outcome + thank-you actions */}
+      <OutcomeActions
+        conversationId={conversationId}
+        hasOutcome={hasOutcome}
+        introRequestId={introRequestId}
+        facilitatorId={facilitatorId}
+        currentUserId={currentUserId}
+        thankYouSent={thankYouSent}
+      />
 
       {/* Input */}
       <form

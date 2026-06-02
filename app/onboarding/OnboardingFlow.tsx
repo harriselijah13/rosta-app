@@ -220,6 +220,8 @@ export default function OnboardingFlow({
         })
         .eq('id', userId)
       if (error) throw error
+      // Redeem invite code + generate founding member codes (fire-and-forget)
+      fetch('/api/invite/redeem', { method: 'POST' }).catch(() => {})
       router.push('/dashboard')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')

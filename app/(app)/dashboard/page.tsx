@@ -92,7 +92,9 @@ export default async function DashboardPage() {
   )
 
   // ── Round 2: dependent fetches ────────────────────────────────────────────
-  const [{ data: activitySignals }, { count: introsMadeCount }] = await Promise.all([
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+
+  const [{ data: activitySignals }, { count: introsMadeCount }, { count: outcomesThisMonth }] = await Promise.all([
     connectionIds.length > 0
       ? admin.from('signals')
           .select('user_id, updated_at, working_on, need_right_now')
@@ -106,6 +108,7 @@ export default async function DashboardPage() {
           .select('id', { count: 'exact', head: true })
           .eq('requester_id', user.id)
       : Promise.resolve({ count: 0 }),
+    admin.from('outcomes').select('id', { count: 'exact', head: true }).gte('created_at', monthStart),
   ])
 
   // ── Round 3: profiles for all referenced users ────────────────────────────
@@ -132,6 +135,14 @@ export default async function DashboardPage() {
   const creditBalance = (!creditsRow || creditsRow.period !== period) ? 3 : creditsRow.balance
   const hasConnections = connectionIds.length > 0
   const introsMade = introsMadeCount ?? 0
+  const realOutcomes = outcomesThisMonth ?? 0
+
+  // Matchmaker: pick two connections with signals for a prompt
+  const connWithSignals = (activitySignals ?? []).map(s => s.user_id)
+  const matchPair =
+    connWithSignals.length >= 2
+      ? [connWithSignals[0], connWithSignals[1]]
+      : null
 
   // Contextual prompt — highest priority wins
   const prompt = (() => {
@@ -277,6 +288,62 @@ export default async function DashboardPage() {
               {prompt.linkLabel}
             </Link>
           </div>
+
+          {/* ── 4. Real outcomes this month ── */}
+          {realOutcomes > 0 && (
+            <div className="bg-lime/20 border border-lime/40 rounded-2xl px-6 py-4 flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-lime shrink-0" />
+              <p className="text-sm font-medium text-navy">
+                {realOutcomes} real {realOutcomes === 1 ? 'outcome' : 'outcomes'} from ROSTA connections this month
+              </p>
+            </div>
+          )}
+
+          {/* ── 5. Matchmaker prompt ── */}
+          {matchPair && (
+            <section>
+              <Eyebrow label="Matchmaker" />
+              <div className="bg-white border border-border rounded-2xl p-5">
+                <p className="text-sm font-medium text-navy mb-4">
+                  Do you think{' '}
+                  <Link href={`/profile/${slug(matchPair[0])}`} className="underline underline-offset-2">
+                    {displayName(byId[matchPair[0]])}
+                  </Link>{' '}
+                  and{' '}
+                  <Link href={`/profile/${slug(matchPair[1])}`} className="underline underline-offset-2">
+                    {displayName(byId[matchPair[1]])}
+                  </Link>{' '}
+                  should meet?
+                </p>
+                <div className="flex gap-2 flex-wrap text-xs text-body-grey mb-4">
+                  {byId[matchPair[0]] && (
+                    <span className="px-2.5 py-1 rounded-full bg-surface border border-border">
+                      {displayName(byId[matchPair[0]])}
+                    </span>
+                  )}
+                  {byId[matchPair[1]] && (
+                    <span className="px-2.5 py-1 rounded-full bg-surface border border-border">
+                      {displayName(byId[matchPair[1]])}
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Link
+                    href={`/intro/request/${matchPair[1]}?suggest=${matchPair[0]}`}
+                    className="text-xs font-medium bg-navy text-warm-white px-4 py-2 rounded-full hover:bg-navy/90 transition-colors"
+                  >
+                    Yes — draft intro
+                  </Link>
+                  <Link
+                    href="/dashboard"
+                    className="text-xs font-medium text-body-grey border border-border px-4 py-2 rounded-full hover:border-navy hover:text-navy transition-colors"
+                  >
+                    Not this time
+                  </Link>
+                </div>
+              </div>
+            </section>
+          )}
 
         </div>
       )}
