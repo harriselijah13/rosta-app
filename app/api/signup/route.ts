@@ -19,6 +19,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
   }
 
+  // ── Step 1b: validate invite code if provided ──────────────────────────
+  if (inviteCode) {
+    const { createAdminClient } = await import('@/lib/supabase/admin')
+    const admin = createAdminClient()
+    const { data: code } = await admin
+      .from('invite_codes')
+      .select('id')
+      .eq('token', (inviteCode as string).trim().toUpperCase())
+      .eq('type', 'founding_invite')
+      .is('used_at', null)
+      .maybeSingle()
+    if (!code) {
+      return NextResponse.json({ error: 'Invalid or already-used invite code' }, { status: 400 })
+    }
+  }
+
   // ── Step 2: call supabase.auth.signUp ───────────────────────────────────
   console.log('[signup] Calling supabase.auth.signUp...')
   const supabase = createClient()

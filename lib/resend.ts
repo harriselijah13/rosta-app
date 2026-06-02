@@ -199,6 +199,32 @@ export function openDoorDeclinedEmail(
   )
 }
 
+export function thankYouEmail(
+  facilitatorName: string,
+  senderName: string,
+  senderSlug: string,
+) {
+  return wrap(
+    `${senderName} said thank you`,
+    `Hi ${facilitatorName}, ${senderName} wanted to thank you for the intro — it clearly led somewhere good.`,
+    `View ${senderName}'s profile`,
+    `${BASE}/profile/${senderSlug}`,
+  )
+}
+
+export function inviteUsedEmail(
+  inviterName: string,
+  newMemberName: string,
+  newMemberSlug: string,
+) {
+  return wrap(
+    `${newMemberName} joined ROSTA`,
+    `Hi ${inviterName}, your invite just brought ${newMemberName} into the network. You earned +1 Connector Score.`,
+    `View ${newMemberName}'s profile`,
+    `${BASE}/profile/${newMemberSlug}`,
+  )
+}
+
 export function newMessageEmail(
   recipientName: string,
   senderName: string,
