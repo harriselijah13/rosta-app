@@ -1,0 +1,258 @@
+import { notFound, redirect } from 'next/navigation'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
+import Badge from '@/components/ui/Badge'
+import { OPEN_TO_OPTIONS, PROFILE_MODES } from '@/lib/constants'
+
+const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
+const MODE_MAP = Object.fromEntries(PROFILE_MODES.map(m => [m.value, m.label]))
+
+function connectorScore(profile: Record<string, unknown>, openTo: string[]): number {
+  let s = 0
+  if (profile.avatar_url)         s += 10
+  if (profile.what_i_do)          s += 15
+  if (profile.building_now)       s += 20
+  if (profile.who_i_want_to_meet) s += 10
+  if (profile.where_i_operate)    s += 10
+  if (profile.fun_fact)           s += 10
+  s += Math.min(openTo.length * 4, 15)
+  return Math.min(99, s)
+}
+
+function isActive(signalUpdatedAt: string | null, profileUpdatedAt: string): boolean {
+  const ref = signalUpdatedAt ?? profileUpdatedAt
+  return Date.now() - new Date(ref).getTime() < 14 * 24 * 60 * 60 * 1000
+}
+
+function Initials({ name }: { name: string }) {
+  const initials = name.trim().split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()
+  return (
+    <div className="w-20 h-20 rounded-full bg-navy/10 text-navy text-xl font-semibold flex items-center justify-center">
+      {initials || '?'}
+    </div>
+  )
+}
+
+export default async function ProfilePage({
+  params,
+}: {
+  params: { id: string }
+}) {
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select(
+      `id, first_name, last_name, avatar_url, what_i_do, building_now,
+       who_i_want_to_meet, where_i_operate, fun_fact, profile_mode,
+       onboarding_completed, updated_at,
+       signals ( open_to, working_on, need_right_now, updated_at )`
+    )
+    .eq('id', params.id)
+    .single()
+
+  if (!profile || !profile.onboarding_completed) notFound()
+
+  const isSelf = user.id === params.id
+  const signal = (profile.signals as { open_to: string[]; working_on: string | null; need_right_now: string | null; updated_at: string }[])?.[0] ?? null
+
+  const openTo = (signal?.open_to ?? []).filter(v => v !== 'open_door')
+  const hasOpenDoor = signal?.open_to?.includes('open_door') ?? false
+  const active = isActive(signal?.updated_at ?? null, profile.updated_at)
+  const score = connectorScore(profile as Record<string, unknown>, openTo)
+  const name = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Anonymous'
+
+  // Non-connections (everyone except self) get limited view
+  const canSeeFullProfile = isSelf
+
+  return (
+    <div className="max-w-3xl mx-auto px-6 py-10">
+      {/* Back */}
+      <Link
+        href="/members"
+        className="inline-flex items-center gap-1.5 text-sm text-body-grey hover:text-navy transition-colors mb-8"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        Members
+      </Link>
+
+      {/* Header card */}
+      <div className="bg-white border border-border rounded-2xl p-8 mb-4">
+        <div className="flex items-start gap-6">
+          {/* Avatar */}
+          <div className="shrink-0">
+            {profile.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={name}
+                className="w-20 h-20 rounded-full object-cover"
+              />
+            ) : (
+              <Initials name={name} />
+            )}
+          </div>
+
+          {/* Name + meta */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <h1 className="font-display text-3xl font-bold text-navy">{name}</h1>
+                <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                  {profile.profile_mode && (
+                    <Badge variant="navy">{MODE_MAP[profile.profile_mode] ?? profile.profile_mode}</Badge>
+                  )}
+                  {/* Active Rosta indicator */}
+                  <span className="inline-flex items-center gap-1.5 text-xs text-body-grey">
+                    <span
+                      className={`w-2 h-2 rounded-full ${active ? 'bg-green-500' : 'bg-body-grey/40'}`}
+                    />
+                    {active ? 'Active on ROSTA' : 'Inactive'}
+                  </span>
+                  {hasOpenDoor && (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-navy">
+                      <span className="w-2 h-2 rounded-full bg-lime" />
+                      Open Door
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Connector Score */}
+              <div className="text-right shrink-0">
+                <p className="font-display text-3xl font-bold text-navy">{score}</p>
+                <p className="text-xs text-body-grey mt-0.5">Connector Score</p>
+              </div>
+            </div>
+
+            {/* What I do — visible to all */}
+            {profile.what_i_do && (
+              <p className="text-navy mt-4 text-sm leading-relaxed">{profile.what_i_do}</p>
+            )}
+
+            {/* Open To — visible to all */}
+            {openTo.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-4">
+                {openTo.map(v => (
+                  <span
+                    key={v}
+                    className="text-xs px-2.5 py-1 rounded-full bg-surface text-body-grey border border-border"
+                  >
+                    {OPEN_TO_MAP[v] ?? v}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-3 mt-6 pt-6 border-t border-border">
+          {isSelf ? (
+            <Link
+              href="/settings"
+              className="inline-flex items-center gap-1.5 text-sm font-medium bg-navy text-warm-white px-5 py-2.5 rounded-full hover:bg-navy/90 transition-colors"
+            >
+              Edit profile
+            </Link>
+          ) : (
+            <button
+              disabled
+              className="text-sm font-medium bg-navy text-warm-white px-5 py-2.5 rounded-full opacity-60 cursor-not-allowed"
+              title="Connection system coming soon"
+            >
+              Connect
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Limited-view notice for non-self */}
+      {!canSeeFullProfile && (
+        <div className="bg-surface border border-border rounded-xl px-5 py-4 mb-4 text-sm text-body-grey">
+          Connect to see the full profile — building now, who they want to meet, and more.
+        </div>
+      )}
+
+      {/* Full profile sections (own profile only for now) */}
+      {canSeeFullProfile && (
+        <div className="space-y-4">
+          {/* Profile details */}
+          {(profile.building_now || profile.who_i_want_to_meet || profile.where_i_operate || profile.fun_fact) && (
+            <div className="bg-white border border-border rounded-2xl p-6">
+              <h2 className="font-display text-lg font-bold text-navy mb-4">Profile</h2>
+              <dl className="space-y-4">
+                {profile.building_now && (
+                  <div>
+                    <dt className="text-xs font-medium text-body-grey uppercase tracking-wide mb-1">Building now</dt>
+                    <dd className="text-sm text-navy">{profile.building_now}</dd>
+                  </div>
+                )}
+                {profile.who_i_want_to_meet && (
+                  <div>
+                    <dt className="text-xs font-medium text-body-grey uppercase tracking-wide mb-1">Who I want to meet</dt>
+                    <dd className="text-sm text-navy">{profile.who_i_want_to_meet}</dd>
+                  </div>
+                )}
+                {profile.where_i_operate && (
+                  <div>
+                    <dt className="text-xs font-medium text-body-grey uppercase tracking-wide mb-1">Where I operate</dt>
+                    <dd className="text-sm text-navy">{profile.where_i_operate}</dd>
+                  </div>
+                )}
+                {profile.fun_fact && (
+                  <div>
+                    <dt className="text-xs font-medium text-body-grey uppercase tracking-wide mb-1">One thing people don&apos;t know</dt>
+                    <dd className="text-sm text-navy">{profile.fun_fact}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+
+          {/* Signals */}
+          {signal && (signal.working_on || signal.need_right_now || openTo.length > 0) && (
+            <div className="bg-white border border-border rounded-2xl p-6">
+              <h2 className="font-display text-lg font-bold text-navy mb-4">Signals</h2>
+              <div className="space-y-4">
+                {openTo.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-2">Open to</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {openTo.map(v => (
+                        <span
+                          key={v}
+                          className="text-xs px-2.5 py-1 rounded-full bg-surface text-body-grey border border-border"
+                        >
+                          {OPEN_TO_MAP[v] ?? v}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {signal.working_on && (
+                  <div>
+                    <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-1">Working on</p>
+                    <p className="text-sm text-navy">{signal.working_on}</p>
+                  </div>
+                )}
+                {signal.need_right_now && (
+                  <div>
+                    <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-1">Need right now</p>
+                    <p className="text-sm text-navy">{signal.need_right_now}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
