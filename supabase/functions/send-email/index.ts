@@ -64,19 +64,27 @@ serve(async (req) => {
   try {
     const payload = await req.json()
     const { user, email_data } = payload
-    const { token_hash, email_action_type, redirect_to } = email_data
+    const { token_hash, token_hash_new, email_action_type } = email_data
+
+    // For email_change_new the new-address hash is in token_hash_new
+    const hash = email_action_type === 'email_change_new' ? token_hash_new : token_hash
 
     console.log('[send-email] Hook received', {
-      action:      email_action_type,
-      to:          user?.email,
-      token_hash:  token_hash ? `${token_hash.slice(0, 8)}...` : null,
-      redirect_to,
+      action:         email_action_type,
+      to:             user?.email,
+      hash:           hash ? `${hash.slice(0, 8)}...` : null,
       resend_key_set: !!RESEND_API_KEY,
     })
 
-    const confirmUrl = token_hash
-      ? `https://app.onrosta.com/auth/callback?token_hash=${token_hash}&type=${email_action_type}`
-      : redirect_to
+    if (!hash) {
+      console.error('[send-email] No token_hash in payload — cannot build confirmation URL', email_data)
+      return new Response(JSON.stringify({ error: 'missing_token_hash' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const confirmUrl = `https://app.onrosta.com/auth/callback?token_hash=${hash}&type=${email_action_type}`
 
     const subject = SUBJECTS[email_action_type] ?? 'ROSTA notification'
     const html = buildHtml(email_action_type, confirmUrl)

@@ -8,9 +8,12 @@ import Input from '@/components/ui/Input'
 import Textarea from '@/components/ui/Textarea'
 import { OPEN_TO_OPTIONS, PROFILE_MODES } from '@/lib/constants'
 
+const USERNAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/
+
 type Props = {
   userId: string
   profile: {
+    username?: string | null
     first_name?: string | null
     last_name?: string | null
     avatar_url?: string | null
@@ -38,6 +41,7 @@ export default function SettingsClient({ userId, profile, signals }: Props) {
   const [avatarPreview, setAvatarPreview] = useState(profile.avatar_url ?? '')
 
   // Profile fields
+  const [username, setUsername] = useState(profile.username ?? '')
   const [firstName, setFirstName] = useState(profile.first_name ?? '')
   const [lastName, setLastName] = useState(profile.last_name ?? '')
   const [whatIDo, setWhatIDo] = useState(profile.what_i_do ?? '')
@@ -98,6 +102,15 @@ export default function SettingsClient({ userId, profile, signals }: Props) {
       setError('"Building now" is required.')
       return
     }
+    const trimmedUsername = username.trim().toLowerCase()
+    if (trimmedUsername && !USERNAME_RE.test(trimmedUsername)) {
+      setError('Username can only contain lowercase letters, numbers, and hyphens, and cannot start or end with a hyphen.')
+      return
+    }
+    if (trimmedUsername.length > 30) {
+      setError('Username must be 30 characters or fewer.')
+      return
+    }
     setSaving(true)
     setSaved(false)
     setError('')
@@ -108,6 +121,7 @@ export default function SettingsClient({ userId, profile, signals }: Props) {
       const { error: pe } = await supabase
         .from('profiles')
         .update({
+          username:             trimmedUsername || null,
           first_name:           firstName.trim() || null,
           last_name:            lastName.trim() || null,
           avatar_url:           avatarUrl || null,
@@ -119,7 +133,10 @@ export default function SettingsClient({ userId, profile, signals }: Props) {
           profile_mode:         profileMode || null,
         })
         .eq('id', userId)
-      if (pe) throw pe
+      if (pe) {
+        if (pe.code === '23505') throw new Error('That username is already taken.')
+        throw pe
+      }
 
       const { error: se } = await supabase
         .from('signals')
@@ -191,6 +208,28 @@ export default function SettingsClient({ userId, profile, signals }: Props) {
               </button>
             )}
           </div>
+        </div>
+
+        {/* Username */}
+        <div className="mb-4">
+          <label htmlFor="username" className="block text-sm font-medium text-navy mb-1.5">
+            Username
+          </label>
+          <div className="flex items-center rounded-xl border border-border bg-white overflow-hidden focus-within:ring-2 focus-within:ring-navy/20 focus-within:border-navy transition-colors">
+            <span className="pl-4 pr-1 text-body-grey text-sm select-none">onrosta.com/profile/</span>
+            <input
+              id="username"
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value.toLowerCase())}
+              placeholder="your-name"
+              maxLength={30}
+              className="flex-1 py-3 pr-4 bg-transparent text-navy placeholder-body-grey focus:outline-none text-sm"
+            />
+          </div>
+          <p className="mt-1 text-xs text-body-grey">
+            Lowercase letters, numbers, and hyphens only — max 30 characters.
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-4">
@@ -357,7 +396,7 @@ export default function SettingsClient({ userId, profile, signals }: Props) {
           </button>
         </div>
         {openDoor && (
-          <p className="mt-3 text-sm font-medium text-lime">
+          <p className="mt-3 text-sm font-medium text-navy">
             Open Door is on — your profile shows the indicator
           </p>
         )}

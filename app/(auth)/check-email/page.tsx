@@ -22,9 +22,12 @@ export default function CheckEmailPage() {
         <h1 className="font-display text-3xl font-bold text-navy mb-3">
           Check your email
         </h1>
-        <p className="text-body-grey mb-8">
+        <p className="text-body-grey mb-2">
           We sent a verification link to your inbox. Click it to activate your
           account and get started.
+        </p>
+        <p className="text-sm text-body-grey mb-8">
+          Can&apos;t find it? Check your junk or spam folder.
         </p>
         <p className="text-sm text-body-grey">
           Didn&apos;t receive it?{' '}

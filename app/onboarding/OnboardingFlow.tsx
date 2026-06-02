@@ -253,7 +253,7 @@ export default function OnboardingFlow({
           {step === 1 && (
             <div className="flex flex-col gap-6">
               <div>
-                <p className="text-lime text-xs font-medium tracking-widest uppercase mb-2">
+                <p className="text-navy text-xs font-medium tracking-widest uppercase mb-2 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
                   Step 1
                 </p>
                 <h1 className="font-display text-4xl font-bold text-navy">
@@ -346,7 +346,7 @@ export default function OnboardingFlow({
           {step === 2 && (
             <div className="flex flex-col gap-5">
               <div>
-                <p className="text-lime text-xs font-medium tracking-widest uppercase mb-2">
+                <p className="text-navy text-xs font-medium tracking-widest uppercase mb-2 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
                   Step 2
                 </p>
                 <h1 className="font-display text-4xl font-bold text-navy">
@@ -441,7 +441,7 @@ export default function OnboardingFlow({
           {step === 3 && (
             <div className="flex flex-col gap-6">
               <div>
-                <p className="text-lime text-xs font-medium tracking-widest uppercase mb-2">
+                <p className="text-navy text-xs font-medium tracking-widest uppercase mb-2 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
                   Step 3
                 </p>
                 <h1 className="font-display text-4xl font-bold text-navy">
@@ -520,7 +520,7 @@ export default function OnboardingFlow({
           {step === 4 && (
             <div className="flex flex-col gap-6">
               <div>
-                <p className="text-lime text-xs font-medium tracking-widest uppercase mb-2">
+                <p className="text-navy text-xs font-medium tracking-widest uppercase mb-2 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
                   Step 4
                 </p>
                 <h1 className="font-display text-4xl font-bold text-navy">
