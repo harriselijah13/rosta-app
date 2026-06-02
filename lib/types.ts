@@ -18,6 +18,7 @@ export type Profile = {
   fun_fact: string | null
   profile_mode: string | null
   onboarding_completed: boolean
+  founding_member: boolean
   updated_at: string
   signals: Signal[]
 }

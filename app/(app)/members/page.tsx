@@ -14,8 +14,8 @@ export default async function MembersPage() {
   const { data: members } = await supabase
     .from('profiles')
     .select(
-      `id, first_name, last_name, avatar_url, what_i_do, building_now,
-       where_i_operate, profile_mode, onboarding_completed, updated_at,
+      `id, username, first_name, last_name, avatar_url, what_i_do, building_now,
+       where_i_operate, profile_mode, onboarding_completed, founding_member, updated_at,
        signals ( open_to, working_on, need_right_now, updated_at )`
     )
     .eq('onboarding_completed', true)

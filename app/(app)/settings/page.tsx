@@ -76,7 +76,7 @@ export default async function SettingsPage() {
         />
       )}
       {profile?.founding_member && inviteCodes.length > 0 && (
-        <div className="max-w-2xl mx-auto px-6 pb-10">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 pb-10">
           <InviteCodesSection codes={inviteCodes} />
         </div>
       )}
