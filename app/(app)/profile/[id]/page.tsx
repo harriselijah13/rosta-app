@@ -39,7 +39,7 @@ export default async function ProfilePage({
 
   const PROFILE_SELECT = `id, username, first_name, last_name, avatar_url, what_i_do, building_now,
        who_i_want_to_meet, where_i_operate, fun_fact, profile_mode,
-       onboarding_completed, updated_at`
+       onboarding_completed, founding_member, updated_at`
 
   const isUuid = UUID_RE.test(params.id)
   const { data: profile } = await supabase
@@ -139,6 +139,14 @@ export default async function ProfilePage({
               <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                 {profile.profile_mode && (
                   <Badge variant="navy">{MODE_MAP[profile.profile_mode] ?? profile.profile_mode}</Badge>
+                )}
+                {profile.founding_member && (
+                  <span
+                    title="Founding member — joined in the first 500"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-navy bg-lime/30 border border-lime/50 px-2 py-0.5 rounded-full"
+                  >
+                    Founding member
+                  </span>
                 )}
                 <span className="inline-flex items-center gap-1.5 text-xs text-body-grey">
                   <span

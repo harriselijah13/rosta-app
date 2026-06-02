@@ -161,7 +161,7 @@ export default function SettingsClient({ userId, profile, signals }: Props) {
   }
 
   return (
-    <form onSubmit={handleSave} className="max-w-2xl mx-auto px-6 py-10">
+    <form onSubmit={handleSave} className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
       <h1 className="font-display text-4xl font-bold text-navy mb-8">Settings</h1>
 
       {/* ── Profile section ── */}

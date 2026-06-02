@@ -9,19 +9,29 @@ import type { Profile } from '@/lib/types'
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
 const MODE_MAP = Object.fromEntries(PROFILE_MODES.map(m => [m.value, m.label]))
 
-function Initials({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
+function ActiveDot({ active }: { active: boolean }) {
+  return (
+    <span
+      title={active ? 'Active on ROSTA' : 'Inactive'}
+      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+        active ? 'bg-green-500' : 'bg-body-grey/30'
+      }`}
+    />
+  )
+}
+
+function Initials({ name, size = 'md', active }: { name: string; size?: 'sm' | 'md'; active: boolean }) {
   const parts = name.trim().split(' ')
-  const initials = parts
-    .map(p => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
+  const initials = parts.map(p => p[0]).slice(0, 2).join('').toUpperCase()
   const cls = size === 'sm' ? 'w-10 h-10 text-sm' : 'w-12 h-12 text-sm'
   return (
-    <div
-      className={`${cls} rounded-full bg-navy/10 text-navy font-medium flex items-center justify-center shrink-0`}
-    >
-      {initials || '?'}
+    <div className="relative shrink-0">
+      <div
+        className={`${cls} rounded-full bg-navy/10 text-navy font-medium flex items-center justify-center`}
+      >
+        {initials || '?'}
+      </div>
+      <ActiveDot active={active} />
     </div>
   )
 }
@@ -38,26 +48,38 @@ function MemberCard({
   const openTo = (signal?.open_to ?? []).filter(v => v !== 'open_door')
   const hasOpenDoor = signal?.open_to?.includes('open_door') ?? false
 
+  const ref = signal?.updated_at ?? member.updated_at
+  const isActive = Date.now() - new Date(ref).getTime() < 14 * 24 * 60 * 60 * 1000
+
   return (
     <Link
-      href={`/profile/${member.id}`}
+      href={`/profile/${member.username ?? member.id}`}
       className="group block bg-white border border-border rounded-2xl p-5 hover:border-navy/30 hover:shadow-sm transition-all"
     >
       <div className="flex items-start gap-3 mb-3">
         {member.avatar_url ? (
-          <img
-            src={member.avatar_url}
-            alt={name}
-            className="w-12 h-12 rounded-full object-cover shrink-0"
-          />
+          <div className="relative shrink-0">
+            <img
+              src={member.avatar_url}
+              alt={name}
+              className="w-12 h-12 rounded-full object-cover"
+            />
+            <ActiveDot active={isActive} />
+          </div>
         ) : (
-          <Initials name={name} />
+          <Initials name={name} active={isActive} />
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold text-navy text-sm leading-tight">{name}</p>
-            {isSelf && (
-              <span className="text-xs text-body-grey">(you)</span>
+            {isSelf && <span className="text-xs text-body-grey">(you)</span>}
+            {member.founding_member && (
+              <span
+                title="Founding member — joined in the first 500"
+                className="inline-flex items-center gap-1 text-[10px] font-semibold text-navy bg-lime/30 border border-lime/50 px-1.5 py-0.5 rounded-full"
+              >
+                Founding
+              </span>
             )}
             {hasOpenDoor && (
               <span className="inline-flex items-center gap-1 text-xs text-navy font-medium">
@@ -67,7 +89,9 @@ function MemberCard({
             )}
           </div>
           {member.profile_mode && (
-            <p className="text-xs text-body-grey mt-0.5">{MODE_MAP[member.profile_mode] ?? member.profile_mode}</p>
+            <p className="text-xs text-body-grey mt-0.5">
+              {MODE_MAP[member.profile_mode] ?? member.profile_mode}
+            </p>
           )}
         </div>
         {member.profile_mode && (
@@ -131,7 +155,7 @@ export default function MemberDirectory({
   const hasFilters = search || modeFilter || openToFilter
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       {/* Header */}
       <div className="mb-8">
         <h1 className="font-display text-4xl font-bold text-navy mb-1">Members</h1>
@@ -150,7 +174,7 @@ export default function MemberDirectory({
           className="w-full max-w-md px-4 py-3 bg-white border border-border rounded-xl text-navy placeholder-body-grey focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy transition-colors text-sm"
         />
 
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex flex-wrap gap-2 items-center overflow-x-auto pb-1">
           {/* Profile mode filter */}
           <div className="flex flex-wrap gap-1.5">
             {FILTER_MODES.map(m => (
