@@ -85,6 +85,20 @@ async function run() {
       add column if not exists thank_you_at timestamptz
   `)
 
+  // Fix invite_codes type constraint to allow 'founding_invite'
+  await sql('update invite_codes type check constraint', `
+    alter table invite_codes drop constraint if exists invite_codes_type_check;
+    alter table invite_codes add constraint invite_codes_type_check
+      check (type = any(array['member_qr','guest_qr','founding_invite']))
+  `)
+
+  // Fix expiry constraint — only guest_qr requires expires_at
+  await sql('update invite_codes expiry constraint', `
+    alter table invite_codes drop constraint if exists invite_guest_qr_has_expiry;
+    alter table invite_codes add constraint invite_guest_qr_has_expiry
+      check (type != 'guest_qr' or expires_at is not null)
+  `)
+
   console.log('\nAll Week 5 migrations complete.')
 }
 
