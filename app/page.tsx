@@ -4,7 +4,7 @@ export default function Home() {
       {/* Nav */}
       <nav className="flex items-center justify-between px-8 py-5 border-b border-border">
         <span className="font-display text-2xl font-bold tracking-tight text-navy">
-          ROSTA
+          ROSTA<span className="text-lime">.</span>
         </span>
         <div className="flex items-center gap-4">
           <a
