@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { computeConnectorScore } from '@/lib/connector-score'
 import { OPEN_TO_OPTIONS } from '@/lib/constants'
+import VerifiedBadge from '@/components/ui/VerifiedBadge'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
 
@@ -67,6 +68,60 @@ function StatCard({
     </div>
   )
   return href ? <Link href={href}>{inner}</Link> : inner
+}
+
+function RostaIndex({
+  intros,
+  outcomes,
+  signals,
+  tables,
+}: {
+  intros: number
+  outcomes: number
+  signals: number
+  tables: number
+}) {
+  const stats = [
+    intros > 0   ? `${intros} intro${intros === 1 ? '' : 's'} made this week` : null,
+    outcomes > 0 ? `${outcomes} collaboration${outcomes === 1 ? '' : 's'} started this month` : null,
+    signals > 0  ? `${signals} member${signals === 1 ? '' : 's'} updated their signals this week` : null,
+    tables > 0   ? `${tables} Open Table${tables === 1 ? '' : 's'} running` : null,
+  ].filter((s): s is string => s !== null)
+
+  if (stats.length === 0) return null
+
+  return (
+    <div className="bg-white border border-border rounded-2xl px-5 py-4">
+      <p className="text-navy text-xs font-medium tracking-widest uppercase mb-3 flex items-center gap-1.5">
+        <span className="w-1.5 h-1.5 rounded-full bg-lime animate-pulse shrink-0" />
+        Network pulse
+      </p>
+      <p className="text-sm text-body-grey leading-relaxed">
+        {stats.join(' · ')}
+      </p>
+    </div>
+  )
+}
+
+function OpenTableCard({ roomId, expiresAt }: { roomId: string; expiresAt: string }) {
+  const daysLeft = Math.max(1, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86400000))
+  return (
+    <section>
+      <Eyebrow label="Your Open Table" />
+      <Link
+        href={`/open-tables/${roomId}`}
+        className="flex items-center justify-between gap-4 bg-white border border-border rounded-2xl px-5 py-4 hover:border-navy/30 hover:shadow-sm transition-all group"
+      >
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-navy">Your group is active</p>
+          <p className="text-xs text-body-grey mt-0.5">{daysLeft}d left to contribute</p>
+        </div>
+        <span className="text-xs font-medium text-navy shrink-0 group-hover:underline">
+          Open →
+        </span>
+      </Link>
+    </section>
+  )
 }
 
 // ─── page ─────────────────────────────────────────────────────────────────────
@@ -135,6 +190,10 @@ export default async function DashboardPage() {
     { count: introsMadeCount },
     { count: outcomesThisMonth },
     connectorScore,
+    { count: indexIntrosThisWeek },
+    { count: indexSignalsThisWeek },
+    { count: indexOpenTables },
+    { data: myMemberships },
   ] = await Promise.all([
     connectionIds.length > 0
       ? admin
@@ -163,6 +222,24 @@ export default async function DashboardPage() {
       .select('id', { count: 'exact', head: true })
       .gte('created_at', monthStart),
     computeConnectorScore(user.id),
+    // Rosta Index: network-wide aggregate counts
+    admin
+      .from('intro_requests')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', sevenDaysAgo),
+    admin
+      .from('signals')
+      .select('id', { count: 'exact', head: true })
+      .gte('updated_at', sevenDaysAgo),
+    admin
+      .from('open_table_rooms')
+      .select('id', { count: 'exact', head: true })
+      .gt('expires_at', now),
+    // User's Open Table membership
+    admin
+      .from('open_table_members')
+      .select('room_id, open_table_rooms(id, expires_at)')
+      .eq('user_id', user.id),
   ])
 
   // ── Round 3: profiles for referenced users ────────────────────────────────
@@ -176,7 +253,7 @@ export default async function DashboardPage() {
     allProfileIds.length > 0
       ? await admin
           .from('profiles')
-          .select('id, first_name, last_name, avatar_url, username')
+          .select('id, first_name, last_name, avatar_url, username, is_verified')
           .in('id', allProfileIds)
       : {
           data: [] as {
@@ -185,6 +262,7 @@ export default async function DashboardPage() {
             last_name: string | null
             avatar_url: string | null
             username: string | null
+            is_verified: boolean
           }[],
         }
 
@@ -228,6 +306,21 @@ export default async function DashboardPage() {
   const myOpenTo = (mySignals?.open_to ?? []).filter(
     (v: string) => v !== 'open_door',
   )
+
+  type RoomRef = { id: string; expires_at: string }
+  const myOpenTableRoom = (myMemberships ?? [])
+    .map(m => {
+      const raw = (m as unknown as { open_table_rooms: RoomRef | RoomRef[] | null }).open_table_rooms
+      return Array.isArray(raw) ? raw[0] ?? null : raw
+    })
+    .find((r): r is RoomRef => r != null && r.expires_at > now) ?? null
+
+  const rostaIndex = {
+    intros:   indexIntrosThisWeek  ?? 0,
+    outcomes: outcomesThisMonth    ?? 0,
+    signals:  indexSignalsThisWeek ?? 0,
+    tables:   indexOpenTables      ?? 0,
+  }
 
   // ── render ────────────────────────────────────────────────────────────────
   return (
@@ -387,6 +480,19 @@ export default async function DashboardPage() {
           </section>
         )}
 
+        {/* Open Table */}
+        {myOpenTableRoom && (
+          <OpenTableCard roomId={myOpenTableRoom.id} expiresAt={myOpenTableRoom.expires_at} />
+        )}
+
+        {/* Rosta Index */}
+        <RostaIndex
+          intros={rostaIndex.intros}
+          outcomes={rostaIndex.outcomes}
+          signals={rostaIndex.signals}
+          tables={rostaIndex.tables}
+        />
+
         {/* Network activity */}
         {networkActivity.length > 0 && (
           <section>
@@ -424,8 +530,9 @@ export default async function DashboardPage() {
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-navy group-hover:underline">
+                      <p className="text-sm font-medium text-navy group-hover:underline flex items-center gap-1.5">
                         {name}
+                        {p.is_verified && <VerifiedBadge />}
                       </p>
                       <p className="text-xs text-body-grey truncate">{label}</p>
                     </div>

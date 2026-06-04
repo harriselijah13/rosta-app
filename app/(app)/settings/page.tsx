@@ -8,14 +8,20 @@ import QRSection from './QRSection'
 import GuestQRSection from './GuestQRSection'
 import InviteCodesSection from './InviteCodesSection'
 
+function currentMonthPeriod() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
 export default async function SettingsPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const admin = createAdminClient()
+  const period = currentMonthPeriod()
 
-  const [{ data: profile }, { data: signalRow }, memberToken, guestQR] = await Promise.all([
+  const [{ data: profile }, { data: signalRow }, memberToken, guestQR, { data: optinRow }] = await Promise.all([
     supabase
       .from('profiles')
       .select(
@@ -27,6 +33,7 @@ export default async function SettingsPage() {
     supabase.from('signals').select('open_to, working_on, need_right_now').eq('user_id', user.id).single(),
     getOrCreateMemberQR(user.id),
     getOrCreateGuestQR(user.id),
+    admin.from('open_table_optins').select('id').eq('user_id', user.id).eq('period', period).maybeSingle(),
   ])
 
   // Auto-generate invite codes for founding members who don't have them yet
@@ -67,6 +74,8 @@ export default async function SettingsPage() {
         userId={user.id}
         profile={profile ?? {}}
         signals={signalRow ?? null}
+        openTableOptedIn={!!optinRow}
+        openTablePeriod={period}
       />
       {memberToken && <QRSection url={qrUrl(memberToken)} />}
       {guestQR && (

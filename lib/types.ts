@@ -19,6 +19,8 @@ export type Profile = {
   profile_mode: string | null
   onboarding_completed: boolean
   founding_member: boolean
+  is_verified: boolean
+  verification_status: string
   updated_at: string
   signals: Signal[]
 }

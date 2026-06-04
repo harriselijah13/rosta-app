@@ -8,22 +8,16 @@ export default function Home() {
         </span>
         <div className="flex items-center gap-4">
           <a
-            href="#"
+            href="/login"
             className="text-sm text-body-grey hover:text-navy transition-colors"
           >
             Sign in
-          </a>
-          <a
-            href="#"
-            className="text-sm font-medium bg-navy text-warm-white px-4 py-2 rounded-full hover:bg-navy/90 transition-colors"
-          >
-            Get started
           </a>
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="flex-1 flex flex-col items-center justify-center text-center px-6 py-24 bg-navy">
+      <section className="min-h-screen flex flex-col items-center justify-center text-center px-6 py-24 bg-navy">
         <p className="text-lime text-sm font-medium tracking-widest uppercase mb-6">
           Professional Networking — Reimagined
         </p>
@@ -31,26 +25,22 @@ export default function Home() {
           Build connections that actually matter
         </h1>
         <p className="text-warm-white/70 text-lg max-w-xl mb-10 text-balance">
-          ROSTA brings professionals together around shared work, not vanity metrics. Showcase what you do, find who you need.
+          ROSTA brings professionals together around real work and real introductions. No vanity metrics. No performing.
         </p>
         <div className="flex items-center gap-4 flex-wrap justify-center">
           <a
-            href="#"
+            href="https://onrosta.com"
+            target="_blank"
+            rel="noopener noreferrer"
             className="bg-lime text-navy font-semibold px-8 py-3 rounded-full hover:bg-lime/90 transition-colors"
           >
             Join the waitlist
-          </a>
-          <a
-            href="#"
-            className="text-warm-white border border-warm-white/30 px-8 py-3 rounded-full hover:border-warm-white/60 transition-colors text-sm"
-          >
-            Learn more
           </a>
         </div>
       </section>
 
       {/* Foundation strip */}
-      <section className="bg-surface border-t border-border px-8 py-6 flex items-center justify-center">
+      <section id="about" className="bg-surface border-t border-border px-8 py-6 flex items-center justify-center">
         <p className="text-body-grey text-sm text-center">
           Foundation is set — features coming soon.
         </p>

@@ -1,6 +1,8 @@
 {
   "crons": [
     { "path": "/api/cron/nudge", "schedule": "0 9 * * *" },
-    { "path": "/api/cron/message-notifications", "schedule": "0 10 * * *" }
+    { "path": "/api/cron/message-notifications", "schedule": "0 10 * * *" },
+    { "path": "/api/cron/open-tables-match", "schedule": "0 8 1 * *" },
+    { "path": "/api/cron/open-tables-cleanup", "schedule": "0 6 * * *" }
   ]
 }

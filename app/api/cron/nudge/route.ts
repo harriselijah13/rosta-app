@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, connectionNudgeEmail } from '@/lib/resend'
+import { recordCronRun } from '@/lib/cron-recorder'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,5 +67,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  await recordCronRun('nudge', 'ok', `nudged ${nudged}`)
   return NextResponse.json({ nudged })
 }

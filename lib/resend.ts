@@ -254,6 +254,52 @@ export function connectionNudgeEmail(
   )
 }
 
+export function openTableStartedEmail(recipientName: string, roomId: string) {
+  return wrap(
+    'Your Open Table is live',
+    `Hi ${recipientName}, you've been matched into an Open Table group for this month. You have 7 days to connect with your group. The opening question is waiting for you inside.`,
+    'Open your table',
+    `${BASE}/open-tables/${roomId}`,
+  )
+}
+
+export function openTableFallbackEmail(recipientName: string) {
+  return wrap(
+    'Open Table — not enough members this month',
+    `Hi ${recipientName}, not enough members opted in for an Open Table this month. We'll try again next month — keep an eye out for the option in your settings.`,
+    'Back to your dashboard',
+    `${BASE}/dashboard`,
+  )
+}
+
+export function verificationApprovedEmail(name: string, priceAed: number, tier: string) {
+  const tierLabel = tier === 'founding' ? 'Founding Member' : tier === 'connector' ? 'Connector' : 'Standard'
+  return wrap(
+    'Your verification request has been approved',
+    `Hi ${name}, your request to become a Verified ROSTA member has been approved. Your applicable tier is <strong>${tierLabel}</strong> at AED ${priceAed.toFixed(2)}. Complete your payment to receive your verified badge.`,
+    'Complete payment',
+    `${BASE}/verify/pay`,
+  )
+}
+
+export function verificationRejectedEmail(name: string, reason: string) {
+  return wrap(
+    'Your verification request was not approved',
+    `Hi ${name}, after reviewing your request we were unable to approve your ROSTA verification at this time.</p><p style="color:#6B7280;font-size:15px;line-height:1.6;margin:16px 0 0;"><strong style="color:#0F1B3C;">Reason:</strong> ${reason}`,
+    'Back to your profile',
+    `${BASE}/dashboard`,
+  )
+}
+
+export function verificationPaidEmail(name: string) {
+  return wrap(
+    'You are now a Verified ROSTA member',
+    `Hi ${name}, your payment has been processed and your Verified badge is now live on your profile. Thank you for your commitment to the network.`,
+    'View your profile',
+    `${BASE}/dashboard`,
+  )
+}
+
 export function introDeclinedEmail(
   requesterName: string,
   facilitatorName: string,
