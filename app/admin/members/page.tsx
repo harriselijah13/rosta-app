@@ -9,7 +9,7 @@ export default async function MembersPage() {
   // Fetch all completed profiles
   const { data: profiles } = await admin
     .from('profiles')
-    .select('id, first_name, last_name, username, where_i_operate, profile_mode, founding_member, created_at, last_active_at, building_now')
+    .select('id, first_name, last_name, username, where_i_operate, profile_mode, founding_member, created_at, last_active_at, building_now, is_verified')
     .eq('onboarding_completed', true)
     .order('created_at', { ascending: false })
 
@@ -29,6 +29,7 @@ export default async function MembersPage() {
     created_at:      p.created_at,
     last_active_at:  p.last_active_at,
     is_complete:     !!(p.first_name && p.building_now),
+    is_verified:     p.is_verified ?? false,
   }))
 
   return <MembersClient members={members} />
