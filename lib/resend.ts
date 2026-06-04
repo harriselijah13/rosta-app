@@ -300,6 +300,15 @@ export function verificationPaidEmail(name: string) {
   )
 }
 
+export function adminVerificationGrantedEmail(name: string) {
+  return wrap(
+    "You're now a Verified ROSTA member",
+    `Hi ${name}, the ROSTA team has granted you Verified status. Your verified badge is now live on your profile — no further action needed.`,
+    'View your profile',
+    `${BASE}/dashboard`,
+  )
+}
+
 export function introDeclinedEmail(
   requesterName: string,
   facilitatorName: string,

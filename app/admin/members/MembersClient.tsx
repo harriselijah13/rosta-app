@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { setFoundingMember, generateInviteCode, removeMember } from './actions'
+import { setFoundingMember, generateInviteCode, removeMember, grantVerification } from './actions'
 
 export type AdminMember = {
   id: string
@@ -17,13 +17,15 @@ export type AdminMember = {
   created_at: string
   last_active_at: string | null
   is_complete: boolean
+  is_verified: boolean
 }
 
 const PAGE_SIZE = 50
 
-type FilterActive   = 'all' | 'active' | 'inactive'
-type FilterFounding = 'all' | 'yes'    | 'no'
-type FilterComplete = 'all' | 'yes'    | 'no'
+type FilterActive   = 'all' | 'active'   | 'inactive'
+type FilterFounding = 'all' | 'yes'      | 'no'
+type FilterComplete = 'all' | 'yes'      | 'no'
+type FilterVerified = 'all' | 'verified' | 'unverified'
 
 function relativeTime(iso: string | null): string {
   if (!iso) return 'Never'
@@ -48,7 +50,7 @@ function fullName(m: AdminMember): string {
 }
 
 function exportCsv(rows: AdminMember[]) {
-  const headers = ['Name', 'Email', 'Joined', 'Location', 'Mode', 'Founding', 'Last active', 'Complete']
+  const headers = ['Name', 'Email', 'Joined', 'Location', 'Mode', 'Founding', 'Verified', 'Last active', 'Complete']
   const lines = rows.map(m => [
     fullName(m),
     m.email,
@@ -56,6 +58,7 @@ function exportCsv(rows: AdminMember[]) {
     m.where_i_operate ?? '',
     m.profile_mode ?? '',
     m.founding_member ? 'Yes' : 'No',
+    m.is_verified ? 'Yes' : 'No',
     m.last_active_at ? new Date(m.last_active_at).toLocaleDateString('en-GB') : 'Never',
     m.is_complete ? 'Yes' : 'No',
   ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
@@ -88,12 +91,15 @@ function FilterBtn({
 export default function MembersClient({ members }: { members: AdminMember[] }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [search,         setSearch]         = useState('')
-  const [filterFounding, setFilterFounding] = useState<FilterFounding>('all')
-  const [filterActive,   setFilterActive]   = useState<FilterActive>('all')
-  const [filterComplete, setFilterComplete] = useState<FilterComplete>('all')
-  const [page,           setPage]           = useState(0)
-  const [actionTarget,   setActionTarget]   = useState<string | null>(null)
+  const [search,          setSearch]         = useState('')
+  const [filterFounding,  setFilterFounding]  = useState<FilterFounding>('all')
+  const [filterActive,    setFilterActive]    = useState<FilterActive>('all')
+  const [filterComplete,  setFilterComplete]  = useState<FilterComplete>('all')
+  const [filterVerified,  setFilterVerified]  = useState<FilterVerified>('all')
+  const [page,            setPage]            = useState(0)
+  const [actionTarget,    setActionTarget]    = useState<string | null>(null)
+  // Track admin-granted verifications this session so the row updates immediately
+  const [grantedIds, setGrantedIds] = useState<Set<string>>(new Set())
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -109,9 +115,12 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
       if (filterActive === 'inactive' &&  active) return false
       if (filterComplete === 'yes' && !m.is_complete) return false
       if (filterComplete === 'no'  &&  m.is_complete) return false
+      const isVerified = m.is_verified || grantedIds.has(m.id)
+      if (filterVerified === 'verified'   && !isVerified) return false
+      if (filterVerified === 'unverified' &&  isVerified) return false
       return true
     })
-  }, [members, search, filterFounding, filterActive, filterComplete])
+  }, [members, search, filterFounding, filterActive, filterComplete, filterVerified, grantedIds])
 
   const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
@@ -142,6 +151,16 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
     startTransition(async () => {
       await removeMember(m.id)
       router.refresh()
+      setActionTarget(null)
+    })
+  }
+
+  async function handleGrantVerification(m: AdminMember) {
+    if (!confirm(`Grant verified status to ${fullName(m)}? They will receive a "You're now verified" email immediately.`)) return
+    setActionTarget(m.id)
+    startTransition(async () => {
+      await grantVerification(m.id)
+      setGrantedIds(prev => { const next = new Set(prev); next.add(m.id); return next })
       setActionTarget(null)
     })
   }
@@ -191,6 +210,12 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
           <FilterBtn active={filterComplete === 'yes'} onClick={() => { setFilterComplete('yes'); resetPage() }}>Complete</FilterBtn>
           <FilterBtn active={filterComplete === 'no'}  onClick={() => { setFilterComplete('no');  resetPage() }}>Incomplete</FilterBtn>
         </div>
+        <div className="w-px bg-border mx-1" />
+        <div className="flex gap-1.5">
+          <FilterBtn active={filterVerified === 'all'}        onClick={() => { setFilterVerified('all');        resetPage() }}>All verification</FilterBtn>
+          <FilterBtn active={filterVerified === 'verified'}   onClick={() => { setFilterVerified('verified');   resetPage() }}>Verified</FilterBtn>
+          <FilterBtn active={filterVerified === 'unverified'} onClick={() => { setFilterVerified('unverified'); resetPage() }}>Unverified</FilterBtn>
+        </div>
       </div>
 
       {/* Table */}
@@ -215,8 +240,9 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
                 </tr>
               )}
               {currentPage.map(m => {
-                const active    = isActiveNow(m.last_active_at)
-                const loading   = actionTarget === m.id && isPending
+                const active      = isActiveNow(m.last_active_at)
+                const loading     = actionTarget === m.id && isPending
+                const isVerified  = m.is_verified || grantedIds.has(m.id)
                 const profileHref = `/profile/${m.username ?? m.id}`
 
                 return (
@@ -229,6 +255,16 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
                       {m.founding_member && (
                         <span className="ml-2 text-[10px] font-semibold bg-lime/30 border border-lime/50 text-navy px-1.5 py-0.5 rounded-full">
                           Founding
+                        </span>
+                      )}
+                      {isVerified && (
+                        <span
+                          title="Verified ROSTA member"
+                          className="ml-1.5 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-lime shrink-0"
+                        >
+                          <svg viewBox="0 0 20 20" fill="none" className="w-2.5 h-2.5">
+                            <path d="M5 10.5l3 3 7-7" stroke="#0F1B3C" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
                         </span>
                       )}
                     </td>
@@ -266,16 +302,26 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
                           disabled={loading}
                           onClick={() => handleFoundingToggle(m)}
                           className="text-xs text-body-grey hover:text-navy transition-colors disabled:opacity-40"
-                          title={m.founding_member ? 'Revoke founding' : 'Grant founding'}
                         >
                           {m.founding_member ? 'Revoke founding' : 'Grant founding'}
                         </button>
+                        <span className="text-border">·</span>
+                        {isVerified ? (
+                          <span className="text-xs text-lime font-medium">Verified</span>
+                        ) : (
+                          <button
+                            disabled={loading}
+                            onClick={() => handleGrantVerification(m)}
+                            className="text-xs text-body-grey hover:text-navy transition-colors disabled:opacity-40"
+                          >
+                            Grant verification
+                          </button>
+                        )}
                         <span className="text-border">·</span>
                         <button
                           disabled={loading}
                           onClick={() => handleGenerateCode(m)}
                           className="text-xs text-body-grey hover:text-navy transition-colors disabled:opacity-40"
-                          title="Generate invite code"
                         >
                           Add code
                         </button>
@@ -284,7 +330,6 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
                           disabled={loading}
                           onClick={() => handleRemove(m)}
                           className="text-xs text-red-500 hover:text-red-700 transition-colors disabled:opacity-40"
-                          title="Remove member"
                         >
                           Remove
                         </button>
