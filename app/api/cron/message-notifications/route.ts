@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, newMessageEmail } from '@/lib/resend'
+import { recordCronRun } from '@/lib/cron-recorder'
 
 export const dynamic = 'force-dynamic'
 
@@ -99,5 +100,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  await recordCronRun('message-notifications', 'ok', `notified ${notified}`)
   return NextResponse.json({ notified })
 }

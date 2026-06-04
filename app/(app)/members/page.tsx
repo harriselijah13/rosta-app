@@ -15,7 +15,7 @@ export default async function MembersPage() {
     .from('profiles')
     .select(
       `id, username, first_name, last_name, avatar_url, what_i_do, building_now,
-       where_i_operate, profile_mode, onboarding_completed, founding_member, updated_at,
+       where_i_operate, profile_mode, onboarding_completed, founding_member, is_verified, updated_at,
        signals ( open_to, working_on, need_right_now, updated_at )`
     )
     .eq('onboarding_completed', true)

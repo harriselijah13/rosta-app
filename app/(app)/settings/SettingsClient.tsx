@@ -29,9 +29,11 @@ type Props = {
     working_on: string | null
     need_right_now: string | null
   } | null
+  openTableOptedIn: boolean
+  openTablePeriod: string
 }
 
-export default function SettingsClient({ userId, profile, signals }: Props) {
+export default function SettingsClient({ userId, profile, signals, openTableOptedIn, openTablePeriod }: Props) {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
@@ -62,6 +64,30 @@ export default function SettingsClient({ userId, profile, signals }: Props) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+
+  // Open Table opt-in (fires immediately, independent of the main save)
+  const [optedIn, setOptedIn] = useState(openTableOptedIn)
+  const [optInSaving, setOptInSaving] = useState(false)
+
+  async function handleOpenTableToggle() {
+    setOptInSaving(true)
+    try {
+      if (optedIn) {
+        await supabase
+          .from('open_table_optins')
+          .delete()
+          .eq('user_id', userId)
+          .eq('period', openTablePeriod)
+      } else {
+        await supabase
+          .from('open_table_optins')
+          .insert({ user_id: userId, period: openTablePeriod })
+      }
+      setOptedIn(v => !v)
+    } finally {
+      setOptInSaving(false)
+    }
+  }
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -398,6 +424,41 @@ export default function SettingsClient({ userId, profile, signals }: Props) {
         {openDoor && (
           <p className="mt-3 text-sm font-medium text-navy">
             Open Door is on — your profile shows the indicator
+          </p>
+        )}
+      </section>
+
+      {/* ── Open Table section ── */}
+      <section className="bg-white border border-border rounded-2xl p-6 mb-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-display text-xl font-bold text-navy mb-1">Open Table</h2>
+            <p className="text-sm text-body-grey">
+              On the 1st of each month, opted-in members are grouped into small rooms of 4–6 based
+              on complementary signals. Each group gets 7 days to connect. Opt-in resets monthly —
+              you choose every month.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={optedIn}
+            onClick={handleOpenTableToggle}
+            disabled={optInSaving}
+            className={`relative shrink-0 w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-navy/20 disabled:opacity-50 ${
+              optedIn ? 'bg-navy' : 'bg-border'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                optedIn ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+        {optedIn && (
+          <p className="mt-3 text-sm font-medium text-navy">
+            You&apos;re in for this month&apos;s Open Table
           </p>
         )}
       </section>

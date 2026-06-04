@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Badge from '@/components/ui/Badge'
+import VerifiedBadge from '@/components/ui/VerifiedBadge'
 import { OPEN_TO_OPTIONS, PROFILE_MODES } from '@/lib/constants'
 import { computeConnectorScore } from '@/lib/connector-score'
 
@@ -39,7 +40,7 @@ export default async function ProfilePage({
 
   const PROFILE_SELECT = `id, username, first_name, last_name, avatar_url, what_i_do, building_now,
        who_i_want_to_meet, where_i_operate, fun_fact, profile_mode,
-       onboarding_completed, founding_member, updated_at`
+       onboarding_completed, founding_member, is_verified, verification_status, updated_at`
 
   const isUuid = UUID_RE.test(params.id)
   const { data: profile } = await supabase
@@ -135,7 +136,10 @@ export default async function ProfilePage({
           {/* Name + meta */}
           <div className="flex-1 min-w-0">
             <div>
-              <h1 className="font-display text-3xl font-bold text-navy">{name}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="font-display text-3xl font-bold text-navy">{name}</h1>
+                {profile.is_verified && <VerifiedBadge size="md" />}
+              </div>
               <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                 {profile.profile_mode && (
                   <Badge variant="navy">{MODE_MAP[profile.profile_mode] ?? profile.profile_mode}</Badge>
@@ -206,6 +210,28 @@ export default async function ProfilePage({
                 </svg>
                 My QR
               </Link>
+              {!profile.is_verified && profile.verification_status !== 'pending' && profile.verification_status !== 'approved' && (
+                <Link
+                  href="/verify"
+                  className="inline-flex items-center gap-1.5 text-sm font-medium border border-lime text-navy px-5 py-2.5 rounded-full hover:bg-lime/10 transition-colors"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
+                  Get verified
+                </Link>
+              )}
+              {profile.verification_status === 'pending' && (
+                <span className="inline-flex items-center gap-1.5 text-xs text-body-grey border border-border px-4 py-2.5 rounded-full">
+                  Verification under review
+                </span>
+              )}
+              {profile.verification_status === 'approved' && !profile.is_verified && (
+                <Link
+                  href="/verify/pay"
+                  className="inline-flex items-center gap-1.5 text-sm font-medium bg-lime text-navy px-5 py-2.5 rounded-full hover:bg-lime/90 transition-colors"
+                >
+                  Complete payment
+                </Link>
+              )}
             </>
           ) : isConnected ? (
             <span className="inline-flex items-center gap-1.5 text-sm font-medium text-body-grey px-5 py-2.5 rounded-full border border-border">

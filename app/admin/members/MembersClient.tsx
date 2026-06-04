@@ -1,0 +1,327 @@
+'use client'
+
+import { useMemo, useState, useTransition } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { setFoundingMember, generateInviteCode, removeMember } from './actions'
+
+export type AdminMember = {
+  id: string
+  email: string
+  first_name: string | null
+  last_name: string | null
+  username: string | null
+  where_i_operate: string | null
+  profile_mode: string | null
+  founding_member: boolean
+  created_at: string
+  last_active_at: string | null
+  is_complete: boolean
+}
+
+const PAGE_SIZE = 50
+
+type FilterActive   = 'all' | 'active' | 'inactive'
+type FilterFounding = 'all' | 'yes'    | 'no'
+type FilterComplete = 'all' | 'yes'    | 'no'
+
+function relativeTime(iso: string | null): string {
+  if (!iso) return 'Never'
+  const ms = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(ms / 60000)
+  if (m < 2)   return 'Just now'
+  if (m < 60)  return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24)  return `${h}h ago`
+  const d = Math.floor(h / 24)
+  if (d < 30)  return `${d}d ago`
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })
+}
+
+function isActiveNow(lastActive: string | null): boolean {
+  if (!lastActive) return false
+  return Date.now() - new Date(lastActive).getTime() < 14 * 24 * 60 * 60 * 1000
+}
+
+function fullName(m: AdminMember): string {
+  return [m.first_name, m.last_name].filter(Boolean).join(' ') || '—'
+}
+
+function exportCsv(rows: AdminMember[]) {
+  const headers = ['Name', 'Email', 'Joined', 'Location', 'Mode', 'Founding', 'Last active', 'Complete']
+  const lines = rows.map(m => [
+    fullName(m),
+    m.email,
+    new Date(m.created_at).toLocaleDateString('en-GB'),
+    m.where_i_operate ?? '',
+    m.profile_mode ?? '',
+    m.founding_member ? 'Yes' : 'No',
+    m.last_active_at ? new Date(m.last_active_at).toLocaleDateString('en-GB') : 'Never',
+    m.is_complete ? 'Yes' : 'No',
+  ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
+
+  const csv  = [headers.join(','), ...lines].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href = url
+  a.download = `rosta-members-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function FilterBtn({
+  active, onClick, children,
+}: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+        active ? 'bg-navy text-warm-white border-navy' : 'bg-white text-navy border-border hover:border-navy'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+export default function MembersClient({ members }: { members: AdminMember[] }) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [search,         setSearch]         = useState('')
+  const [filterFounding, setFilterFounding] = useState<FilterFounding>('all')
+  const [filterActive,   setFilterActive]   = useState<FilterActive>('all')
+  const [filterComplete, setFilterComplete] = useState<FilterComplete>('all')
+  const [page,           setPage]           = useState(0)
+  const [actionTarget,   setActionTarget]   = useState<string | null>(null)
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return members.filter(m => {
+      if (q) {
+        const name = fullName(m).toLowerCase()
+        if (!name.includes(q) && !m.email.toLowerCase().includes(q)) return false
+      }
+      if (filterFounding === 'yes' && !m.founding_member) return false
+      if (filterFounding === 'no'  &&  m.founding_member) return false
+      const active = isActiveNow(m.last_active_at)
+      if (filterActive === 'active'   && !active) return false
+      if (filterActive === 'inactive' &&  active) return false
+      if (filterComplete === 'yes' && !m.is_complete) return false
+      if (filterComplete === 'no'  &&  m.is_complete) return false
+      return true
+    })
+  }, [members, search, filterFounding, filterActive, filterComplete])
+
+  const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const currentPage = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+
+  function resetPage() { setPage(0) }
+
+  async function handleFoundingToggle(m: AdminMember) {
+    setActionTarget(m.id)
+    startTransition(async () => {
+      await setFoundingMember(m.id, !m.founding_member)
+      router.refresh()
+      setActionTarget(null)
+    })
+  }
+
+  async function handleGenerateCode(m: AdminMember) {
+    setActionTarget(m.id)
+    startTransition(async () => {
+      const token = await generateInviteCode(m.id)
+      setActionTarget(null)
+      alert(`New invite code for ${fullName(m)}: ${token}`)
+    })
+  }
+
+  async function handleRemove(m: AdminMember) {
+    if (!confirm(`Remove ${fullName(m)} (${m.email}) from ROSTA? This cannot be undone.`)) return
+    setActionTarget(m.id)
+    startTransition(async () => {
+      await removeMember(m.id)
+      router.refresh()
+      setActionTarget(null)
+    })
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+        <h1 className="font-display text-3xl font-bold text-navy">
+          Members
+          <span className="ml-2 text-base font-sans font-normal text-body-grey">
+            {filtered.length} of {members.length}
+          </span>
+        </h1>
+        <button
+          onClick={() => exportCsv(filtered)}
+          className="text-xs font-medium border border-border text-navy px-4 py-2 rounded-full hover:border-navy transition-colors"
+        >
+          Export CSV
+        </button>
+      </div>
+
+      {/* Search */}
+      <input
+        type="text"
+        placeholder="Search by name or email..."
+        value={search}
+        onChange={e => { setSearch(e.target.value); resetPage() }}
+        className="w-full max-w-md px-4 py-3 bg-white border border-border rounded-xl text-navy placeholder-body-grey focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy transition-colors text-sm mb-4"
+      />
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <div className="flex gap-1.5">
+          <FilterBtn active={filterFounding === 'all'} onClick={() => { setFilterFounding('all'); resetPage() }}>All</FilterBtn>
+          <FilterBtn active={filterFounding === 'yes'} onClick={() => { setFilterFounding('yes'); resetPage() }}>Founding</FilterBtn>
+          <FilterBtn active={filterFounding === 'no'}  onClick={() => { setFilterFounding('no');  resetPage() }}>Non-founding</FilterBtn>
+        </div>
+        <div className="w-px bg-border mx-1" />
+        <div className="flex gap-1.5">
+          <FilterBtn active={filterActive === 'all'}      onClick={() => { setFilterActive('all');      resetPage() }}>All activity</FilterBtn>
+          <FilterBtn active={filterActive === 'active'}   onClick={() => { setFilterActive('active');   resetPage() }}>Active</FilterBtn>
+          <FilterBtn active={filterActive === 'inactive'} onClick={() => { setFilterActive('inactive'); resetPage() }}>Inactive</FilterBtn>
+        </div>
+        <div className="w-px bg-border mx-1" />
+        <div className="flex gap-1.5">
+          <FilterBtn active={filterComplete === 'all'} onClick={() => { setFilterComplete('all'); resetPage() }}>All profiles</FilterBtn>
+          <FilterBtn active={filterComplete === 'yes'} onClick={() => { setFilterComplete('yes'); resetPage() }}>Complete</FilterBtn>
+          <FilterBtn active={filterComplete === 'no'}  onClick={() => { setFilterComplete('no');  resetPage() }}>Incomplete</FilterBtn>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white border border-border rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-surface text-left">
+                {['Name', 'Email', 'Joined', 'Location', 'Mode', 'Last active', 'Complete', 'Actions'].map(h => (
+                  <th key={h} className="px-4 py-3 text-xs font-medium text-body-grey uppercase tracking-wide whitespace-nowrap">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {currentPage.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-body-grey">
+                    No members match your filters.
+                  </td>
+                </tr>
+              )}
+              {currentPage.map(m => {
+                const active    = isActiveNow(m.last_active_at)
+                const loading   = actionTarget === m.id && isPending
+                const profileHref = `/profile/${m.username ?? m.id}`
+
+                return (
+                  <tr key={m.id} className="hover:bg-surface/50 transition-colors">
+                    {/* Name */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <Link href={profileHref} className="font-medium text-navy hover:underline">
+                        {fullName(m)}
+                      </Link>
+                      {m.founding_member && (
+                        <span className="ml-2 text-[10px] font-semibold bg-lime/30 border border-lime/50 text-navy px-1.5 py-0.5 rounded-full">
+                          Founding
+                        </span>
+                      )}
+                    </td>
+                    {/* Email */}
+                    <td className="px-4 py-3 text-body-grey whitespace-nowrap">{m.email}</td>
+                    {/* Joined */}
+                    <td className="px-4 py-3 text-body-grey whitespace-nowrap">
+                      {new Date(m.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
+                    {/* Location */}
+                    <td className="px-4 py-3 text-body-grey whitespace-nowrap max-w-[140px] truncate">
+                      {m.where_i_operate ?? '—'}
+                    </td>
+                    {/* Mode */}
+                    <td className="px-4 py-3 text-body-grey whitespace-nowrap capitalize">
+                      {m.profile_mode ?? '—'}
+                    </td>
+                    {/* Last active */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`flex items-center gap-1.5 ${active ? 'text-navy' : 'text-body-grey'}`}>
+                        {active && <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />}
+                        {relativeTime(m.last_active_at)}
+                      </span>
+                    </td>
+                    {/* Complete */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`text-xs font-medium ${m.is_complete ? 'text-green-700' : 'text-body-grey'}`}>
+                        {m.is_complete ? 'Yes' : 'No'}
+                      </span>
+                    </td>
+                    {/* Actions */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <button
+                          disabled={loading}
+                          onClick={() => handleFoundingToggle(m)}
+                          className="text-xs text-body-grey hover:text-navy transition-colors disabled:opacity-40"
+                          title={m.founding_member ? 'Revoke founding' : 'Grant founding'}
+                        >
+                          {m.founding_member ? 'Revoke founding' : 'Grant founding'}
+                        </button>
+                        <span className="text-border">·</span>
+                        <button
+                          disabled={loading}
+                          onClick={() => handleGenerateCode(m)}
+                          className="text-xs text-body-grey hover:text-navy transition-colors disabled:opacity-40"
+                          title="Generate invite code"
+                        >
+                          Add code
+                        </button>
+                        <span className="text-border">·</span>
+                        <button
+                          disabled={loading}
+                          onClick={() => handleRemove(m)}
+                          className="text-xs text-red-500 hover:text-red-700 transition-colors disabled:opacity-40"
+                          title="Remove member"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="border-t border-border px-4 py-3 flex items-center justify-between">
+            <p className="text-xs text-body-grey">
+              Page {page + 1} of {totalPages} — {filtered.length} members
+            </p>
+            <div className="flex gap-2">
+              <button
+                disabled={page === 0}
+                onClick={() => setPage(p => p - 1)}
+                className="text-xs px-3 py-1.5 border border-border rounded-full hover:border-navy transition-colors disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <button
+                disabled={page >= totalPages - 1}
+                onClick={() => setPage(p => p + 1)}
+                className="text-xs px-3 py-1.5 border border-border rounded-full hover:border-navy transition-colors disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

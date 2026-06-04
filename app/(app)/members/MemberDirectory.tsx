@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import Badge from '@/components/ui/Badge'
+import VerifiedBadge from '@/components/ui/VerifiedBadge'
 import { OPEN_TO_OPTIONS, PROFILE_MODES } from '@/lib/constants'
 import type { Profile } from '@/lib/types'
 
@@ -72,6 +73,7 @@ function MemberCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold text-navy text-sm leading-tight">{name}</p>
+            {member.is_verified && <VerifiedBadge />}
             {isSelf && <span className="text-xs text-body-grey">(you)</span>}
             {member.founding_member && (
               <span
