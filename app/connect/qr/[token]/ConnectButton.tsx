@@ -58,6 +58,10 @@ export default function ConnectButton({ token, ownerName }: Props) {
       {error && (
         <p className="text-sm text-red-500 bg-red-50 px-4 py-3 rounded-xl text-center">{error}</p>
       )}
+      <p className="text-center text-xs text-body-grey leading-relaxed">
+        By connecting you agree to our{' '}
+        <Link href="/privacy" className="underline underline-offset-2 hover:text-navy transition-colors">Privacy Policy</Link>.
+      </p>
       <Button onClick={handleConnect} loading={loading} size="lg" className="w-full">
         Connect with {ownerName}
       </Button>

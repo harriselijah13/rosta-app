@@ -52,6 +52,12 @@ function CheckoutForm({ priceAed }: { priceAed: number }) {
         <p className="text-sm text-red-500 bg-red-50 px-4 py-3 rounded-xl">{error}</p>
       )}
 
+      <p className="text-center text-xs text-body-grey leading-relaxed">
+        By proceeding you agree to our{' '}
+        <a href="/terms" className="underline underline-offset-2 hover:text-navy transition-colors">Terms of Service</a>.
+        {' '}Payments processed securely by Stripe.
+      </p>
+
       <button
         type="submit"
         disabled={!stripe || !elements || loading}
@@ -59,10 +65,6 @@ function CheckoutForm({ priceAed }: { priceAed: number }) {
       >
         {loading ? 'Processing...' : `Pay AED ${priceAed.toFixed(2)}`}
       </button>
-
-      <p className="text-center text-xs text-body-grey">
-        Payments are processed securely by Stripe. Statement descriptor: ROSTA.
-      </p>
     </form>
   )
 }
