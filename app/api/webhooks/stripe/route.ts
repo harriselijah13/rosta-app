@@ -5,7 +5,11 @@ import { sendEmail, verificationPaidEmail } from '@/lib/resend'
 
 export const dynamic = 'force-dynamic'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-05-27.dahlia' as const })
+let _stripe: Stripe | null = null
+function stripe(): Stripe {
+  if (!_stripe) _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-05-27.dahlia' as const })
+  return _stripe
+}
 
 export async function POST(request: NextRequest) {
   const body      = await request.text()
@@ -17,7 +21,7 @@ export async function POST(request: NextRequest) {
 
   let event: Stripe.Event
   try {
-    event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET!)
+    event = stripe().webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET!)
   } catch (err) {
     console.error('[stripe-webhook] signature verification failed', err)
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })

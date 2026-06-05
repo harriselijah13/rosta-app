@@ -29,7 +29,7 @@ function Initials({ name }: { name: string }) {
   )
 }
 
-export default function IntroRequestForm({ requesterId, targetId, targetName, mutuals, credits }: Props) {
+export default function IntroRequestForm({ targetId, targetName, mutuals, credits }: Props) {
   const router = useRouter()
   const [facilitatorId, setFacilitatorId] = useState('')
   const [note, setNote] = useState('')
