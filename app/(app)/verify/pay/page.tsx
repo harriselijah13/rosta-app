@@ -7,7 +7,11 @@ import PaymentForm from './PaymentForm'
 
 export const dynamic = 'force-dynamic'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-05-27.dahlia' as const })
+let _stripe: Stripe | null = null
+function stripe() {
+  if (!_stripe) _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-05-27.dahlia' as const })
+  return _stripe
+}
 
 export default async function VerifyPayPage({
   searchParams,
@@ -101,7 +105,7 @@ export default async function VerifyPayPage({
 
   if (request.stripe_payment_intent_id) {
     // Retrieve existing PI
-    const pi = await stripe.paymentIntents.retrieve(request.stripe_payment_intent_id)
+    const pi = await stripe().paymentIntents.retrieve(request.stripe_payment_intent_id)
     if (pi.status === 'succeeded') {
       // Already paid — webhook may not have fired yet
       await admin.from('profiles').update({ is_verified: true, verification_status: 'approved' }).eq('id', user.id)
@@ -110,7 +114,7 @@ export default async function VerifyPayPage({
     clientSecret = pi.client_secret!
   } else {
     // Create new PaymentIntent
-    const pi = await stripe.paymentIntents.create({
+    const pi = await stripe().paymentIntents.create({
       amount:               Math.round(priceAed * 100),
       currency:             'aed',
       metadata:             { verification_request_id: request.id, user_id: user.id },

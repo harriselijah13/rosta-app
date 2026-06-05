@@ -43,8 +43,6 @@ async function aiFormGroups(members: Member[]): Promise<AIGroupResult> {
   - Who they want to meet: ${m.who_i_want_to_meet ?? 'not specified'}`
   )).join('\n\n')
 
-  const targetSize = Math.round(members.length / Math.max(1, Math.round(members.length / 5)))
-
   const prompt = `You are forming small groups of professionals for a monthly networking event called Open Table. Groups should have ${Math.min(4, members.length)}–6 members each with complementary skills and aligned interests — meaning member A wants to meet someone like member B, and vice versa. Prioritise semantic compatibility, not just keyword overlap.
 
 Here are the ${members.length} opted-in members (indexed 0–${members.length - 1}):
