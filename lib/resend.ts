@@ -50,6 +50,7 @@ function wrap(
     <p style="${bodyStyle}">${body}</p>
     <a href="${ctaUrl}" style="display:inline-block;background:#0F1B3C;color:#ffffff;padding:13px 28px;border-radius:100px;text-decoration:none;font-weight:600;font-size:15px;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;">${ctaLabel}</a>
     <p style="color:#6B7280;font-size:12px;margin-top:32px;line-height:1.5;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;">You're receiving this because you're a member of ROSTA.</p>
+    <p style="color:#6B7280;font-size:12px;margin-top:6px;line-height:1.5;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;"><a href="https://app.onrosta.com/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; onrosta.com</p>
   </div>
 </body>
 </html>`
