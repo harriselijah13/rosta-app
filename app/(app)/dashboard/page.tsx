@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { computeConnectorScore } from '@/lib/connector-score'
 import { OPEN_TO_OPTIONS } from '@/lib/constants'
 import VerifiedBadge from '@/components/ui/VerifiedBadge'
+import WelcomeBanner from './WelcomeBanner'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
 
@@ -331,6 +332,8 @@ export default async function DashboardPage() {
           {firstName ? `Good to see you, ${firstName}.` : 'Good to see you.'}
         </h1>
       </div>
+
+      <WelcomeBanner hasConnections={hasConnections} />
 
       {/* ── Stats row ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">

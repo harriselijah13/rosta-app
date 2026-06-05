@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
@@ -12,6 +12,7 @@ type Step = 1 | 2 | 3 | 4
 type FormData = {
   firstName: string
   lastName: string
+  username: string
   avatarFile: File | null
   avatarPreview: string
   avatarUrl: string
@@ -27,37 +28,25 @@ type FormData = {
 }
 
 const OPEN_TO_OPTIONS = [
-  { value: 'investment', label: 'Investment' },
-  { value: 'collaboration', label: 'Collaboration' },
-  { value: 'clients', label: 'Clients' },
-  { value: 'mentorship', label: 'Mentorship' },
-  { value: 'hiring', label: 'Hiring' },
-  { value: 'being_hired', label: 'Being hired' },
-  { value: 'coffee', label: 'Coffee' },
+  { value: 'investment',   label: 'Investment' },
+  { value: 'collaboration',label: 'Collaboration' },
+  { value: 'clients',      label: 'Clients' },
+  { value: 'mentorship',   label: 'Mentorship' },
+  { value: 'hiring',       label: 'Hiring' },
+  { value: 'being_hired',  label: 'Being hired' },
+  { value: 'coffee',       label: 'Coffee' },
 ]
 
 const PROFILE_MODES = [
-  {
-    value: 'founder',
-    label: 'Founder',
-    description: "I'm building something new",
-  },
-  {
-    value: 'creative',
-    label: 'Creative',
-    description: 'I make things that move people',
-  },
-  {
-    value: 'operator',
-    label: 'Operator',
-    description: 'I make organisations run well',
-  },
-  {
-    value: 'explorer',
-    label: 'Explorer',
-    description: "I'm figuring out what's next",
-  },
+  { value: 'founder',   label: 'Founder',   description: "I'm building something new" },
+  { value: 'creative',  label: 'Creative',  description: 'I make things that move people' },
+  { value: 'operator',  label: 'Operator',  description: 'I make organisations run well' },
+  { value: 'explorer',  label: 'Explorer',  description: "I'm figuring out what's next" },
 ]
+
+const USERNAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/
+
+type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid'
 
 interface Props {
   userId: string
@@ -65,38 +54,55 @@ interface Props {
   initialLastName: string
 }
 
-export default function OnboardingFlow({
-  userId,
-  initialFirstName,
-  initialLastName,
-}: Props) {
-  const [step, setStep] = useState<Step>(1)
+export default function OnboardingFlow({ userId, initialFirstName, initialLastName }: Props) {
+  const [showWelcome, setShowWelcome] = useState(initialFirstName === '')
+  const [step, setStep]     = useState<Step>(1)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [form, setForm] = useState<FormData>({
-    firstName: initialFirstName,
-    lastName: initialLastName,
-    avatarFile: null,
-    avatarPreview: '',
-    avatarUrl: '',
-    whatIDo: '',
-    buildingNow: '',
+  const [error, setError]   = useState('')
+  const [form, setForm]     = useState<FormData>({
+    firstName:      initialFirstName,
+    lastName:       initialLastName,
+    username:       '',
+    avatarFile:     null,
+    avatarPreview:  '',
+    avatarUrl:      '',
+    whatIDo:        '',
+    buildingNow:    '',
     whoIWantToMeet: '',
-    whereIOperate: '',
-    funFact: '',
-    openTo: [],
-    workingOn: '',
-    needRightNow: '',
-    profileMode: '',
+    whereIOperate:  '',
+    funFact:        '',
+    openTo:         [],
+    workingOn:      '',
+    needRightNow:   '',
+    profileMode:    '',
   })
+  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle')
   const fileRef = useRef<HTMLInputElement>(null)
-  const router = useRouter()
+  const router  = useRouter()
   const supabase = createClient()
 
   function update(patch: Partial<FormData>) {
     setForm(prev => ({ ...prev, ...patch }))
     setError('')
   }
+
+  // Debounced username availability check
+  useEffect(() => {
+    const raw = form.username.trim()
+    if (!raw) { setUsernameStatus('idle'); return }
+    if (raw.length > 30 || !USERNAME_RE.test(raw)) { setUsernameStatus('invalid'); return }
+    setUsernameStatus('checking')
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', raw)
+        .neq('id', userId)
+        .maybeSingle()
+      setUsernameStatus(data ? 'taken' : 'available')
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [form.username]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -115,11 +121,9 @@ export default function OnboardingFlow({
 
   async function uploadAvatar(): Promise<string> {
     if (!form.avatarFile) return form.avatarUrl
-    const ext = form.avatarFile.name.split('.').pop()
+    const ext  = form.avatarFile.name.split('.').pop()
     const path = `${userId}/avatar.${ext}`
-    const { error } = await supabase.storage
-      .from('avatars')
-      .upload(path, form.avatarFile, { upsert: true })
+    const { error } = await supabase.storage.from('avatars').upload(path, form.avatarFile, { upsert: true })
     if (error) throw error
     const { data } = supabase.storage.from('avatars').getPublicUrl(path)
     return data.publicUrl
@@ -130,6 +134,15 @@ export default function OnboardingFlow({
       setError('First and last name are required.')
       return
     }
+    const trimmedUsername = form.username.trim().toLowerCase()
+    if (trimmedUsername) {
+      if (!USERNAME_RE.test(trimmedUsername)) {
+        setError('Username can only contain lowercase letters, numbers, and hyphens.')
+        return
+      }
+      if (usernameStatus === 'taken')    { setError('That username is already taken.'); return }
+      if (usernameStatus === 'checking') { setError('Still checking username — please wait a moment.'); return }
+    }
     setLoading(true)
     setError('')
     try {
@@ -138,15 +151,16 @@ export default function OnboardingFlow({
         avatarUrl = await uploadAvatar()
         update({ avatarUrl })
       }
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          first_name: form.firstName.trim(),
-          last_name: form.lastName.trim(),
-          avatar_url: avatarUrl || null,
-        })
-        .eq('id', userId)
-      if (error) throw error
+      const { error } = await supabase.from('profiles').update({
+        first_name: form.firstName.trim(),
+        last_name:  form.lastName.trim(),
+        avatar_url: avatarUrl || null,
+        username:   trimmedUsername || null,
+      }).eq('id', userId)
+      if (error) {
+        if (error.code === '23505') { setError('That username is already taken.'); return }
+        throw error
+      }
       setStep(2)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')
@@ -163,16 +177,13 @@ export default function OnboardingFlow({
     setLoading(true)
     setError('')
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          what_i_do: form.whatIDo.trim() || null,
-          building_now: form.buildingNow.trim(),
-          who_i_want_to_meet: form.whoIWantToMeet.trim() || null,
-          where_i_operate: form.whereIOperate.trim() || null,
-          fun_fact: form.funFact.trim() || null,
-        })
-        .eq('id', userId)
+      const { error } = await supabase.from('profiles').update({
+        what_i_do:          form.whatIDo.trim()        || null,
+        building_now:       form.buildingNow.trim(),
+        who_i_want_to_meet: form.whoIWantToMeet.trim() || null,
+        where_i_operate:    form.whereIOperate.trim()  || null,
+        fun_fact:           form.funFact.trim()         || null,
+      }).eq('id', userId)
       if (error) throw error
       setStep(3)
     } catch (err: unknown) {
@@ -188,10 +199,10 @@ export default function OnboardingFlow({
     try {
       const { error } = await supabase.from('signals').upsert(
         {
-          user_id: userId,
-          open_to: form.openTo,
-          working_on: form.workingOn.trim() || null,
-          need_right_now: form.needRightNow.trim() || null,
+          user_id:        userId,
+          open_to:        form.openTo,
+          working_on:     form.workingOn.trim()     || null,
+          need_right_now: form.needRightNow.trim()  || null,
         },
         { onConflict: 'user_id' }
       )
@@ -212,15 +223,11 @@ export default function OnboardingFlow({
     setLoading(true)
     setError('')
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          profile_mode: form.profileMode,
-          onboarding_completed: true,
-        })
-        .eq('id', userId)
+      const { error } = await supabase.from('profiles').update({
+        profile_mode:         form.profileMode,
+        onboarding_completed: true,
+      }).eq('id', userId)
       if (error) throw error
-      // Redeem invite code + generate founding member codes (fire-and-forget)
       fetch('/api/invite/redeem', { method: 'POST' }).catch(() => {})
       router.push('/dashboard')
     } catch (err: unknown) {
@@ -229,6 +236,47 @@ export default function OnboardingFlow({
       setLoading(false)
     }
   }
+
+  // ── Welcome screen ──────────────────────────────────────────────────────────
+
+  if (showWelcome) {
+    return (
+      <div className="min-h-screen bg-navy flex flex-col">
+        <nav className="px-8 py-5">
+          <span className="font-display text-2xl font-bold text-warm-white">
+            ROSTA<span className="text-lime">.</span>
+          </span>
+        </nav>
+
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+          <h1 className="font-display text-5xl sm:text-6xl font-bold text-warm-white mb-5 max-w-lg leading-tight">
+            Welcome to ROSTA.
+          </h1>
+          <p className="text-warm-white/70 text-base sm:text-lg max-w-sm mb-8 leading-relaxed">
+            A professional network built around real introductions, real conversations, and real outcomes.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-12">
+            {['No feed', 'Warm introductions only', 'Invite only'].map(tag => (
+              <span
+                key={tag}
+                className="px-4 py-1.5 rounded-full bg-lime text-navy text-sm font-semibold"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowWelcome(false)}
+            className="px-8 py-3.5 bg-lime text-navy rounded-full font-semibold text-sm hover:bg-lime/90 transition-colors"
+          >
+            Set up your profile
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── 4-step wizard ───────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-warm-white flex flex-col">
@@ -255,14 +303,13 @@ export default function OnboardingFlow({
           {step === 1 && (
             <div className="flex flex-col gap-6">
               <div>
-                <p className="text-navy text-xs font-medium tracking-widest uppercase mb-2 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
+                <p className="text-navy text-xs font-medium tracking-widest uppercase mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
                   Step 1
                 </p>
-                <h1 className="font-display text-4xl font-bold text-navy">
-                  Who are you?
-                </h1>
+                <h1 className="font-display text-4xl font-bold text-navy">Who are you?</h1>
                 <p className="text-body-grey mt-2">
-                  Let&apos;s start with the basics.
+                  This is how other members will find and recognise you.
                 </p>
               </div>
 
@@ -275,30 +322,18 @@ export default function OnboardingFlow({
                 >
                   {form.avatarPreview ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={form.avatarPreview}
-                      alt="Avatar preview"
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={form.avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-body-grey text-xs text-center px-2 group-hover:text-navy transition-colors leading-tight">
                       Upload<br />photo
                     </span>
                   )}
                 </button>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleAvatarChange}
-                />
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
                 {form.avatarPreview && (
                   <button
                     type="button"
-                    onClick={() =>
-                      update({ avatarFile: null, avatarPreview: '' })
-                    }
+                    onClick={() => update({ avatarFile: null, avatarPreview: '' })}
                     className="text-xs text-body-grey hover:text-navy transition-colors"
                   >
                     Remove photo
@@ -327,18 +362,47 @@ export default function OnboardingFlow({
                 />
               </div>
 
-              {error && (
-                <p className="text-sm text-red-500 bg-red-50 px-4 py-3 rounded-xl">
-                  {error}
+              {/* Username */}
+              <div>
+                <label className="block text-sm font-medium text-navy mb-1.5">
+                  Username{' '}
+                  <span className="text-body-grey font-normal">(optional)</span>
+                </label>
+                <div className="flex items-center rounded-xl border border-border bg-white overflow-hidden focus-within:ring-2 focus-within:ring-navy/20 focus-within:border-navy transition-colors">
+                  <span className="pl-4 pr-1 text-body-grey text-sm select-none shrink-0">
+                    onrosta.com/profile/
+                  </span>
+                  <input
+                    type="text"
+                    value={form.username}
+                    onChange={e => update({ username: e.target.value.toLowerCase() })}
+                    placeholder="your-name"
+                    maxLength={30}
+                    className="flex-1 py-3 pr-4 bg-transparent text-navy placeholder-body-grey focus:outline-none text-sm min-w-0"
+                  />
+                </div>
+                {form.username && (
+                  <p className={`mt-1 text-xs ${
+                    usernameStatus === 'available' ? 'text-green-700' :
+                    usernameStatus === 'taken' || usernameStatus === 'invalid' ? 'text-red-500' :
+                    'text-body-grey'
+                  }`}>
+                    {usernameStatus === 'checking'  && 'Checking…'}
+                    {usernameStatus === 'available' && '✓ Available'}
+                    {usernameStatus === 'taken'     && 'Already taken'}
+                    {usernameStatus === 'invalid'   && 'Lowercase letters, numbers, and hyphens only'}
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-body-grey">
+                  You can set or change this later in Settings.
                 </p>
+              </div>
+
+              {error && (
+                <p className="text-sm text-red-500 bg-red-50 px-4 py-3 rounded-xl">{error}</p>
               )}
 
-              <Button
-                onClick={saveStep1}
-                loading={loading}
-                size="lg"
-                className="w-full"
-              >
+              <Button onClick={saveStep1} loading={loading} size="lg" className="w-full">
                 Continue
               </Button>
             </div>
@@ -348,14 +412,13 @@ export default function OnboardingFlow({
           {step === 2 && (
             <div className="flex flex-col gap-5">
               <div>
-                <p className="text-navy text-xs font-medium tracking-widest uppercase mb-2 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
+                <p className="text-navy text-xs font-medium tracking-widest uppercase mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
                   Step 2
                 </p>
-                <h1 className="font-display text-4xl font-bold text-navy">
-                  Your profile
-                </h1>
+                <h1 className="font-display text-4xl font-bold text-navy">Your profile</h1>
                 <p className="text-body-grey mt-2">
-                  Tell the network about your work.
+                  ROSTA profiles are present-tense. What you&apos;re building now matters more than your job title.
                 </p>
               </div>
 
@@ -369,12 +432,8 @@ export default function OnboardingFlow({
               />
 
               <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="building-now"
-                  className="text-sm font-medium text-navy"
-                >
-                  Building now{' '}
-                  <span className="text-red-400 ml-0.5">*</span>
+                <label htmlFor="building-now" className="text-sm font-medium text-navy">
+                  Building now <span className="text-red-400 ml-0.5">*</span>
                 </label>
                 <input
                   id="building-now"
@@ -413,28 +472,12 @@ export default function OnboardingFlow({
               />
 
               {error && (
-                <p className="text-sm text-red-500 bg-red-50 px-4 py-3 rounded-xl">
-                  {error}
-                </p>
+                <p className="text-sm text-red-500 bg-red-50 px-4 py-3 rounded-xl">{error}</p>
               )}
 
               <div className="flex gap-3 pt-1">
-                <Button
-                  variant="outline"
-                  onClick={() => setStep(1)}
-                  size="lg"
-                  className="flex-1"
-                >
-                  Back
-                </Button>
-                <Button
-                  onClick={saveStep2}
-                  loading={loading}
-                  size="lg"
-                  className="flex-1"
-                >
-                  Continue
-                </Button>
+                <Button variant="outline" onClick={() => setStep(1)} size="lg" className="flex-1">Back</Button>
+                <Button onClick={saveStep2} loading={loading} size="lg" className="flex-1">Continue</Button>
               </div>
             </div>
           )}
@@ -443,14 +486,13 @@ export default function OnboardingFlow({
           {step === 3 && (
             <div className="flex flex-col gap-6">
               <div>
-                <p className="text-navy text-xs font-medium tracking-widest uppercase mb-2 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
+                <p className="text-navy text-xs font-medium tracking-widest uppercase mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
                   Step 3
                 </p>
-                <h1 className="font-display text-4xl font-bold text-navy">
-                  Your signals
-                </h1>
+                <h1 className="font-display text-4xl font-bold text-navy">Your signals</h1>
                 <p className="text-body-grey mt-2">
-                  Let people know what you&apos;re open to right now.
+                  Signals are how ROSTA matches you with the right people. The more specific you are, the better your matches.
                 </p>
               </div>
 
@@ -492,28 +534,12 @@ export default function OnboardingFlow({
               />
 
               {error && (
-                <p className="text-sm text-red-500 bg-red-50 px-4 py-3 rounded-xl">
-                  {error}
-                </p>
+                <p className="text-sm text-red-500 bg-red-50 px-4 py-3 rounded-xl">{error}</p>
               )}
 
               <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setStep(2)}
-                  size="lg"
-                  className="flex-1"
-                >
-                  Back
-                </Button>
-                <Button
-                  onClick={saveStep3}
-                  loading={loading}
-                  size="lg"
-                  className="flex-1"
-                >
-                  Continue
-                </Button>
+                <Button variant="outline" onClick={() => setStep(2)} size="lg" className="flex-1">Back</Button>
+                <Button onClick={saveStep3} loading={loading} size="lg" className="flex-1">Continue</Button>
               </div>
             </div>
           )}
@@ -522,14 +548,13 @@ export default function OnboardingFlow({
           {step === 4 && (
             <div className="flex flex-col gap-6">
               <div>
-                <p className="text-navy text-xs font-medium tracking-widest uppercase mb-2 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
+                <p className="text-navy text-xs font-medium tracking-widest uppercase mb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
                   Step 4
                 </p>
-                <h1 className="font-display text-4xl font-bold text-navy">
-                  Your mode
-                </h1>
+                <h1 className="font-display text-4xl font-bold text-navy">Your mode</h1>
                 <p className="text-body-grey mt-2">
-                  How would you describe yourself right now?
+                  Your profile mode helps members understand how to approach you.
                 </p>
               </div>
 
@@ -545,16 +570,10 @@ export default function OnboardingFlow({
                         : 'border-border bg-white text-navy hover:border-navy'
                     }`}
                   >
-                    <p className="font-display text-xl font-bold mb-1">
-                      {mode.label}
-                    </p>
-                    <p
-                      className={`text-sm leading-snug ${
-                        form.profileMode === mode.value
-                          ? 'text-warm-white/70'
-                          : 'text-body-grey'
-                      }`}
-                    >
+                    <p className="font-display text-xl font-bold mb-1">{mode.label}</p>
+                    <p className={`text-sm leading-snug ${
+                      form.profileMode === mode.value ? 'text-warm-white/70' : 'text-body-grey'
+                    }`}>
                       {mode.description}
                     </p>
                   </button>
@@ -562,28 +581,12 @@ export default function OnboardingFlow({
               </div>
 
               {error && (
-                <p className="text-sm text-red-500 bg-red-50 px-4 py-3 rounded-xl">
-                  {error}
-                </p>
+                <p className="text-sm text-red-500 bg-red-50 px-4 py-3 rounded-xl">{error}</p>
               )}
 
               <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setStep(3)}
-                  size="lg"
-                  className="flex-1"
-                >
-                  Back
-                </Button>
-                <Button
-                  onClick={saveStep4}
-                  loading={loading}
-                  size="lg"
-                  className="flex-1"
-                >
-                  Complete profile
-                </Button>
+                <Button variant="outline" onClick={() => setStep(3)} size="lg" className="flex-1">Back</Button>
+                <Button onClick={saveStep4} loading={loading} size="lg" className="flex-1">Complete profile</Button>
               </div>
             </div>
           )}
