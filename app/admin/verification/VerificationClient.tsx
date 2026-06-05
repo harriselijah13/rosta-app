@@ -36,7 +36,10 @@ function fullName(r: VerRequest) {
 
 function StatusChip({ status, payStatus }: { status: string; payStatus: string | null }) {
   if (status === 'approved' && payStatus === 'paid') {
-    return <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-lime/30 text-navy border border-lime/50">Verified</span>
+    return <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-lime/30 text-navy border border-lime/50">Verified (paid)</span>
+  }
+  if (status === 'approved' && payStatus === 'admin_granted') {
+    return <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-lime/30 text-navy border border-lime/50">Verified (admin grant)</span>
   }
   if (status === 'approved') {
     return <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">Approved — awaiting payment</span>
@@ -235,7 +238,7 @@ type Tab = typeof TABS[number]
 function filterByTab(reqs: VerRequest[], tab: Tab): VerRequest[] {
   if (tab === 'Pending')  return reqs.filter(r => r.status === 'pending')
   if (tab === 'Approved') return reqs.filter(r => r.status === 'approved' && r.stripe_payment_status !== 'paid')
-  if (tab === 'Verified') return reqs.filter(r => r.stripe_payment_status === 'paid')
+  if (tab === 'Verified') return reqs.filter(r => r.stripe_payment_status === 'paid' || r.stripe_payment_status === 'admin_granted')
   if (tab === 'Rejected') return reqs.filter(r => r.status === 'rejected')
   return reqs
 }

@@ -99,6 +99,7 @@ export default async function IntroRequestPage({
         </div>
       ) : (
         <IntroRequestForm
+          requesterId={user.id}
           targetId={targetId}
           targetName={targetName}
           mutuals={mutualProfiles ?? []}
