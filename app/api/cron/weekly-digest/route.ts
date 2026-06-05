@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendEmail } from '@/lib/resend'
+import { sendEmail, digestEmailHtml } from '@/lib/resend'
 import { recordCronRun } from '@/lib/cron-recorder'
 import { aiText } from '@/lib/anthropic'
 
@@ -20,17 +20,6 @@ type MemberRow = {
   connection_building: string[]
 }
 
-function digestEmailHtml(name: string, body: string): string {
-  return `
-    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:48px 24px;background:#F5F2EE;">
-      <p style="font-size:22px;font-weight:700;color:#0F1B3C;margin:0 0 4px;">ROSTA<span style="color:#C8F53C;">.</span></p>
-      <hr style="border:none;border-top:1px solid #E5E1DB;margin:20px 0 32px;"/>
-      <h1 style="font-size:20px;color:#0F1B3C;margin:0 0 16px;font-weight:700;">Your network this week</h1>
-      <p style="color:#6B7280;font-size:15px;line-height:1.7;margin:0 0 28px;white-space:pre-line;">${body}</p>
-      <a href="https://app.onrosta.com/members" style="display:inline-block;background:#0F1B3C;color:#ffffff;padding:13px 28px;border-radius:100px;text-decoration:none;font-weight:600;font-size:15px;">Open ROSTA</a>
-      <p style="color:#6B7280;font-size:12px;margin-top:32px;line-height:1.5;">You're receiving this because you're a member of ROSTA.</p>
-    </div>`
-}
 
 async function generateDigest(member: MemberRow): Promise<string | null> {
   const connectionContext = member.connection_names.length === 0

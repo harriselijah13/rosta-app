@@ -1,16 +1,61 @@
 const FROM = 'ROSTA <hello@onrosta.com>'
+const BASE = 'https://app.onrosta.com'
 
-function wrap(heading: string, body: string, ctaLabel: string, ctaUrl: string) {
-  return `
-    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:48px 24px;background:#F5F2EE;">
-      <p style="font-size:22px;font-weight:700;color:#0F1B3C;margin:0 0 4px;">ROSTA<span style="color:#C8F53C;">.</span></p>
-      <hr style="border:none;border-top:1px solid #E5E1DB;margin:20px 0 32px;"/>
-      <h1 style="font-size:24px;color:#0F1B3C;margin:0 0 12px;font-weight:700;">${heading}</h1>
-      <p style="color:#6B7280;font-size:15px;line-height:1.6;margin:0 0 28px;">${body}</p>
-      <a href="${ctaUrl}" style="display:inline-block;background:#0F1B3C;color:#ffffff;padding:13px 28px;border-radius:100px;text-decoration:none;font-weight:600;font-size:15px;">${ctaLabel}</a>
-      <p style="color:#6B7280;font-size:12px;margin-top:32px;line-height:1.5;">You're receiving this because you're a member of ROSTA.</p>
-    </div>`
+// ── Shared HTML escape (used by adminEmailHtml) ───────────────────────────────
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }
+
+// ── Branded template ──────────────────────────────────────────────────────────
+//
+// Full HTML document so email clients that support web fonts (Apple Mail,
+// iOS Mail) load Fraunces (headings) and Plus Jakarta Sans (body).
+// Clients that strip <style>/@import fall back to the inline font stacks.
+
+function wrap(
+  heading: string,
+  body: string,
+  ctaLabel: string,
+  ctaUrl: string,
+  opts?: { preLineBody?: boolean },
+): string {
+  const bodyStyle = [
+    'color:#6B7280',
+    'font-size:15px',
+    'line-height:1.6',
+    'margin:0 0 28px',
+    "font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
+    opts?.preLineBody ? 'white-space:pre-line' : '',
+  ].filter(Boolean).join(';')
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700&family=Plus+Jakarta+Sans:wght@400;600&display=swap');
+  </style>
+</head>
+<body style="margin:0;padding:0;background:#F5F2EE;">
+  <div style="font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:48px 24px;background:#F5F2EE;">
+    <p style="font-size:22px;font-weight:700;color:#0F1B3C;margin:0 0 4px;font-family:'Fraunces',Georgia,serif;">ROSTA<span style="color:#C8F53C;">.</span></p>
+    <hr style="border:none;border-top:1px solid #E5E1DB;margin:20px 0 32px;"/>
+    <h1 style="font-size:24px;color:#0F1B3C;margin:0 0 12px;font-weight:700;font-family:'Fraunces',Georgia,serif;">${heading}</h1>
+    <p style="${bodyStyle}">${body}</p>
+    <a href="${ctaUrl}" style="display:inline-block;background:#0F1B3C;color:#ffffff;padding:13px 28px;border-radius:100px;text-decoration:none;font-weight:600;font-size:15px;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;">${ctaLabel}</a>
+    <p style="color:#6B7280;font-size:12px;margin-top:32px;line-height:1.5;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;">You're receiving this because you're a member of ROSTA.</p>
+  </div>
+</body>
+</html>`
+}
+
+// ── Resend helper ─────────────────────────────────────────────────────────────
 
 export async function sendEmail(to: string, subject: string, html: string) {
   const res = await fetch('https://api.resend.com/emails', {
@@ -26,7 +71,7 @@ export async function sendEmail(to: string, subject: string, html: string) {
   }
 }
 
-const BASE = 'https://app.onrosta.com'
+// ── Email templates ───────────────────────────────────────────────────────────
 
 export function introRequestEmail(
   facilitatorName: string,
@@ -83,6 +128,65 @@ export function introAcceptedEmailToTarget(
     `Hi ${targetName}, ${facilitatorName} thought you and ${requesterName} should meet. ${reqNoteHtml ? "Here's why they wanted the intro:</p>" + reqNoteHtml + facNoteHtml + '<p style="color:#6B7280;font-size:15px;line-height:1.6;margin:0;">Say hello.' : 'Say hello.'}`,
     `View ${requesterName}'s profile`,
     `${BASE}/profile/${requesterSlug}`,
+  )
+}
+
+export function introDeclinedEmail(
+  requesterName: string,
+  facilitatorName: string,
+  targetName: string,
+  facilitatorNote: string,
+) {
+  const noteHtml = facilitatorNote
+    ? `<p style="color:#6B7280;font-size:14px;margin:16px 0 0;">They said: <em>${facilitatorNote}</em></p>`
+    : ''
+  return wrap(
+    `Your intro request to ${targetName}`,
+    `Hi ${requesterName}, ${facilitatorName} wasn't able to facilitate your intro to ${targetName} this time.${noteHtml ? '</p>' + noteHtml + '<p style="display:none;">' : ''}`,
+    'Browse members',
+    `${BASE}/members`,
+  )
+}
+
+export function openDoorRequestEmail(
+  targetName: string,
+  requesterName: string,
+  note: string,
+  requestId: string,
+) {
+  const noteHtml = note
+    ? `<blockquote style="border-left:3px solid #C8F53C;margin:0 0 28px;padding:12px 16px;background:#fff;border-radius:0 8px 8px 0;color:#0F1B3C;font-size:15px;font-style:italic;">${note}</blockquote>`
+    : ''
+  return wrap(
+    `${requesterName} wants to connect`,
+    `Hi ${targetName}, ${requesterName} found your profile and wants to connect. ${noteHtml ? "Here's what they said:</p>" + noteHtml + '<p style="color:#6B7280;font-size:15px;line-height:1.6;margin:0;">Accept or decline below.' : 'Accept or decline below.'}`,
+    'View request',
+    `${BASE}/intro/${requestId}`,
+  )
+}
+
+export function openDoorAcceptedEmail(
+  requesterName: string,
+  targetName: string,
+  targetSlug: string,
+) {
+  return wrap(
+    `${targetName} accepted your request`,
+    `Hi ${requesterName}, ${targetName} accepted your connection request. You're now connected — say hello.`,
+    `View ${targetName}'s profile`,
+    `${BASE}/profile/${targetSlug}`,
+  )
+}
+
+export function openDoorDeclinedEmail(
+  requesterName: string,
+  targetName: string,
+) {
+  return wrap(
+    `Your connection request to ${targetName}`,
+    `Hi ${requesterName}, ${targetName} wasn't able to accept your connection request at this time.`,
+    'Browse members',
+    `${BASE}/members`,
   )
 }
 
@@ -157,74 +261,6 @@ export function qrConnectedToScannerEmail(
   )
 }
 
-export function openDoorRequestEmail(
-  targetName: string,
-  requesterName: string,
-  note: string,
-  requestId: string,
-) {
-  const noteHtml = note
-    ? `<blockquote style="border-left:3px solid #C8F53C;margin:0 0 28px;padding:12px 16px;background:#fff;border-radius:0 8px 8px 0;color:#0F1B3C;font-size:15px;font-style:italic;">${note}</blockquote>`
-    : ''
-  return wrap(
-    `${requesterName} wants to connect`,
-    `Hi ${targetName}, ${requesterName} found your profile and wants to connect. ${noteHtml ? "Here's what they said:</p>" + noteHtml + '<p style="color:#6B7280;font-size:15px;line-height:1.6;margin:0;">Accept or decline below.' : 'Accept or decline below.'}`,
-    'View request',
-    `${BASE}/intro/${requestId}`,
-  )
-}
-
-export function openDoorAcceptedEmail(
-  requesterName: string,
-  targetName: string,
-  targetSlug: string,
-) {
-  return wrap(
-    `${targetName} accepted your request`,
-    `Hi ${requesterName}, ${targetName} accepted your connection request. You're now connected — say hello.`,
-    `View ${targetName}'s profile`,
-    `${BASE}/profile/${targetSlug}`,
-  )
-}
-
-export function openDoorDeclinedEmail(
-  requesterName: string,
-  targetName: string,
-) {
-  return wrap(
-    `Your connection request to ${targetName}`,
-    `Hi ${requesterName}, ${targetName} wasn't able to accept your connection request at this time.`,
-    'Browse members',
-    `${BASE}/members`,
-  )
-}
-
-export function thankYouEmail(
-  facilitatorName: string,
-  senderName: string,
-  senderSlug: string,
-) {
-  return wrap(
-    `${senderName} said thank you`,
-    `Hi ${facilitatorName}, ${senderName} wanted to thank you for the intro — it clearly led somewhere good.`,
-    `View ${senderName}'s profile`,
-    `${BASE}/profile/${senderSlug}`,
-  )
-}
-
-export function inviteUsedEmail(
-  inviterName: string,
-  newMemberName: string,
-  newMemberSlug: string,
-) {
-  return wrap(
-    `${newMemberName} joined ROSTA`,
-    `Hi ${inviterName}, your invite just brought ${newMemberName} into the network. You earned +1 Connector Score.`,
-    `View ${newMemberName}'s profile`,
-    `${BASE}/profile/${newMemberSlug}`,
-  )
-}
-
 export function newMessageEmail(
   recipientName: string,
   senderName: string,
@@ -251,6 +287,32 @@ export function connectionNudgeEmail(
     `Hi ${recipientName}, you connected with ${otherName} 48 hours ago but haven't exchanged a message yet. A quick hello goes a long way.`,
     'Send a message',
     `${BASE}/messages/${conversationId}`,
+  )
+}
+
+export function thankYouEmail(
+  facilitatorName: string,
+  senderName: string,
+  senderSlug: string,
+) {
+  return wrap(
+    `${senderName} said thank you`,
+    `Hi ${facilitatorName}, ${senderName} wanted to thank you for the intro — it clearly led somewhere good.`,
+    `View ${senderName}'s profile`,
+    `${BASE}/profile/${senderSlug}`,
+  )
+}
+
+export function inviteUsedEmail(
+  inviterName: string,
+  newMemberName: string,
+  newMemberSlug: string,
+) {
+  return wrap(
+    `${newMemberName} joined ROSTA`,
+    `Hi ${inviterName}, your invite just brought ${newMemberName} into the network. You earned +1 Connector Score.`,
+    `View ${newMemberName}'s profile`,
+    `${BASE}/profile/${newMemberSlug}`,
   )
 }
 
@@ -309,19 +371,21 @@ export function adminVerificationGrantedEmail(name: string) {
   )
 }
 
-export function introDeclinedEmail(
-  requesterName: string,
-  facilitatorName: string,
-  targetName: string,
-  facilitatorNote: string,
-) {
-  const noteHtml = facilitatorNote
-    ? `<p style="color:#6B7280;font-size:14px;margin:16px 0 0;">They said: <em>${facilitatorNote}</em></p>`
-    : ''
+// ── Weekly digest (AI-generated body — needs white-space:pre-line) ────────────
+
+export function digestEmailHtml(name: string, body: string): string {
   return wrap(
-    `Your intro request to ${targetName}`,
-    `Hi ${requesterName}, ${facilitatorName} wasn't able to facilitate your intro to ${targetName} this time.${noteHtml ? '</p>' + noteHtml + '<p style="display:none;">' : ''}`,
-    'Browse members',
+    'Your network this week',
+    body,
+    'Open ROSTA',
     `${BASE}/members`,
+    { preLineBody: true },
   )
+}
+
+// ── Admin email blast (free-text body — HTML-escaped) ─────────────────────────
+
+export function adminEmailHtml(subject: string, body: string): string {
+  const escapedBody = escapeHtml(body).replace(/\n/g, '<br/>')
+  return wrap(escapeHtml(subject), escapedBody, 'Go to ROSTA', `${BASE}/dashboard`)
 }

@@ -3,9 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendEmail } from '@/lib/resend'
+import { sendEmail, adminEmailHtml } from '@/lib/resend'
 
-const BASE = 'https://app.onrosta.com'
 const FROM_SUBJECT_PREFIX = '[ROSTA] '
 
 async function requireAdmin() {
@@ -16,27 +15,6 @@ async function requireAdmin() {
   const { data: profile } = await admin.from('profiles').select('is_admin').eq('id', user.id).single()
   if (!profile?.is_admin) throw new Error('Forbidden')
   return { admin, userId: user.id }
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
-function buildHtml(subject: string, body: string): string {
-  const escaped = escapeHtml(body).replace(/\n/g, '<br/>')
-  return `
-    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:48px 24px;background:#F5F2EE;">
-      <p style="font-size:22px;font-weight:700;color:#0F1B3C;margin:0 0 4px;">ROSTA<span style="color:#C8F53C;">.</span></p>
-      <hr style="border:none;border-top:1px solid #E5E1DB;margin:20px 0 32px;"/>
-      <h1 style="font-size:22px;color:#0F1B3C;margin:0 0 16px;font-weight:700;">${escapeHtml(subject)}</h1>
-      <p style="color:#6B7280;font-size:15px;line-height:1.7;margin:0 0 28px;">${escaped}</p>
-      <a href="${BASE}/dashboard" style="display:inline-block;background:#0F1B3C;color:#ffffff;padding:13px 28px;border-radius:100px;text-decoration:none;font-weight:600;font-size:15px;">Go to ROSTA</a>
-      <p style="color:#6B7280;font-size:12px;margin-top:32px;line-height:1.5;">You&apos;re receiving this because you&apos;re a member of ROSTA.</p>
-    </div>`
 }
 
 async function getEmailList(
@@ -74,7 +52,7 @@ export async function sendAdminEmail(
   const emails = await getEmailList(admin, scope, specificEmail)
   if (!emails.length) return { sent: 0, errors: 0 }
 
-  const html = buildHtml(subject, body)
+  const html = adminEmailHtml(subject, body)
   const fullSubject = FROM_SUBJECT_PREFIX + subject
 
   let sent = 0
@@ -105,5 +83,5 @@ export async function sendAdminEmail(
 
 export async function getPreviewHtml(subject: string, body: string): Promise<string> {
   await requireAdmin()
-  return buildHtml(subject, body)
+  return adminEmailHtml(subject, body)
 }
