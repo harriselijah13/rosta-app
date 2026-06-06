@@ -8,7 +8,7 @@ import { OPEN_TO_OPTIONS, PROFILE_MODES } from '@/lib/constants'
 import type { Profile } from '@/lib/types'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
-const MODE_MAP = Object.fromEntries(PROFILE_MODES.map(m => [m.value, m.label]))
+const MODE_MAP    = Object.fromEntries(PROFILE_MODES.map(m => [m.value, m.label]))
 
 function ActiveDot({ active }: { active: boolean }) {
   return (
@@ -21,15 +21,11 @@ function ActiveDot({ active }: { active: boolean }) {
   )
 }
 
-function Initials({ name, size = 'md', active }: { name: string; size?: 'sm' | 'md'; active: boolean }) {
-  const parts = name.trim().split(' ')
-  const initials = parts.map(p => p[0]).slice(0, 2).join('').toUpperCase()
-  const cls = size === 'sm' ? 'w-10 h-10 text-sm' : 'w-12 h-12 text-sm'
+function Initials({ name, active }: { name: string; active: boolean }) {
+  const initials = name.trim().split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()
   return (
     <div className="relative shrink-0">
-      <div
-        className={`${cls} rounded-full bg-navy/10 text-navy font-medium flex items-center justify-center`}
-      >
+      <div className="w-12 h-12 text-sm rounded-full bg-navy/10 text-navy font-medium flex items-center justify-center">
         {initials || '?'}
       </div>
       <ActiveDot active={active} />
@@ -40,17 +36,18 @@ function Initials({ name, size = 'md', active }: { name: string; size?: 'sm' | '
 function MemberCard({
   member,
   isSelf,
+  isConnected,
 }: {
   member: Profile
   isSelf: boolean
+  isConnected: boolean
 }) {
-  const name = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'Anonymous'
-  const signal = member.signals?.[0]
-  const openTo = (signal?.open_to ?? []).filter(v => v !== 'open_door')
+  const name      = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'Anonymous'
+  const signal    = member.signals?.[0]
+  const openTo    = (signal?.open_to ?? []).filter(v => v !== 'open_door')
   const hasOpenDoor = signal?.open_to?.includes('open_door') ?? false
-
-  const ref = signal?.updated_at ?? member.updated_at
-  const isActive = Date.now() - new Date(ref).getTime() < 14 * 24 * 60 * 60 * 1000
+  const ref       = signal?.updated_at ?? member.updated_at
+  const isActive  = Date.now() - new Date(ref).getTime() < 14 * 24 * 60 * 60 * 1000
 
   return (
     <Link
@@ -70,11 +67,17 @@ function MemberCard({
         ) : (
           <Initials name={name} active={isActive} />
         )}
+
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold text-navy text-sm leading-tight">{name}</p>
             {member.is_verified && <VerifiedBadge />}
             {isSelf && <span className="text-xs text-body-grey">(you)</span>}
+            {isConnected && !isSelf && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-navy bg-navy/5 border border-navy/20 px-1.5 py-0.5 rounded-full">
+                Connected
+              </span>
+            )}
             {member.founding_member && (
               <span
                 title="Founding member — joined in the first 500"
@@ -96,15 +99,26 @@ function MemberCard({
             </p>
           )}
         </div>
+
         {member.profile_mode && (
           <Badge>{MODE_MAP[member.profile_mode] ?? member.profile_mode}</Badge>
         )}
       </div>
 
+      {/* What I do — visible to all */}
       {member.what_i_do && (
         <p className="text-sm text-navy mb-3 line-clamp-2">{member.what_i_do}</p>
       )}
 
+      {/* Building now — visible to connections and self only */}
+      {(isConnected || isSelf) && member.building_now && (
+        <p className="text-xs text-body-grey mb-3 line-clamp-1">
+          <span className="font-medium text-navy">Building: </span>
+          {member.building_now}
+        </p>
+      )}
+
+      {/* Open to pills — visible to all */}
       {openTo.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {openTo.slice(0, 4).map(v => (
@@ -126,25 +140,29 @@ function MemberCard({
   )
 }
 
-const FILTER_MODES = [{ value: '', label: 'All modes' }, ...PROFILE_MODES.map(m => ({ value: m.value, label: m.label }))]
+const FILTER_MODES   = [{ value: '', label: 'All modes' },   ...PROFILE_MODES.map(m => ({ value: m.value, label: m.label }))]
 const FILTER_OPEN_TO = [{ value: '', label: 'Any signal' }, ...OPEN_TO_OPTIONS]
 
 export default function MemberDirectory({
   members,
   currentUserId,
+  connectedUserIds,
 }: {
   members: Profile[]
   currentUserId: string
+  connectedUserIds: string[]
 }) {
-  const [search, setSearch] = useState('')
-  const [modeFilter, setModeFilter] = useState('')
+  const [search,       setSearch]       = useState('')
+  const [modeFilter,   setModeFilter]   = useState('')
   const [openToFilter, setOpenToFilter] = useState('')
+
+  const connectedSet = useMemo(() => new Set(connectedUserIds), [connectedUserIds])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
     return members.filter(m => {
-      const name = `${m.first_name ?? ''} ${m.last_name ?? ''}`.toLowerCase()
-      const what = (m.what_i_do ?? '').toLowerCase()
+      const name     = `${m.first_name ?? ''} ${m.last_name ?? ''}`.toLowerCase()
+      const what     = (m.what_i_do ?? '').toLowerCase()
       const location = (m.where_i_operate ?? '').toLowerCase()
       if (q && !name.includes(q) && !what.includes(q) && !location.includes(q)) return false
       if (modeFilter && m.profile_mode !== modeFilter) return false
@@ -177,7 +195,6 @@ export default function MemberDirectory({
         />
 
         <div className="flex flex-wrap gap-2 items-center overflow-x-auto pb-1">
-          {/* Profile mode filter */}
           <div className="flex flex-wrap gap-1.5">
             {FILTER_MODES.map(m => (
               <button
@@ -196,7 +213,6 @@ export default function MemberDirectory({
 
           <div className="w-px h-5 bg-border mx-1" />
 
-          {/* Open to filter */}
           <div className="flex flex-wrap gap-1.5">
             {FILTER_OPEN_TO.map(o => (
               <button
@@ -235,7 +251,12 @@ export default function MemberDirectory({
       {filtered.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(m => (
-            <MemberCard key={m.id} member={m} isSelf={m.id === currentUserId} />
+            <MemberCard
+              key={m.id}
+              member={m}
+              isSelf={m.id === currentUserId}
+              isConnected={connectedSet.has(m.id)}
+            />
           ))}
         </div>
       ) : (
