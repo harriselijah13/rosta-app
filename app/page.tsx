@@ -125,7 +125,7 @@ export default function Home() {
               Create your profile
             </Link>
             <p className="text-warm-white/35 text-sm mt-5">
-              Invite only · Free to join · Founding member spots limited
+              Invite only · Free to join
             </p>
           </div>
         </section>
@@ -167,24 +167,6 @@ export default function Home() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* ── Founding member strip ── */}
-      <section className="bg-lime py-20 px-6">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="font-display text-4xl sm:text-5xl font-bold text-navy mb-5 text-balance leading-tight">
-            The first 500 are founding members. Permanently.
-          </h2>
-          <p className="text-navy/70 text-lg mb-10">
-            Founding member status never expires and can never be earned later.
-          </p>
-          <Link
-            href="/signup"
-            className="inline-block bg-navy text-lime font-semibold px-9 py-3.5 rounded-full hover:bg-navy/90 transition-colors text-base"
-          >
-            Claim your spot
-          </Link>
         </div>
       </section>
 
