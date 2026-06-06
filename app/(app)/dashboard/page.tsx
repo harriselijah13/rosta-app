@@ -6,6 +6,7 @@ import { computeConnectorScore } from '@/lib/connector-score'
 import { OPEN_TO_OPTIONS } from '@/lib/constants'
 import VerifiedBadge from '@/components/ui/VerifiedBadge'
 import WelcomeBanner from './WelcomeBanner'
+import ProgressBar from './ProgressBar'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
 const TOTAL_BADGES = 14
@@ -37,10 +38,11 @@ function activityLabel(working_on: string | null, need_right_now: string | null)
 
 // ─── sub-components ──────────────────────────────────────────────────────────
 
+// Eyebrow with pulsing dot — signals the page is live
 function Eyebrow({ label }: { label: string }) {
   return (
     <p className="text-navy text-xs font-medium tracking-widest uppercase mb-3 flex items-center gap-1.5">
-      <span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
+      <span className="w-1.5 h-1.5 rounded-full bg-lime animate-pulse shrink-0" />
       {label}
     </p>
   )
@@ -59,10 +61,10 @@ function StatCard({
 }) {
   const inner = (
     <div
-      className={`rounded-2xl px-5 py-4 border transition-shadow ${
+      className={`rounded-2xl px-5 py-4 border transition-shadow shadow-[0_2px_8px_rgba(15,27,60,0.06)] hover:shadow-[0_4px_12px_rgba(15,27,60,0.09)] ${
         lime
           ? 'bg-lime/10 border-lime/40'
-          : 'bg-white border-border hover:shadow-sm'
+          : 'bg-white border-border'
       }`}
     >
       <p className="font-display text-3xl font-bold text-navy leading-none mb-1">{value}</p>
@@ -93,12 +95,12 @@ function RostaIndex({
   if (stats.length === 0) return null
 
   return (
-    <div className="bg-white border border-border rounded-2xl px-5 py-4">
+    <div className="bg-white border border-border rounded-2xl px-5 py-4 shadow-[0_2px_8px_rgba(15,27,60,0.06)]">
       <p className="text-navy text-xs font-medium tracking-widest uppercase mb-3 flex items-center gap-1.5">
         <span className="w-1.5 h-1.5 rounded-full bg-lime animate-pulse shrink-0" />
         Network pulse
       </p>
-      <p className="text-sm text-body-grey leading-relaxed">
+      <p className="text-sm font-medium text-navy leading-relaxed">
         {stats.join(' · ')}
       </p>
     </div>
@@ -112,7 +114,7 @@ function OpenTableCard({ roomId, expiresAt }: { roomId: string; expiresAt: strin
       <Eyebrow label="Your Open Table" />
       <Link
         href={`/open-tables/${roomId}`}
-        className="flex items-center justify-between gap-4 bg-white border border-border rounded-2xl px-5 py-4 hover:border-navy/30 hover:shadow-sm transition-all group"
+        className="flex items-center justify-between gap-4 bg-white border border-border rounded-2xl px-6 py-5 shadow-[0_2px_8px_rgba(15,27,60,0.06)] hover:shadow-[0_4px_12px_rgba(15,27,60,0.09)] transition-shadow group"
       >
         <div className="min-w-0">
           <p className="text-sm font-medium text-navy">Your group is active</p>
@@ -310,6 +312,7 @@ export default async function DashboardPage() {
   const earnedCount = earnedSlugs.size
   const score = connectorScore.total
   const showBadgeTeaser = !!profile?.onboarding_completed
+  const badgePercent = Math.max(2, Math.round((earnedCount / TOTAL_BADGES) * 100))
 
   type NextBadge = { label: string; hint: string }
   const nextBadge = ((): NextBadge | null => {
@@ -357,14 +360,25 @@ export default async function DashboardPage() {
 
   // ── render ────────────────────────────────────────────────────────────────
   return (
-    <main className="max-w-2xl mx-auto px-4 sm:px-6 py-10 space-y-6">
+    <main className="relative max-w-2xl mx-auto px-4 sm:px-6 py-10 space-y-6">
+
+      {/* Subtle radial gradient — top-right depth effect */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed top-0 right-0 w-[60vw] h-[50vh] -z-10"
+        style={{ background: 'radial-gradient(ellipse at top right, rgba(15,27,60,0.05) 0%, transparent 60%)' }}
+      />
 
       {/* ── 1. Greeting ── */}
-      <div>
-        <h1 className="font-display text-4xl font-bold text-navy">
-          {firstName ? `Good to see you, ${firstName}.` : 'Good to see you.'}
-        </h1>
-        <p className="text-sm text-body-grey mt-2">{contextualLine}</p>
+      <div className="flex items-start gap-3">
+        {/* Live pulse dot */}
+        <span className="w-2.5 h-2.5 rounded-full bg-lime animate-pulse shrink-0 mt-[18px]" aria-hidden="true" />
+        <div>
+          <h1 className="font-display text-4xl font-bold text-navy">
+            {firstName ? `Good to see you, ${firstName}.` : 'Good to see you.'}
+          </h1>
+          <p className="text-base text-body-grey mt-2">{contextualLine}</p>
+        </div>
       </div>
 
       {/* ── 2. Welcome banner (new members only) ── */}
@@ -388,7 +402,10 @@ export default async function DashboardPage() {
                 <Link
                   key={r.id}
                   href={`/intro/${r.id}`}
-                  className="flex items-start justify-between gap-4 bg-white border border-border rounded-2xl px-5 py-4 hover:border-navy/30 hover:shadow-sm transition-all group"
+                  className="flex items-start justify-between gap-4 bg-white rounded-2xl px-6 py-5
+                    border border-border border-l-[3px] border-l-[#C8F53C]
+                    shadow-[0_2px_8px_rgba(15,27,60,0.06)] hover:shadow-[0_4px_12px_rgba(15,27,60,0.1)]
+                    transition-shadow group"
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-1.5">
@@ -416,7 +433,7 @@ export default async function DashboardPage() {
       {matchPair && (
         <section>
           <Eyebrow label="Matchmaker" />
-          <div className="bg-white border border-border rounded-2xl p-5">
+          <div className="bg-white border border-border rounded-2xl p-6 shadow-[0_2px_8px_rgba(15,27,60,0.06)]">
             <p className="text-sm font-medium text-navy mb-4">
               Do you think{' '}
               <Link href={`/profile/${slug(matchPair[0])}`} className="underline underline-offset-2">
@@ -448,7 +465,9 @@ export default async function DashboardPage() {
 
       {/* ── 5. Signals (merged with nudge) ── */}
       {mySignals ? (
-        <div className="bg-white border border-border rounded-2xl p-6">
+        <div className={`bg-white rounded-2xl p-6 border shadow-[0_2px_8px_rgba(15,27,60,0.06)] ${
+          signalsStale ? 'border-border' : 'border-lime/30'
+        }`}>
           <div className="flex items-start justify-between gap-4 mb-4">
             <h2 className="font-display text-lg font-bold text-navy">Your signals</h2>
             <div className="flex items-center gap-1.5 shrink-0">
@@ -507,7 +526,7 @@ export default async function DashboardPage() {
             </div>
           )}
 
-          {/* Intro nudge — inline, only when not stale */}
+          {/* Intro nudge — inline */}
           {!signalsStale && hasConnections && (introsMadeCount ?? 0) === 0 && (
             <div className="mt-4 pt-4 border-t border-border flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <p className="text-sm text-navy flex-1">
@@ -523,7 +542,7 @@ export default async function DashboardPage() {
           )}
         </div>
       ) : (
-        <div className="bg-surface border border-border rounded-2xl p-6">
+        <div className="bg-surface border border-border rounded-2xl p-6 shadow-[0_2px_8px_rgba(15,27,60,0.06)]">
           <p className="text-sm font-medium text-navy mb-1">Set your signals</p>
           <p className="text-sm text-body-grey mb-4">
             Tell your network what you&apos;re building and what you need.
@@ -541,7 +560,7 @@ export default async function DashboardPage() {
       {networkActivity.length > 0 && (
         <section>
           <Eyebrow label="Network activity" />
-          <div className="bg-white border border-border rounded-2xl overflow-hidden divide-y divide-border">
+          <div className="bg-white border border-border rounded-2xl overflow-hidden divide-y divide-border shadow-[0_2px_8px_rgba(15,27,60,0.06)]">
             {networkActivity.map(signal => {
               const p = byId[signal.user_id]
               if (!p) return null
@@ -601,9 +620,9 @@ export default async function DashboardPage() {
           <Eyebrow label="Your badges" />
           <Link
             href={`/profile/${profileSlugSelf}`}
-            className="block bg-white border border-border rounded-2xl p-5 hover:shadow-sm transition-shadow group"
+            className="block bg-white border border-border rounded-2xl p-6 shadow-[0_2px_8px_rgba(15,27,60,0.06)] hover:shadow-[0_4px_12px_rgba(15,27,60,0.09)] transition-shadow group"
           >
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <p className="text-sm font-semibold text-navy">
                 {earnedCount} of {TOTAL_BADGES} badges earned
               </p>
@@ -611,22 +630,18 @@ export default async function DashboardPage() {
                 View all →
               </span>
             </div>
-            {/* Progress bar */}
-            <div className="h-1.5 bg-surface rounded-full overflow-hidden mb-3">
-              <div
-                className="h-full bg-lime rounded-full transition-all"
-                style={{ width: `${Math.max(2, (earnedCount / TOTAL_BADGES) * 100)}%` }}
-              />
+            <ProgressBar percent={badgePercent} />
+            <div className="mt-3">
+              {nextBadge ? (
+                <p className="text-xs text-body-grey">
+                  Next:{' '}
+                  <span className="font-semibold text-navy">{nextBadge.label}</span>
+                  {' '}— {nextBadge.hint}
+                </p>
+              ) : (
+                <p className="text-xs font-medium text-navy">All badges earned.</p>
+              )}
             </div>
-            {nextBadge ? (
-              <p className="text-xs text-body-grey">
-                Next:{' '}
-                <span className="font-semibold text-navy">{nextBadge.label}</span>
-                {' '}— {nextBadge.hint}
-              </p>
-            ) : (
-              <p className="text-xs font-medium text-navy">All badges earned.</p>
-            )}
           </Link>
         </section>
       )}
@@ -665,7 +680,7 @@ export default async function DashboardPage() {
 
       {/* ── 11. Empty state ── */}
       {!hasConnections && pendingActions.length === 0 && (
-        <div className="bg-white border border-border rounded-2xl p-8 text-center">
+        <div className="bg-white border border-border rounded-2xl p-8 text-center shadow-[0_2px_8px_rgba(15,27,60,0.06)]">
           <p className="font-display text-xl font-bold text-navy mb-2">
             Start building your network
           </p>

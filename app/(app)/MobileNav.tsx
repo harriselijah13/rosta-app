@@ -27,6 +27,9 @@ export default function MobileNav({ profileSlug, pendingIntros, unreadMessages }
 
         {/* Desktop links */}
         <div className="hidden md:flex items-center gap-6">
+          <Link href="/dashboard" className="text-sm text-body-grey hover:text-navy transition-colors">
+            Home
+          </Link>
           <Link href="/members" className="text-sm text-body-grey hover:text-navy transition-colors">
             Members
           </Link>
@@ -90,9 +93,16 @@ export default function MobileNav({ profileSlug, pendingIntros, unreadMessages }
         <div className="md:hidden border-t border-border bg-white">
           <div className="px-6 py-5 flex flex-col gap-1">
             <Link
+              href="/dashboard"
+              onClick={close}
+              className="py-3 text-sm font-medium text-navy border-b border-border"
+            >
+              Home
+            </Link>
+            <Link
               href="/members"
               onClick={close}
-              className="py-3 text-sm font-medium text-navy border-b border-border last:border-0"
+              className="py-3 text-sm font-medium text-navy border-b border-border"
             >
               Members
             </Link>
