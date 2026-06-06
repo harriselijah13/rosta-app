@@ -6,13 +6,13 @@ import { createAdminClient } from '@/lib/supabase/admin'
 export const dynamic = 'force-dynamic'
 
 export async function POST() {
+  // ── 1. API key diagnostic (before auth so we can see it in logs) ─────────
+  const apiKey = process.env.ANTHROPIC_API_KEY ?? ''
+  console.log('[signal-coach] ANTHROPIC_API_KEY set:', !!apiKey, '| length:', apiKey.length, '| prefix:', apiKey.slice(0, 7))
+
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  // ── 1. API key diagnostic ────────────────────────────────────────────────
-  const apiKey = process.env.ANTHROPIC_API_KEY ?? ''
-  console.log('[signal-coach] ANTHROPIC_API_KEY set:', !!apiKey, '| length:', apiKey.length, '| prefix:', apiKey.slice(0, 7))
 
   // ── 2. Fetch profile + signals ───────────────────────────────────────────
   const admin = createAdminClient()
