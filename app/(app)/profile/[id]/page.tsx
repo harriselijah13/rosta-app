@@ -160,6 +160,11 @@ export default async function ProfilePage({
                 {profile.profile_mode && (
                   <Badge variant="navy">{MODE_MAP[profile.profile_mode] ?? profile.profile_mode}</Badge>
                 )}
+                {profile.founding_member && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-navy bg-lime/30 border border-lime/50 px-2 py-0.5 rounded-full">
+                    Founding member
+                  </span>
+                )}
                 <span className="inline-flex items-center gap-1.5 text-xs text-body-grey">
                   <span
                     className={`w-2 h-2 rounded-full ${active ? 'bg-green-500' : 'bg-body-grey/40'}`}

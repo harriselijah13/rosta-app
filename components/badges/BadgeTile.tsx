@@ -15,7 +15,7 @@ function PadlockIcon() {
       strokeWidth={2.5}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="w-3 h-3"
+      className="w-3.5 h-3.5"
     >
       <rect x="5" y="11" width="14" height="10" rx="2" />
       <path d="M8 11V7a4 4 0 018 0v4" />
@@ -26,27 +26,55 @@ function PadlockIcon() {
 export default function BadgeTile({ badge, earned }: Props) {
   if (earned) {
     return (
-      <div title={badge.description} className="flex flex-col items-center gap-1.5 p-2">
-        <div className="w-12 h-12 rounded-2xl bg-navy border border-[#C8F53C] flex items-center justify-center shadow-sm">
-          <BadgeIcon slug={badge.slug} className="w-6 h-6 text-[#C8F53C]" />
+      <div
+        title={badge.earnDescription}
+        className="flex flex-col items-center gap-2 p-3 bg-[#F5F2EE] border border-[#E5E1DB] rounded-2xl"
+      >
+        {/* Icon bubble */}
+        <div
+          className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: badge.iconBg }}
+        >
+          <BadgeIcon
+            slug={badge.slug}
+            className="w-8 h-8"
+            style={{ color: badge.iconColor }}
+          />
         </div>
-        <span className="text-[10px] font-bold text-center leading-tight text-navy line-clamp-2">
-          {badge.label}
-        </span>
+        {/* Text */}
+        <div className="flex flex-col items-center gap-0.5 min-w-0 w-full">
+          <span className="text-[11px] font-bold text-[#0F1B3C] text-center leading-tight">
+            {badge.label}
+          </span>
+          <span className="text-[9px] text-[#6B7280] text-center leading-snug">
+            {badge.earnDescription}
+          </span>
+        </div>
       </div>
     )
   }
 
   return (
-    <div title={badge.description} className="flex flex-col items-center gap-1.5 p-2">
-      <div className="relative w-12 h-12 rounded-2xl bg-[#F5F2EE] flex items-center justify-center">
-        <BadgeIcon slug={badge.slug} className="w-6 h-6 text-gray-400 opacity-25" />
-        <span className="absolute bottom-1 right-1 text-gray-400 opacity-40">
-          <PadlockIcon />
+    <div
+      title={badge.earnDescription}
+      className="relative flex flex-col items-center gap-2 p-3 bg-[#F5F2EE] border border-[#E5E1DB] rounded-2xl"
+    >
+      {/* Icon bubble — greyed */}
+      <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#E5E1DB]">
+        <BadgeIcon slug={badge.slug} className="w-8 h-8 text-[#9CA3AF] opacity-40" />
+      </div>
+      {/* Text — greyed */}
+      <div className="flex flex-col items-center gap-0.5 min-w-0 w-full opacity-40">
+        <span className="text-[11px] font-bold text-[#0F1B3C] text-center leading-tight">
+          {badge.label}
+        </span>
+        <span className="text-[9px] text-[#6B7280] text-center leading-snug">
+          {badge.earnDescription}
         </span>
       </div>
-      <span className="text-[10px] font-medium text-center leading-tight text-gray-400 opacity-40 line-clamp-2">
-        {badge.label}
+      {/* Padlock */}
+      <span className="absolute bottom-2 right-2 text-[#9CA3AF] opacity-40">
+        <PadlockIcon />
       </span>
     </div>
   )

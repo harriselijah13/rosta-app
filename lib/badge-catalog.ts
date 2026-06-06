@@ -1,101 +1,109 @@
 export type BadgeDef = {
   slug: string
   label: string
-  description: string
-  /** Tailwind color class applied when earned */
-  color: string
+  earnDescription: string
+  iconColor: string  // hex, used for the icon stroke/fill
+  iconBg: string     // hex, used for the icon bubble background
 }
 
 export const BADGE_CATALOG: BadgeDef[] = [
   {
     slug: 'founding-member',
     label: 'Founding Member',
-    description: 'Joined ROSTA in the founding cohort',
-    color: 'text-amber-500',
+    earnDescription: 'Joined ROSTA as a founding member',
+    iconColor: '#D97706',
+    iconBg: '#FEF3C7',
   },
   {
     slug: 'verified',
     label: 'Verified',
-    description: 'Identity verified by the ROSTA team',
-    color: 'text-blue-500',
-  },
-  {
-    slug: 'open-door',
-    label: 'Open Door',
-    description: 'Open Door is currently active on your profile',
-    color: 'text-lime-600',
+    earnDescription: 'Identity verified by the ROSTA team',
+    iconColor: '#2563EB',
+    iconBg: '#DBEAFE',
   },
   {
     slug: 'first-connection',
-    label: 'Connected',
-    description: 'Made your first connection on ROSTA',
-    color: 'text-navy',
+    label: 'First Connection',
+    earnDescription: 'Made your first connection on ROSTA',
+    iconColor: '#0F766E',
+    iconBg: '#CCFBF1',
   },
   {
     slug: 'introducer',
     label: 'Introducer',
-    description: 'Facilitated your first warm intro',
-    color: 'text-purple-500',
+    earnDescription: 'Facilitated your first warm introduction',
+    iconColor: '#7C3AED',
+    iconBg: '#EDE9FE',
   },
   {
     slug: 'connector',
     label: 'Connector',
-    description: 'Reached a connector score of 15',
-    color: 'text-indigo-500',
+    earnDescription: 'Reached a Connector Score of 15',
+    iconColor: '#4F46E5',
+    iconBg: '#E0E7FF',
   },
   {
     slug: 'bridge',
     label: 'Bridge',
-    description: 'Reached a connector score of 40',
-    color: 'text-teal-500',
+    earnDescription: 'Reached a Connector Score of 40',
+    iconColor: '#0891B2',
+    iconBg: '#CFFAFE',
   },
   {
     slug: 'catalyst',
     label: 'Catalyst',
-    description: 'Reached a connector score of 80',
-    color: 'text-orange-500',
+    earnDescription: 'Reached a Connector Score of 80',
+    iconColor: '#EA580C',
+    iconBg: '#FFEDD5',
   },
   {
     slug: 'architect',
     label: 'Architect',
-    description: 'Reached a connector score of 150',
-    color: 'text-rose-500',
+    earnDescription: 'Reached a Connector Score of 150',
+    iconColor: '#E11D48',
+    iconBg: '#FFE4E6',
   },
   {
     slug: 'spark',
     label: 'Spark',
-    description: 'First connection outcome marked',
-    color: 'text-yellow-500',
+    earnDescription: 'Marked your first connection outcome',
+    iconColor: '#CA8A04',
+    iconBg: '#FEF9C3',
   },
   {
     slug: 'five-outcomes',
     label: 'Five Outcomes',
-    description: '5 connection outcomes marked',
-    color: 'text-emerald-500',
+    earnDescription: 'Marked 5 connection outcomes',
+    iconColor: '#059669',
+    iconBg: '#D1FAE5',
   },
   {
     slug: 'table-setter',
     label: 'Table Setter',
-    description: 'Matched in an Open Table session',
-    color: 'text-cyan-600',
+    earnDescription: 'Matched in an Open Table session',
+    iconColor: '#0284C7',
+    iconBg: '#E0F2FE',
   },
   {
     slug: 'signal-strength',
     label: 'Signal Strength',
-    description: 'Kept signals active for 4 consecutive weeks',
-    color: 'text-green-500',
+    earnDescription: 'Active signals for 4 consecutive weeks',
+    iconColor: '#16A34A',
+    iconBg: '#DCFCE7',
   },
   {
     slug: 'thanked',
     label: 'Thanked',
-    description: 'Received 3 thank-yous for intros',
-    color: 'text-pink-500',
+    earnDescription: 'Received 3 thank-yous for intro-making',
+    iconColor: '#DB2777',
+    iconBg: '#FCE7F3',
   },
   {
     slug: 'all-in',
     label: 'All In',
-    description: 'Earned 5 or more badges',
-    color: 'text-navy',
+    earnDescription: 'Earned 5 or more ROSTA badges',
+    iconColor: '#0F1B3C',
+    iconBg: '#ECFCCB',
   },
 ]
 

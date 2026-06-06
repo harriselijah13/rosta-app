@@ -12,7 +12,6 @@ export async function checkAndAwardBadges(userId: string): Promise<void> {
   // Fetch all data needed to evaluate every badge condition in parallel
   const [
     { data: profile },
-    { data: signals },
     { data: earnedRows },
     { count: connectionCount },
     { count: facilitatedCount },
@@ -25,11 +24,6 @@ export async function checkAndAwardBadges(userId: string): Promise<void> {
       .select('founding_member, is_verified, signal_streak')
       .eq('id', userId)
       .single(),
-
-    admin.from('signals')
-      .select('open_to')
-      .eq('user_id', userId)
-      .maybeSingle(),
 
     admin.from('member_badges')
       .select('badge_slug')
@@ -84,7 +78,6 @@ export async function checkAndAwardBadges(userId: string): Promise<void> {
     // Status badges
     maybeAward('founding-member', !!profile?.founding_member),
     maybeAward('verified',        !!profile?.is_verified),
-    maybeAward('open-door',       !!(signals?.open_to as string[] | null)?.includes('open_door')),
 
     // Activity badges
     maybeAward('first-connection', (connectionCount ?? 0) >= 1),
