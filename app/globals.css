@@ -31,3 +31,34 @@
     text-wrap: balance;
   }
 }
+
+/* ── Dashboard animations ──────────────────────────────────────────────────── */
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.7); }
+}
+
+@keyframes networkFloat {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50%       { opacity: 0.1;  transform: scale(0.6); }
+}
+
+@keyframes lineFloat {
+  0%, 100% { opacity: 0.06; }
+  50%       { opacity: 0.02; }
+}
+
+.animate-live-pulse {
+  animation: livePulse 2s ease-in-out infinite;
+}
+
+.network-node {
+  animation: networkFloat var(--node-duration, 5s) ease-in-out infinite;
+  animation-delay: var(--node-delay, 0s);
+}
+
+.network-line {
+  animation: lineFloat var(--line-duration, 5s) ease-in-out infinite;
+  animation-delay: var(--line-delay, 0s);
+}
