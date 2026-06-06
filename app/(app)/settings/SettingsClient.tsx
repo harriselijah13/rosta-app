@@ -72,30 +72,30 @@ export default function SettingsClient({ userId, profile, signals, openTableOpte
   // AI signal coaching
   const [coachLoading, setCoachLoading] = useState(false)
   const [suggestions, setSuggestions] = useState<{ working_on: string; need_right_now: string } | null>(null)
+  const [coachError, setCoachError] = useState('')
   const [acceptedWorkingOn, setAcceptedWorkingOn] = useState(false)
   const [acceptedNeedRightNow, setAcceptedNeedRightNow] = useState(false)
-
-  const GENERIC = ['looking to network', 'open to opportunities', 'exploring', 'networking', 'connecting']
-  function isWeakSignal(text: string | null): boolean {
-    if (!text || text.trim().split(/\s+/).length < 5) return true
-    const lower = text.toLowerCase()
-    return GENERIC.some(g => lower.includes(g))
-  }
-  const signalsAreWeak = isWeakSignal(workingOn) || isWeakSignal(needRightNow)
 
   async function handleSignalCoach() {
     setCoachLoading(true)
     setSuggestions(null)
+    setCoachError('')
     setAcceptedWorkingOn(false)
     setAcceptedNeedRightNow(false)
     try {
       const res = await fetch('/api/ai/signal-coach', { method: 'POST' })
-      if (res.ok) {
-        const { suggestions: s } = await res.json()
-        if (s) setSuggestions(s)
+      const json = await res.json()
+      if (!res.ok) {
+        setCoachError('Could not generate suggestions — try again.')
+        return
+      }
+      if (json.suggestions) {
+        setSuggestions(json.suggestions)
+      } else {
+        setCoachError('No suggestions returned — try again in a moment.')
       }
     } catch {
-      // Silent failure — no error shown
+      setCoachError('Something went wrong — check your connection and try again.')
     } finally {
       setCoachLoading(false)
     }
@@ -437,14 +437,14 @@ export default function SettingsClient({ userId, profile, signals, openTableOpte
       </section>
 
       {/* ── AI Signal coaching ── */}
-      {signalsAreWeak && (
-        <section className="border border-lime/50 bg-lime/5 rounded-2xl p-5 mb-4">
-          <p className="text-sm font-medium text-navy mb-0.5">Your signals help ROSTA find the right people for you.</p>
-          <p className="text-xs text-body-grey mb-3">
-            Strong signals get better matches — be specific about what you&apos;re building and what you need.
-          </p>
+      <section className="border border-lime/50 bg-lime/5 rounded-2xl p-5 mb-4">
+        <p className="text-sm font-medium text-navy mb-0.5">Improve your signals with AI</p>
+        <p className="text-xs text-body-grey mb-3">
+          Get specific, tailored suggestions for Working on and Need right now based on your profile.
+        </p>
 
-          {!suggestions && (
+        {!suggestions && (
+          <>
             <button
               type="button"
               onClick={handleSignalCoach}
@@ -461,55 +461,58 @@ export default function SettingsClient({ userId, profile, signals, openTableOpte
                 </>
               ) : 'Suggest improvements'}
             </button>
-          )}
+            {coachError && (
+              <p className="mt-2 text-xs text-red-500">{coachError}</p>
+            )}
+          </>
+        )}
 
-          {suggestions && (
-            <div className="space-y-3">
-              {suggestions.working_on && (
-                <div className="bg-white border border-border rounded-xl p-4">
-                  <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-1">Working on — suggested</p>
-                  <p className="text-sm text-navy mb-3">{suggestions.working_on}</p>
-                  {acceptedWorkingOn ? (
-                    <span className="text-xs text-green-700 font-medium">Applied</span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={acceptWorkingOn}
-                      className="text-xs font-medium text-navy border border-navy px-3 py-1.5 rounded-full hover:bg-navy hover:text-warm-white transition-colors"
-                    >
-                      Use this
-                    </button>
-                  )}
-                </div>
-              )}
-              {suggestions.need_right_now && (
-                <div className="bg-white border border-border rounded-xl p-4">
-                  <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-1">Need right now — suggested</p>
-                  <p className="text-sm text-navy mb-3">{suggestions.need_right_now}</p>
-                  {acceptedNeedRightNow ? (
-                    <span className="text-xs text-green-700 font-medium">Applied</span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={acceptNeedRightNow}
-                      className="text-xs font-medium text-navy border border-navy px-3 py-1.5 rounded-full hover:bg-navy hover:text-warm-white transition-colors"
-                    >
-                      Use this
-                    </button>
-                  )}
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => setSuggestions(null)}
-                className="text-xs text-body-grey hover:text-navy transition-colors"
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
-        </section>
-      )}
+        {suggestions && (
+          <div className="space-y-3">
+            {suggestions.working_on && (
+              <div className="bg-white border border-border rounded-xl p-4">
+                <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-1">Working on — suggested</p>
+                <p className="text-sm text-navy mb-3">{suggestions.working_on}</p>
+                {acceptedWorkingOn ? (
+                  <span className="text-xs text-green-700 font-medium">Applied</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={acceptWorkingOn}
+                    className="text-xs font-medium text-navy border border-navy px-3 py-1.5 rounded-full hover:bg-navy hover:text-warm-white transition-colors"
+                  >
+                    Use this
+                  </button>
+                )}
+              </div>
+            )}
+            {suggestions.need_right_now && (
+              <div className="bg-white border border-border rounded-xl p-4">
+                <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-1">Need right now — suggested</p>
+                <p className="text-sm text-navy mb-3">{suggestions.need_right_now}</p>
+                {acceptedNeedRightNow ? (
+                  <span className="text-xs text-green-700 font-medium">Applied</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={acceptNeedRightNow}
+                    className="text-xs font-medium text-navy border border-navy px-3 py-1.5 rounded-full hover:bg-navy hover:text-warm-white transition-colors"
+                  >
+                    Use this
+                  </button>
+                )}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => { setSuggestions(null); setCoachError('') }}
+              className="text-xs text-body-grey hover:text-navy transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+      </section>
 
       {/* ── Open Door section ── */}
       <section className="bg-white border border-border rounded-2xl p-6 mb-6">

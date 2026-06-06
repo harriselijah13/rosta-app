@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 
-export const HAIKU = 'claude-haiku-4-5' as const
+export const HAIKU = 'claude-haiku-4-5-20251001' as const
 
 let _client: Anthropic | null = null
 function client(): Anthropic {
