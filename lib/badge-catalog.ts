@@ -22,7 +22,7 @@ export const BADGE_CATALOG: BadgeDef[] = [
   {
     slug: 'open-door',
     label: 'Open Door',
-    description: 'Kept Open Door on for 30+ days',
+    description: 'Open Door is currently active on your profile',
     color: 'text-lime-600',
   },
   {
