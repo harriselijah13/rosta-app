@@ -28,6 +28,37 @@ const SCOPE_LABELS: Record<Scope, string> = {
   specific: 'Specific member by email',
 }
 
+const WAITLIST_INVITE_BODY = `Hi [Name],
+
+I wanted to personally invite you to join ROSTA — the professional network I've been building.
+
+You're exactly the kind of person I had in mind when I built this. No feed, no follower counts, no performing. Just warm introductions and real connections.
+
+The founding community is limited to 500 members. You're one of them.
+
+Sign up here: https://app.onrosta.com/signup
+Use invite code: [INVITE CODE]
+
+Looking forward to having you in the network.
+
+Harris
+Founder, ROSTA`
+
+const TEMPLATES = [
+  { value: '',          label: 'Use a template…' },
+  { value: 'waitlist',  label: 'Waitlist Invitation' },
+]
+
+const PLACEHOLDER_RE = /\[(Name|INVITE CODE)\]/g
+
+function detectPlaceholders(text: string): string[] {
+  const results: string[] = []
+  let m: RegExpExecArray | null
+  const re = new RegExp(PLACEHOLDER_RE.source, 'g')
+  while ((m = re.exec(text)) !== null) results.push(m[0])
+  return results
+}
+
 function scopeCount(scope: Scope, counts: ScopeCounts, specificEmail: string): string {
   if (scope === 'specific') return specificEmail.trim() ? '1 recipient' : 'Enter an email'
   const n = counts[scope]
@@ -41,16 +72,31 @@ export default function EmailToolsClient({
   counts: ScopeCounts
   log: SendLog[]
 }) {
-  const [scope, setScope]               = useState<Scope>('all')
+  const [scope, setScope]                 = useState<Scope>('all')
   const [specificEmail, setSpecificEmail] = useState('')
-  const [subject, setSubject]           = useState('')
-  const [body, setBody]                 = useState('')
-  const [previewing, setPreviewing]     = useState(false)
-  const [previewHtml, setPreviewHtml]   = useState('')
-  const [sending, setSending]           = useState(false)
-  const [result, setResult]             = useState<{ sent: number; errors: number } | null>(null)
+  const [subject, setSubject]             = useState('')
+  const [body, setBody]                   = useState('')
+  const [previewing, setPreviewing]       = useState(false)
+  const [previewHtml, setPreviewHtml]     = useState('')
+  const [sending, setSending]             = useState(false)
+  const [result, setResult]               = useState<{ sent: number; errors: number } | null>(null)
+  const [selectedTemplate, setSelectedTemplate] = useState('')
 
-  const canSend = subject.trim() && body.trim() && (scope !== 'specific' || specificEmail.trim())
+  const remainingPlaceholders = body.trim() ? detectPlaceholders(body) : []
+  const hasPlaceholders       = remainingPlaceholders.length > 0
+  const canSend               = subject.trim() && body.trim() && (scope !== 'specific' || specificEmail.trim())
+
+  function applyTemplate(value: string) {
+    setSelectedTemplate(value)
+    if (value === 'waitlist') {
+      setScope('specific')
+      setSubject("You're invited to ROSTA.")
+      setBody(WAITLIST_INVITE_BODY)
+      setSpecificEmail('')
+      setPreviewing(false)
+      setResult(null)
+    }
+  }
 
   async function handlePreview() {
     if (!subject.trim() || !body.trim()) return
@@ -62,8 +108,14 @@ export default function EmailToolsClient({
   async function handleSend(e: React.FormEvent) {
     e.preventDefault()
     if (!canSend) return
+
     const recipientLabel = scope === 'specific' ? specificEmail : SCOPE_LABELS[scope].toLowerCase()
-    if (!confirm(`Send "${subject}" to ${recipientLabel}?`)) return
+    let confirmMsg = `Send "${subject}" to ${recipientLabel}?`
+    if (hasPlaceholders) {
+      confirmMsg += `\n\nWarning: message still contains unreplaced placeholders: ${remainingPlaceholders.join(', ')}. Send anyway?`
+    }
+    if (!confirm(confirmMsg)) return
+
     setSending(true)
     setResult(null)
     const res = await sendAdminEmail(scope, specificEmail, subject, body)
@@ -73,6 +125,7 @@ export default function EmailToolsClient({
       setSubject('')
       setBody('')
       setSpecificEmail('')
+      setSelectedTemplate('')
       setPreviewing(false)
     }
   }
@@ -85,6 +138,27 @@ export default function EmailToolsClient({
       <section>
         <h2 className="font-display text-lg font-bold text-navy mb-3">Compose</h2>
         <form onSubmit={handleSend} className="bg-white border border-border rounded-2xl p-5 space-y-4">
+
+          {/* Template selector */}
+          <div>
+            <label className="block text-xs font-medium text-body-grey mb-1.5">Template</label>
+            <select
+              value={selectedTemplate}
+              onChange={e => applyTemplate(e.target.value)}
+              className="w-full max-w-xs px-3 py-2.5 bg-white border border-border rounded-xl text-sm text-navy focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy transition-colors"
+            >
+              {TEMPLATES.map(t => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+            {selectedTemplate === 'waitlist' && (
+              <p className="text-xs text-body-grey mt-1.5">
+                Replace <span className="font-mono font-medium text-navy">[Name]</span> and <span className="font-mono font-medium text-navy">[INVITE CODE]</span> before sending.
+              </p>
+            )}
+          </div>
+
+          <hr className="border-border" />
 
           {/* Scope */}
           <div>
@@ -145,13 +219,34 @@ export default function EmailToolsClient({
             <label className="block text-xs font-medium text-body-grey mb-1.5">Message body</label>
             <textarea
               value={body}
-              onChange={e => setBody(e.target.value)}
+              onChange={e => { setBody(e.target.value); setPreviewing(false) }}
               placeholder="Write your message here. Line breaks are preserved."
               required
-              rows={6}
-              className="w-full px-3 py-2.5 bg-white border border-border rounded-xl text-sm text-navy placeholder-body-grey focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy transition-colors resize-y"
+              rows={10}
+              className="w-full px-3 py-2.5 bg-white border border-border rounded-xl text-sm text-navy placeholder-body-grey focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy transition-colors resize-y font-mono"
             />
           </div>
+
+          {/* Placeholder warning */}
+          {hasPlaceholders && (
+            <div className="flex items-start gap-2.5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <svg className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              </svg>
+              <div>
+                <p className="text-sm font-medium text-amber-800">Replace before sending</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Still contains:{' '}
+                  {remainingPlaceholders.map((p, i) => (
+                    <span key={i}>
+                      <span className="font-mono font-semibold">{p}</span>
+                      {i < remainingPlaceholders.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex items-center gap-3 flex-wrap pt-1">
@@ -160,7 +255,7 @@ export default function EmailToolsClient({
               disabled={!canSend || sending}
               className="px-6 py-2.5 bg-navy text-warm-white text-sm font-medium rounded-full hover:bg-navy/90 transition-colors disabled:opacity-40"
             >
-              {sending ? 'Sending...' : 'Send'}
+              {sending ? 'Sending…' : 'Send'}
             </button>
             <button
               type="button"
@@ -195,7 +290,7 @@ export default function EmailToolsClient({
               <iframe
                 srcDoc={previewHtml}
                 className="w-full"
-                style={{ height: 420, border: 'none' }}
+                style={{ height: 520, border: 'none' }}
                 title="Email preview"
               />
             </div>
