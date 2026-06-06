@@ -32,33 +32,63 @@
   }
 }
 
-/* ── Dashboard animations ──────────────────────────────────────────────────── */
+/* ── All animations — wrapped so reduced-motion users see no motion ── */
+@media (prefers-reduced-motion: no-preference) {
 
-@keyframes livePulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.4; transform: scale(0.7); }
-}
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.4; transform: scale(0.7); }
+  }
 
-@keyframes networkFloat {
-  0%, 100% { opacity: 0.45; transform: scale(1); }
-  50%       { opacity: 0.1;  transform: scale(0.6); }
-}
+  @keyframes networkFloat {
+    0%, 100% { opacity: 0.45; transform: scale(1); }
+    50%       { opacity: 0.1;  transform: scale(0.6); }
+  }
 
-@keyframes lineFloat {
-  0%, 100% { opacity: 0.06; }
-  50%       { opacity: 0.02; }
-}
+  @keyframes lineFloat {
+    0%, 100% { opacity: 0.06; }
+    50%       { opacity: 0.02; }
+  }
 
-.animate-live-pulse {
-  animation: livePulse 2s ease-in-out infinite;
-}
+  @keyframes cardEnter {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 
-.network-node {
-  animation: networkFloat var(--node-duration, 5s) ease-in-out infinite;
-  animation-delay: var(--node-delay, 0s);
-}
+  @keyframes avatarFloat {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-9px); }
+  }
 
-.network-line {
-  animation: lineFloat var(--line-duration, 5s) ease-in-out infinite;
-  animation-delay: var(--line-delay, 0s);
+  @keyframes particleBurst {
+    0%   { opacity: 1; transform: scale(0.4) translate(0, 0); }
+    100% { opacity: 0; transform: scale(1.6) translate(var(--dx, 0px), var(--dy, -12px)); }
+  }
+
+  .animate-live-pulse {
+    animation: livePulse 2s ease-in-out infinite;
+  }
+
+  .network-node {
+    animation: networkFloat var(--node-duration, 5s) ease-in-out infinite;
+    animation-delay: var(--node-delay, 0s);
+  }
+
+  .network-line {
+    animation: lineFloat var(--line-duration, 5s) ease-in-out infinite;
+    animation-delay: var(--line-delay, 0s);
+  }
+
+  .card-enter {
+    animation: cardEnter 0.4s ease-out both;
+  }
+
+  .avatar-float {
+    animation: avatarFloat var(--float-duration, 24s) ease-in-out infinite;
+    animation-delay: var(--float-delay, 0s);
+  }
+
+  .particle-burst {
+    animation: particleBurst 0.35s ease-out both;
+  }
 }

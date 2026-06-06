@@ -8,6 +8,10 @@ import VerifiedBadge from '@/components/ui/VerifiedBadge'
 import WelcomeBanner from './WelcomeBanner'
 import ProgressBar from './ProgressBar'
 import NetworkBackground from './NetworkBackground'
+import HeroCanvas from './HeroCanvas'
+import FloatingAvatars from './FloatingAvatars'
+import ScoreCounter from './ScoreCounter'
+import NetworkPulseStats from './NetworkPulseStats'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
 const TOTAL_BADGES = 14
@@ -73,28 +77,6 @@ function StatCard({
   return href ? <Link href={href}>{inner}</Link> : inner
 }
 
-function RostaIndex({ intros, outcomes, signals, tables }: {
-  intros: number; outcomes: number; signals: number; tables: number
-}) {
-  const stats = [
-    intros > 0   ? `${intros} intro${intros === 1 ? '' : 's'} made this week` : null,
-    outcomes > 0 ? `${outcomes} collaboration${outcomes === 1 ? '' : 's'} started this month` : null,
-    signals > 0  ? `${signals} member${signals === 1 ? '' : 's'} updated their signals this week` : null,
-    tables > 0   ? `${tables} Open Table${tables === 1 ? '' : 's'} running` : null,
-  ].filter((s): s is string => s !== null)
-
-  if (stats.length === 0) return null
-
-  return (
-    <div className={`${cardCls} px-5 py-4`}>
-      <p className="text-navy text-xs font-medium tracking-widest uppercase mb-3 flex items-center gap-1.5">
-        <span className="w-1.5 h-1.5 rounded-full bg-lime animate-live-pulse shrink-0" />
-        Network pulse
-      </p>
-      <p className="text-sm font-medium text-navy leading-relaxed">{stats.join(' · ')}</p>
-    </div>
-  )
-}
 
 function OpenTableCard({ roomId, expiresAt }: { roomId: string; expiresAt: string }) {
   const daysLeft = Math.max(1, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86400000))
@@ -275,6 +257,19 @@ export default async function DashboardPage() {
 
   const profileSlugSelf = profile?.username ?? user.id
 
+  // ── Floating avatar data — up to 4 from recently active connections ───────
+  const avatarProfiles = (activitySignals ?? [])
+    .slice(0, 4)
+    .map(s => {
+      const p = byId[s.user_id]
+      if (!p) return null
+      return {
+        initials:   [p.first_name?.[0], p.last_name?.[0]].filter(Boolean).join('').toUpperCase() || '?',
+        avatar_url: p.avatar_url,
+      }
+    })
+    .filter((x): x is { initials: string; avatar_url: string | null } => x !== null)
+
   // ── render ────────────────────────────────────────────────────────────────
   return (
     <>
@@ -283,18 +278,24 @@ export default async function DashboardPage() {
 
       {/* ── Navy hero greeting ── */}
       <div className="relative bg-navy overflow-hidden">
-        {/* Inner radial glow so hero background has depth */}
+        {/* Canvas network animation — behind all hero content */}
+        <HeroCanvas />
+        {/* Floating member avatars at edges */}
+        <FloatingAvatars profiles={avatarProfiles} />
+        {/* Inner radial glow */}
         <div
           aria-hidden="true"
           className="absolute inset-0 pointer-events-none"
           style={{ background: 'radial-gradient(ellipse at 80% 50%, rgba(200,245,60,0.06) 0%, transparent 60%)' }}
         />
-        <div className="relative max-w-2xl mx-auto px-4 sm:px-6 py-12">
-          {/* Connector score — top right */}
+        <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-12">
+          {/* Connector score — top right, count-up animation */}
           <div className="flex justify-end mb-8">
             <div className="flex items-baseline gap-1.5">
               <span className="text-xs font-medium" style={{ color: 'rgba(200,245,60,0.6)' }}>Score</span>
-              <span className="text-2xl font-bold text-lime">{connectorScore.total}</span>
+              <span className="text-2xl font-bold text-lime">
+                <ScoreCounter value={connectorScore.total} />
+              </span>
             </div>
           </div>
           {/* Greeting */}
@@ -320,11 +321,13 @@ export default async function DashboardPage() {
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-10 space-y-6">
 
         {/* Welcome banner — new members only */}
-        <WelcomeBanner hasConnections={hasConnections} />
+        <div className="card-enter" style={{ animationDelay: '0.05s' }}>
+          <WelcomeBanner hasConnections={hasConnections} />
+        </div>
 
         {/* ── Pending actions ── */}
         {pendingActions.length > 0 && (
-          <section>
+          <section className="card-enter" style={{ animationDelay: '0.1s' }}>
             <Eyebrow label="Needs your response" />
             <div className="space-y-2">
               {pendingActions.map(r => {
@@ -370,7 +373,7 @@ export default async function DashboardPage() {
 
         {/* ── Matchmaker ── */}
         {matchPair && (
-          <section>
+          <section className="card-enter" style={{ animationDelay: '0.2s' }}>
             <Eyebrow label="Matchmaker" />
             <div className={`${cardCls} p-6`}>
               <p className="text-sm font-medium text-navy mb-4">
@@ -410,8 +413,8 @@ export default async function DashboardPage() {
         {/* ── Signals (merged with nudge) ── */}
         {mySignals ? (
           <div
-            className={`rounded-2xl p-6 shadow-[0_4px_16px_rgba(15,27,60,0.08)] hover:shadow-[0_8px_24px_rgba(15,27,60,0.13)] hover:-translate-y-0.5 transition-[transform,box-shadow] duration-200 bg-white border`}
-            style={{ borderColor: signalsStale ? 'var(--border)' : 'rgba(200,245,60,0.25)' }}
+            className="card-enter rounded-2xl p-6 shadow-[0_4px_16px_rgba(15,27,60,0.08)] hover:shadow-[0_8px_24px_rgba(15,27,60,0.13)] hover:-translate-y-0.5 transition-[transform,box-shadow] duration-200 bg-white border"
+            style={{ borderColor: signalsStale ? 'var(--border)' : 'rgba(200,245,60,0.25)', animationDelay: '0.3s' }}
           >
             <div className="flex items-start justify-between gap-4 mb-4">
               <h2 className="font-display text-lg font-bold text-navy">Your signals</h2>
@@ -472,7 +475,7 @@ export default async function DashboardPage() {
             )}
           </div>
         ) : (
-          <div className={`${cardCls} bg-surface p-6`}>
+          <div className={`card-enter ${cardCls} bg-surface p-6`} style={{ animationDelay: '0.3s' }}>
             <p className="text-sm font-medium text-navy mb-1">Set your signals</p>
             <p className="text-sm text-body-grey mb-4">
               Tell your network what you&apos;re building and what you need.
@@ -489,7 +492,7 @@ export default async function DashboardPage() {
 
         {/* ── Network activity ── */}
         {networkActivity.length > 0 && (
-          <section>
+          <section className="card-enter" style={{ animationDelay: '0.4s' }}>
             <Eyebrow label="Network activity" />
             <div className={`${cardCls} overflow-hidden divide-y divide-border`}>
               {networkActivity.map(signal => {
@@ -534,12 +537,14 @@ export default async function DashboardPage() {
 
         {/* ── Your Open Table ── */}
         {myOpenTableRoom && (
-          <OpenTableCard roomId={myOpenTableRoom.id} expiresAt={myOpenTableRoom.expires_at} />
+          <div className="card-enter" style={{ animationDelay: '0.5s' }}>
+            <OpenTableCard roomId={myOpenTableRoom.id} expiresAt={myOpenTableRoom.expires_at} />
+          </div>
         )}
 
         {/* ── Badge progress teaser ── */}
         {showBadgeTeaser && (
-          <section>
+          <section className="card-enter" style={{ animationDelay: '0.6s' }}>
             <Eyebrow label="Your badges" />
             <Link
               href={`/profile/${profileSlugSelf}`}
@@ -564,15 +569,17 @@ export default async function DashboardPage() {
         )}
 
         {/* ── Network pulse ── */}
-        <RostaIndex
-          intros={rostaIndex.intros}
-          outcomes={rostaIndex.outcomes}
-          signals={rostaIndex.signals}
-          tables={rostaIndex.tables}
-        />
+        <div className="card-enter" style={{ animationDelay: '0.65s' }}>
+          <NetworkPulseStats
+            intros={rostaIndex.intros}
+            outcomes={rostaIndex.outcomes}
+            signals={rostaIndex.signals}
+            tables={rostaIndex.tables}
+          />
+        </div>
 
         {/* ── Stats row ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="card-enter grid grid-cols-2 sm:grid-cols-4 gap-3" style={{ animationDelay: '0.75s' }}>
           <StatCard label="Connections"       value={connectionIds.length} href="/members" />
           <StatCard label="Intro credits"     value={creditBalance}        href="/intro" />
           <StatCard label="Connector Score"   value={connectorScore.total} href={`/profile/${profileSlugSelf}`} />
@@ -581,7 +588,7 @@ export default async function DashboardPage() {
 
         {/* ── Empty state ── */}
         {!hasConnections && pendingActions.length === 0 && (
-          <div className={`${cardCls} p-8 text-center`}>
+          <div className={`card-enter ${cardCls} p-8 text-center`} style={{ animationDelay: '0.15s' }}>
             <p className="font-display text-xl font-bold text-navy mb-2">Start building your network</p>
             <p className="text-sm text-body-grey mb-6">
               Browse members, make connections, and start facilitating intros.
