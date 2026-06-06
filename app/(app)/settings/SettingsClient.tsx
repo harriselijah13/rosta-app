@@ -85,6 +85,10 @@ export default function SettingsClient({ userId, profile, signals, openTableOpte
     try {
       const res = await fetch('/api/ai/signal-coach', { method: 'POST' })
       const json = await res.json()
+      if (res.status === 503) {
+        setCoachError(json.error ?? 'AI suggestions are temporarily unavailable.')
+        return
+      }
       if (!res.ok) {
         setCoachError('Could not generate suggestions — try again.')
         return
