@@ -218,6 +218,8 @@ export default function SettingsClient({ userId, profile, signals, openTableOpte
 
       setSaved(true)
       router.refresh()
+      // Fire badge check after profile + signals saved (don't block UI)
+      fetch('/api/badges/check', { method: 'POST' }).catch(() => undefined)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')
     } finally {

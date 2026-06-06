@@ -79,10 +79,7 @@ function MemberCard({
               </span>
             )}
             {member.founding_member && (
-              <span
-                title="Founding member — joined in the first 500"
-                className="inline-flex items-center gap-1 text-[10px] font-semibold text-navy bg-lime/30 border border-lime/50 px-1.5 py-0.5 rounded-full"
-              >
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-navy bg-lime/30 border border-lime/50 px-1.5 py-0.5 rounded-full">
                 Founding
               </span>
             )}

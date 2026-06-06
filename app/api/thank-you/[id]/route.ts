@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, thankYouEmail } from '@/lib/resend'
+import { checkAndAwardBadges } from '@/lib/badges'
 
 export async function POST(
   _request: NextRequest,
@@ -61,6 +62,9 @@ export async function POST(
       thankYouEmail(name(req.facilitator_id), name(user.id), slug(user.id)),
     )
   }
+
+  // Award badges — facilitator may hit 'thanked' milestone
+  await checkAndAwardBadges(req.facilitator_id)
 
   return NextResponse.json({ ok: true })
 }

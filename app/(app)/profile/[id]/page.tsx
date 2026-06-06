@@ -4,8 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Badge from '@/components/ui/Badge'
 import VerifiedBadge from '@/components/ui/VerifiedBadge'
+import BadgeTile from '@/components/badges/BadgeTile'
 import { OPEN_TO_OPTIONS, PROFILE_MODES } from '@/lib/constants'
 import { computeConnectorScore } from '@/lib/connector-score'
+import { BADGE_CATALOG } from '@/lib/badge-catalog'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
 const MODE_MAP = Object.fromEntries(PROFILE_MODES.map(m => [m.value, m.label]))
@@ -104,6 +106,20 @@ export default async function ProfilePage({
 
   const canSeeFullProfile = isSelf || isConnected
 
+  // Fetch earned badges (admin client so it works regardless of RLS)
+  const adminForBadges = createAdminClient()
+  const { data: earnedBadgeRows } = await adminForBadges
+    .from('member_badges')
+    .select('badge_slug')
+    .eq('user_id', profile.id)
+  const earnedSlugs = new Set((earnedBadgeRows ?? []).map(r => r.badge_slug))
+
+  // Sort: earned first, unearned second (preserve catalog order within each group)
+  const sortedBadges = [
+    ...BADGE_CATALOG.filter(b => earnedSlugs.has(b.slug)),
+    ...BADGE_CATALOG.filter(b => !earnedSlugs.has(b.slug)),
+  ]
+
   return (
     <div className="max-w-3xl mx-auto px-6 py-10">
       {/* Back */}
@@ -145,10 +161,7 @@ export default async function ProfilePage({
                   <Badge variant="navy">{MODE_MAP[profile.profile_mode] ?? profile.profile_mode}</Badge>
                 )}
                 {profile.founding_member && (
-                  <span
-                    title="Founding member — joined in the first 500"
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-navy bg-lime/30 border border-lime/50 px-2 py-0.5 rounded-full"
-                  >
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-navy bg-lime/30 border border-lime/50 px-2 py-0.5 rounded-full">
                     Founding member
                   </span>
                 )}
@@ -347,6 +360,20 @@ export default async function ProfilePage({
               </div>
             </div>
           )}
+
+          {/* Badges */}
+          <div className="bg-white border border-border rounded-2xl p-6">
+            <h2 className="font-display text-lg font-bold text-navy mb-4">Badges</h2>
+            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+              {sortedBadges.map(badge => (
+                <BadgeTile
+                  key={badge.slug}
+                  badge={badge}
+                  earned={earnedSlugs.has(badge.slug)}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

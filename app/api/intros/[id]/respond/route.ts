@@ -9,6 +9,7 @@ import {
   openDoorAcceptedEmail,
   openDoorDeclinedEmail,
 } from '@/lib/resend'
+import { checkAndAwardBadges } from '@/lib/badges'
 
 function currentPeriod() {
   const d = new Date()
@@ -140,6 +141,11 @@ export async function POST(
         ),
       ])
     }
+
+    // Award badges to all parties after a successful connection
+    const awardIds = [req.requester_id, req.target_id]
+    if (!isOpenDoor && req.facilitator_id) awardIds.push(req.facilitator_id)
+    await Promise.all(awardIds.map(id => checkAndAwardBadges(id)))
   } else {
     // Declined
     await admin.from('intro_requests').update({
