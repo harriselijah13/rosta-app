@@ -17,6 +17,7 @@ async function fetchStats() {
     { count: totalOutcomes },
     { count: verifiedMembers },
     { count: pendingVerifications },
+    { count: awaitingOnboarding },
   ] = await Promise.all([
     admin.from('profiles').select('id', { count: 'exact', head: true }).eq('onboarding_completed', true),
     admin.from('profiles').select('id', { count: 'exact', head: true }).eq('onboarding_completed', true).gte('last_active_at', fourteenDaysAgo),
@@ -26,6 +27,7 @@ async function fetchStats() {
     admin.from('outcomes').select('id', { count: 'exact', head: true }),
     admin.from('profiles').select('id', { count: 'exact', head: true }).eq('is_verified', true),
     admin.from('verification_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    admin.from('profiles').select('id', { count: 'exact', head: true }).eq('onboarding_completed', false),
   ])
 
   return {
@@ -37,6 +39,7 @@ async function fetchStats() {
     totalOutcomes:        totalOutcomes        ?? 0,
     verifiedMembers:      verifiedMembers      ?? 0,
     pendingVerifications: pendingVerifications ?? 0,
+    awaitingOnboarding:   awaitingOnboarding   ?? 0,
   }
 }
 
@@ -68,10 +71,13 @@ export default async function OverviewPage() {
         <Stat label="Connections"         value={stats.totalConnections} />
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <Stat label="Intros made"              value={stats.totalIntros} />
-        <Stat label="Outcomes marked"          value={stats.totalOutcomes} />
-        <Stat label="Verified members"         value={stats.verifiedMembers} />
-        <Stat label="Pending verifications"    value={stats.pendingVerifications} accent={stats.pendingVerifications > 0} />
+        <Stat label="Intros made"           value={stats.totalIntros} />
+        <Stat label="Outcomes marked"       value={stats.totalOutcomes} />
+        <Stat label="Verified members"      value={stats.verifiedMembers} />
+        <Stat label="Pending verifications" value={stats.pendingVerifications} accent={stats.pendingVerifications > 0} />
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-3">
+        <Stat label="Awaiting onboarding" value={stats.awaitingOnboarding} accent={stats.awaitingOnboarding > 0} />
       </div>
 
       <p className="mt-4 text-xs text-body-grey">

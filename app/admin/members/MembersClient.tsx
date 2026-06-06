@@ -18,14 +18,16 @@ export type AdminMember = {
   last_active_at: string | null
   is_complete: boolean
   is_verified: boolean
+  onboarding_completed: boolean
 }
 
 const PAGE_SIZE = 50
 
-type FilterActive   = 'all' | 'active'   | 'inactive'
-type FilterFounding = 'all' | 'yes'      | 'no'
-type FilterComplete = 'all' | 'yes'      | 'no'
-type FilterVerified = 'all' | 'verified' | 'unverified'
+type FilterActive   = 'all' | 'active'     | 'inactive'
+type FilterFounding = 'all' | 'yes'        | 'no'
+type FilterComplete = 'all' | 'yes'        | 'no'
+type FilterVerified = 'all' | 'verified'   | 'unverified'
+type FilterOnboarded = 'all' | 'complete'  | 'incomplete'
 
 function relativeTime(iso: string | null): string {
   if (!iso) return 'Never'
@@ -50,7 +52,7 @@ function fullName(m: AdminMember): string {
 }
 
 function exportCsv(rows: AdminMember[]) {
-  const headers = ['Name', 'Email', 'Joined', 'Location', 'Mode', 'Founding', 'Verified', 'Last active', 'Complete']
+  const headers = ['Name', 'Email', 'Joined', 'Location', 'Mode', 'Founding', 'Verified', 'Last active', 'Complete', 'Onboarded']
   const lines = rows.map(m => [
     fullName(m),
     m.email,
@@ -61,6 +63,7 @@ function exportCsv(rows: AdminMember[]) {
     m.is_verified ? 'Yes' : 'No',
     m.last_active_at ? new Date(m.last_active_at).toLocaleDateString('en-GB') : 'Never',
     m.is_complete ? 'Yes' : 'No',
+    m.onboarding_completed ? 'Yes' : 'No',
   ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
 
   const csv  = [headers.join(','), ...lines].join('\n')
@@ -95,8 +98,9 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
   const [filterFounding,  setFilterFounding]  = useState<FilterFounding>('all')
   const [filterActive,    setFilterActive]    = useState<FilterActive>('all')
   const [filterComplete,  setFilterComplete]  = useState<FilterComplete>('all')
-  const [filterVerified,  setFilterVerified]  = useState<FilterVerified>('all')
-  const [page,            setPage]            = useState(0)
+  const [filterVerified,   setFilterVerified]   = useState<FilterVerified>('all')
+  const [filterOnboarded,  setFilterOnboarded]  = useState<FilterOnboarded>('all')
+  const [page,             setPage]             = useState(0)
   const [actionTarget,    setActionTarget]    = useState<string | null>(null)
   // Track admin-granted verifications this session so the row updates immediately
   const [grantedIds, setGrantedIds] = useState<Set<string>>(new Set())
@@ -118,9 +122,11 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
       const isVerified = m.is_verified || grantedIds.has(m.id)
       if (filterVerified === 'verified'   && !isVerified) return false
       if (filterVerified === 'unverified' &&  isVerified) return false
+      if (filterOnboarded === 'complete'   && !m.onboarding_completed) return false
+      if (filterOnboarded === 'incomplete' &&  m.onboarding_completed) return false
       return true
     })
-  }, [members, search, filterFounding, filterActive, filterComplete, filterVerified, grantedIds])
+  }, [members, search, filterFounding, filterActive, filterComplete, filterVerified, filterOnboarded, grantedIds])
 
   const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
@@ -216,6 +222,12 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
           <FilterBtn active={filterVerified === 'verified'}   onClick={() => { setFilterVerified('verified');   resetPage() }}>Verified</FilterBtn>
           <FilterBtn active={filterVerified === 'unverified'} onClick={() => { setFilterVerified('unverified'); resetPage() }}>Unverified</FilterBtn>
         </div>
+        <div className="w-px bg-border mx-1" />
+        <div className="flex gap-1.5">
+          <FilterBtn active={filterOnboarded === 'all'}        onClick={() => { setFilterOnboarded('all');        resetPage() }}>All onboarding</FilterBtn>
+          <FilterBtn active={filterOnboarded === 'complete'}   onClick={() => { setFilterOnboarded('complete');   resetPage() }}>Onboarded</FilterBtn>
+          <FilterBtn active={filterOnboarded === 'incomplete'} onClick={() => { setFilterOnboarded('incomplete'); resetPage() }}>Incomplete</FilterBtn>
+        </div>
       </div>
 
       {/* Table */}
@@ -246,7 +258,7 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
                 const profileHref = `/profile/${m.username ?? m.id}`
 
                 return (
-                  <tr key={m.id} className="hover:bg-surface/50 transition-colors">
+                  <tr key={m.id} className={`hover:bg-surface/50 transition-colors ${!m.onboarding_completed ? 'bg-amber-50/40' : ''}`}>
                     {/* Name */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       <Link href={profileHref} className="font-medium text-navy hover:underline">
@@ -265,6 +277,11 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
                           <svg viewBox="0 0 20 20" fill="none" className="w-2.5 h-2.5">
                             <path d="M5 10.5l3 3 7-7" stroke="#0F1B3C" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
+                        </span>
+                      )}
+                      {!m.onboarding_completed && (
+                        <span className="ml-2 text-[10px] font-semibold bg-amber-100 border border-amber-300 text-amber-700 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                          Setup incomplete
                         </span>
                       )}
                     </td>
