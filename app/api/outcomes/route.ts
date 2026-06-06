@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkAndAwardBadges } from '@/lib/badges'
 
 export async function POST(request: NextRequest) {
   const supabase = createClient()
@@ -38,6 +39,12 @@ export async function POST(request: NextRequest) {
       .eq('conversation_id', conversationId).single()
     return NextResponse.json(existing)
   }
+
+  // Award badges to both conversation parties
+  await Promise.all([
+    checkAndAwardBadges(conv.user_a),
+    checkAndAwardBadges(conv.user_b),
+  ])
 
   return NextResponse.json(data)
 }

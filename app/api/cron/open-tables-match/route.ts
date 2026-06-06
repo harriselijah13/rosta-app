@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, openTableStartedEmail, openTableFallbackEmail } from '@/lib/resend'
 import { recordCronRun } from '@/lib/cron-recorder'
 import { aiText } from '@/lib/anthropic'
+import { checkAndAwardBadges } from '@/lib/badges'
 
 export const dynamic = 'force-dynamic'
 
@@ -231,11 +232,12 @@ export async function GET(request: NextRequest) {
       .from('open_table_members')
       .insert(group.map(m => ({ room_id: room.id, user_id: m.user_id })))
 
-    await Promise.all(
-      group.map(m =>
+    await Promise.all([
+      ...group.map(m =>
         sendEmail(m.email, 'Your Open Table is live', openTableStartedEmail(m.first_name ?? 'there', room.id))
-      )
-    )
+      ),
+      ...group.map(m => checkAndAwardBadges(m.user_id)),
+    ])
     roomsCreated++
   }
 

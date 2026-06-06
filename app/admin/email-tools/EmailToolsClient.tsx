@@ -34,7 +34,7 @@ I wanted to personally invite you to join ROSTA — the professional network I'v
 
 You're exactly the kind of person I had in mind when I built this. No feed, no follower counts, no performing. Just warm introductions and real connections.
 
-The founding community is limited to 500 members. You're one of them.
+You're joining a founding community of exceptional people.
 
 Sign up here: https://app.onrosta.com/signup
 Use invite code: [INVITE CODE]
