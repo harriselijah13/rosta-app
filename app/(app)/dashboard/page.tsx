@@ -8,6 +8,7 @@ import VerifiedBadge from '@/components/ui/VerifiedBadge'
 import WelcomeBanner from './WelcomeBanner'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
+const TOTAL_BADGES = 14
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -147,8 +148,9 @@ export default async function DashboardPage() {
     { data: myConnections },
     { data: mySignals },
     { data: creditsRow },
+    { data: earnedBadgeRows },
   ] = await Promise.all([
-    supabase.from('profiles').select('first_name, username').eq('id', user.id).single(),
+    supabase.from('profiles').select('first_name, username, onboarding_completed').eq('id', user.id).single(),
     admin
       .from('intro_requests')
       .select('id, type, requester_id, target_id, facilitator_id, expires_at')
@@ -160,13 +162,13 @@ export default async function DashboardPage() {
       .from('connections')
       .select('user_a, user_b')
       .or(`user_a.eq.${user.id},user_b.eq.${user.id}`),
-    // Expanded signals — we show the user's own signals on the dashboard
     admin
       .from('signals')
       .select('open_to, working_on, need_right_now, updated_at')
       .eq('user_id', user.id)
       .maybeSingle(),
     admin.from('intro_credits').select('balance, period').eq('user_id', user.id).maybeSingle(),
+    admin.from('member_badges').select('badge_slug').eq('user_id', user.id),
   ])
 
   const connectionIds = (myConnections ?? []).map(c =>
@@ -223,7 +225,6 @@ export default async function DashboardPage() {
       .select('id', { count: 'exact', head: true })
       .gte('created_at', monthStart),
     computeConnectorScore(user.id),
-    // Rosta Index: network-wide aggregate counts
     admin
       .from('intro_requests')
       .select('id', { count: 'exact', head: true })
@@ -236,7 +237,6 @@ export default async function DashboardPage() {
       .from('open_table_rooms')
       .select('id', { count: 'exact', head: true })
       .gt('expires_at', now),
-    // User's Open Table membership
     admin
       .from('open_table_members')
       .select('room_id, open_table_rooms(id, expires_at)')
@@ -280,29 +280,11 @@ export default async function DashboardPage() {
   const networkActivity = activitySignals ?? []
   const realOutcomes = outcomesThisMonth ?? 0
 
-  // Matchmaker: two connections with recent signal activity
   const connWithSignals = (activitySignals ?? []).map(s => s.user_id)
   const matchPair =
     connWithSignals.length >= 2
       ? ([connWithSignals[0], connWithSignals[1]] as [string, string])
       : null
-
-  // Contextual nudge (credits are in the stats row — this is action-oriented)
-  const nudge = (() => {
-    if (signalsStale)
-      return {
-        text: "Your signals haven't been updated in a while — members can see when you're active.",
-        linkLabel: 'Update signals',
-        href: '/settings',
-      }
-    if (hasConnections && (introsMadeCount ?? 0) === 0)
-      return {
-        text: "Making introductions is how ROSTA works. Who in your network should meet someone?",
-        linkLabel: 'Browse members',
-        href: '/members',
-      }
-    return null
-  })()
 
   const myOpenTo = (mySignals?.open_to ?? []).filter(
     (v: string) => v !== 'open_door',
@@ -323,45 +305,150 @@ export default async function DashboardPage() {
     tables:   indexOpenTables      ?? 0,
   }
 
+  // ── Badge progress ────────────────────────────────────────────────────────
+  const earnedSlugs = new Set((earnedBadgeRows ?? []).map(r => r.badge_slug))
+  const earnedCount = earnedSlugs.size
+  const score = connectorScore.total
+  const showBadgeTeaser = !!profile?.onboarding_completed
+
+  type NextBadge = { label: string; hint: string }
+  const nextBadge = ((): NextBadge | null => {
+    if (connectionIds.length === 0 && !earnedSlugs.has('first-connection'))
+      return { label: 'First Connection', hint: 'make your first connection' }
+    if (!earnedSlugs.has('connector') && score < 15)
+      return { label: 'Connector', hint: `reach a Connector Score of 15 (currently ${score})` }
+    if (!earnedSlugs.has('bridge') && score < 40)
+      return { label: 'Bridge', hint: `reach a Connector Score of 40 (currently ${score})` }
+    if (!earnedSlugs.has('catalyst') && score < 80)
+      return { label: 'Catalyst', hint: `reach a Connector Score of 80` }
+    if (!earnedSlugs.has('architect') && score < 150)
+      return { label: 'Architect', hint: `reach a Connector Score of 150` }
+    if (!earnedSlugs.has('introducer'))
+      return { label: 'Introducer', hint: 'facilitate your first warm introduction' }
+    if (!earnedSlugs.has('spark'))
+      return { label: 'Spark', hint: 'mark your first connection outcome' }
+    if (!earnedSlugs.has('table-setter'))
+      return { label: 'Table Setter', hint: 'join an Open Table session' }
+    if (!earnedSlugs.has('signal-strength'))
+      return { label: 'Signal Strength', hint: 'keep signals active for 4 consecutive weeks' }
+    if (!earnedSlugs.has('thanked'))
+      return { label: 'Thanked', hint: 'receive 3 thank-yous for making intros' }
+    if (!earnedSlugs.has('five-outcomes'))
+      return { label: 'Five Outcomes', hint: 'mark 5 connection outcomes' }
+    if (!earnedSlugs.has('all-in'))
+      return { label: 'All In', hint: 'earn 5 or more badges' }
+    return null
+  })()
+
+  // ── Contextual greeting line ──────────────────────────────────────────────
+  const contextualLine = (() => {
+    if (pendingActions.length > 0)
+      return `You have ${pendingActions.length} ${pendingActions.length === 1 ? 'thing' : 'things'} that need your attention.`
+    if (signalsStale)
+      return "Your signals haven't been updated in a while."
+    if (myOpenTableRoom) {
+      const daysLeft = Math.max(1, Math.ceil((new Date(myOpenTableRoom.expires_at).getTime() - Date.now()) / 86400000))
+      return `Your Open Table is running — ${daysLeft}d left.`
+    }
+    return 'Your network is ready when you are.'
+  })()
+
+  const profileSlugSelf = profile?.username ?? user.id
+
   // ── render ────────────────────────────────────────────────────────────────
   return (
-    <main className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
-      {/* Greeting */}
-      <div className="mb-6">
+    <main className="max-w-2xl mx-auto px-4 sm:px-6 py-10 space-y-6">
+
+      {/* ── 1. Greeting ── */}
+      <div>
         <h1 className="font-display text-4xl font-bold text-navy">
           {firstName ? `Good to see you, ${firstName}.` : 'Good to see you.'}
         </h1>
+        <p className="text-sm text-body-grey mt-2">{contextualLine}</p>
       </div>
 
+      {/* ── 2. Welcome banner (new members only) ── */}
       <WelcomeBanner hasConnections={hasConnections} />
 
-      {/* ── Stats row ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-        <StatCard
-          label="Connections"
-          value={connectionIds.length}
-          href="/members"
-        />
-        <StatCard
-          label="Intro credits"
-          value={creditBalance}
-          href="/intro"
-        />
-        <StatCard
-          label="Connector Score"
-          value={connectorScore.total}
-          href={`/profile/${profile?.username ?? user.id}`}
-        />
-        <StatCard
-          label="Outcomes this month"
-          value={realOutcomes}
-          lime={realOutcomes > 0}
-        />
-      </div>
+      {/* ── 3. Pending actions ── */}
+      {pendingActions.length > 0 && (
+        <section>
+          <Eyebrow label="Needs your response" />
+          <div className="space-y-2">
+            {pendingActions.map(r => {
+              const isOpenDoor = r.type === 'open_door'
+              const requesterName = displayName(byId[r.requester_id])
+              const targetName = displayName(byId[r.target_id])
+              const description = isOpenDoor
+                ? `${requesterName} wants to connect with you`
+                : `${requesterName} wants an intro to ${targetName}`
+              const remaining = timeLeft(r.expires_at)
+              const isUrgent = new Date(r.expires_at).getTime() - Date.now() < 24 * 60 * 60 * 1000
+              return (
+                <Link
+                  key={r.id}
+                  href={`/intro/${r.id}`}
+                  className="flex items-start justify-between gap-4 bg-white border border-border rounded-2xl px-5 py-4 hover:border-navy/30 hover:shadow-sm transition-all group"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                      <span className="text-[11px] font-medium text-body-grey uppercase tracking-wide">
+                        {isOpenDoor ? 'Connection request' : 'Intro request'}
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold text-navy">{description}</p>
+                    <p className={`text-xs mt-1 ${isUrgent ? 'text-amber-500 font-medium' : 'text-body-grey'}`}>
+                      {remaining}
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium text-navy shrink-0 group-hover:underline mt-0.5">
+                    Respond →
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
-      {/* ── My signals ── */}
+      {/* ── 4. Matchmaker ── */}
+      {matchPair && (
+        <section>
+          <Eyebrow label="Matchmaker" />
+          <div className="bg-white border border-border rounded-2xl p-5">
+            <p className="text-sm font-medium text-navy mb-4">
+              Do you think{' '}
+              <Link href={`/profile/${slug(matchPair[0])}`} className="underline underline-offset-2">
+                {displayName(byId[matchPair[0]])}
+              </Link>{' '}
+              and{' '}
+              <Link href={`/profile/${slug(matchPair[1])}`} className="underline underline-offset-2">
+                {displayName(byId[matchPair[1]])}
+              </Link>{' '}
+              should meet?
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              <Link
+                href={`/intro/request/${matchPair[1]}?suggest=${matchPair[0]}`}
+                className="text-xs font-medium bg-navy text-warm-white px-4 py-2 rounded-full hover:bg-navy/90 transition-colors"
+              >
+                Yes — draft intro
+              </Link>
+              <Link
+                href="/dashboard"
+                className="text-xs font-medium text-body-grey border border-border px-4 py-2 rounded-full hover:border-navy hover:text-navy transition-colors"
+              >
+                Not this time
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── 5. Signals (merged with nudge) ── */}
       {mySignals ? (
-        <div className="bg-white border border-border rounded-2xl p-6 mb-8">
+        <div className="bg-white border border-border rounded-2xl p-6">
           <div className="flex items-start justify-between gap-4 mb-4">
             <h2 className="font-display text-lg font-bold text-navy">Your signals</h2>
             <div className="flex items-center gap-1.5 shrink-0">
@@ -384,25 +471,19 @@ export default async function DashboardPage() {
           <div className="space-y-3">
             {mySignals.working_on && (
               <div>
-                <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-0.5">
-                  Working on
-                </p>
+                <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-0.5">Working on</p>
                 <p className="text-sm text-navy">{mySignals.working_on}</p>
               </div>
             )}
             {mySignals.need_right_now && (
               <div>
-                <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-0.5">
-                  Need right now
-                </p>
+                <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-0.5">Need right now</p>
                 <p className="text-sm text-navy">{mySignals.need_right_now}</p>
               </div>
             )}
             {myOpenTo.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-1.5">
-                  Open to
-                </p>
+                <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-1.5">Open to</p>
                 <div className="flex flex-wrap gap-1.5">
                   {myOpenTo.map((v: string) => (
                     <span
@@ -416,14 +497,33 @@ export default async function DashboardPage() {
               </div>
             )}
           </div>
+
+          {/* Stale warning — inline */}
           {signalsStale && (
-            <p className="text-xs text-body-grey mt-4 pt-4 border-t border-border">
-              Last updated over 14 days ago — keep your signals fresh so your network knows what you need.
-            </p>
+            <div className="mt-4 pt-4 border-t border-border">
+              <p className="text-xs text-body-grey">
+                Last updated over 14 days ago — keep your signals fresh so your network knows what you need.
+              </p>
+            </div>
+          )}
+
+          {/* Intro nudge — inline, only when not stale */}
+          {!signalsStale && hasConnections && (introsMadeCount ?? 0) === 0 && (
+            <div className="mt-4 pt-4 border-t border-border flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <p className="text-sm text-navy flex-1">
+                Making introductions is how ROSTA works. Who in your network should meet someone?
+              </p>
+              <Link
+                href="/members"
+                className="shrink-0 text-xs font-medium bg-navy text-warm-white px-4 py-2 rounded-full hover:bg-navy/90 transition-colors whitespace-nowrap"
+              >
+                Browse members
+              </Link>
+            </div>
           )}
         </div>
       ) : (
-        <div className="bg-surface border border-border rounded-2xl p-6 mb-8">
+        <div className="bg-surface border border-border rounded-2xl p-6">
           <p className="text-sm font-medium text-navy mb-1">Set your signals</p>
           <p className="text-sm text-body-grey mb-4">
             Tell your network what you&apos;re building and what you need.
@@ -437,182 +537,150 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      <div className="space-y-8">
-        {/* Nudge */}
-        {nudge && (
-          <div className="bg-white border border-border rounded-2xl px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <p className="text-sm text-navy leading-relaxed flex-1">{nudge.text}</p>
-            <Link
-              href={nudge.href}
-              className="shrink-0 text-xs font-medium bg-navy text-warm-white px-4 py-2 rounded-full hover:bg-navy/90 transition-colors whitespace-nowrap"
-            >
-              {nudge.linkLabel}
-            </Link>
+      {/* ── 6. Network activity ── */}
+      {networkActivity.length > 0 && (
+        <section>
+          <Eyebrow label="Network activity" />
+          <div className="bg-white border border-border rounded-2xl overflow-hidden divide-y divide-border">
+            {networkActivity.map(signal => {
+              const p = byId[signal.user_id]
+              if (!p) return null
+              const name = displayName(p)
+              const label = activityLabel(signal.working_on, signal.need_right_now)
+              const profileSlug = slug(signal.user_id)
+              const initials = name.trim().split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase()
+              return (
+                <Link
+                  key={signal.user_id}
+                  href={`/profile/${profileSlug}`}
+                  className="flex items-center gap-4 px-5 py-4 hover:bg-surface/60 transition-colors group"
+                >
+                  {p.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={p.avatar_url}
+                      alt={name}
+                      className="w-9 h-9 rounded-full object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-navy/10 text-navy font-semibold flex items-center justify-center shrink-0 text-sm">
+                      {initials || '?'}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-navy group-hover:underline flex items-center gap-1.5">
+                      {name}
+                      {p.is_verified && <VerifiedBadge />}
+                    </p>
+                    <p className="text-xs text-body-grey truncate">{label}</p>
+                  </div>
+                  <svg
+                    className="w-4 h-4 text-border group-hover:text-navy/40 transition-colors shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              )
+            })}
           </div>
-        )}
+        </section>
+      )}
 
-        {/* Pending actions */}
-        {pendingActions.length > 0 && (
-          <section>
-            <Eyebrow label="Pending" />
-            <div className="space-y-2">
-              {pendingActions.map(r => {
-                const isOpenDoor = r.type === 'open_door'
-                const requesterName = displayName(byId[r.requester_id])
-                const targetName = displayName(byId[r.target_id])
-                const description = isOpenDoor
-                  ? `${requesterName} wants to connect`
-                  : `${requesterName} wants an intro to ${targetName}`
-                return (
-                  <Link
-                    key={r.id}
-                    href={`/intro/${r.id}`}
-                    className="flex items-center justify-between gap-4 bg-white border border-border rounded-xl px-5 py-4 hover:border-navy/30 hover:shadow-sm transition-all group"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-navy">{description}</p>
-                      <p className="text-xs text-body-grey mt-0.5">{timeLeft(r.expires_at)}</p>
-                    </div>
-                    <span className="text-xs font-medium text-navy shrink-0 group-hover:underline">
-                      Respond →
-                    </span>
-                  </Link>
-                )
-              })}
-            </div>
-          </section>
-        )}
+      {/* ── 7. Your Open Table ── */}
+      {myOpenTableRoom && (
+        <OpenTableCard roomId={myOpenTableRoom.id} expiresAt={myOpenTableRoom.expires_at} />
+      )}
 
-        {/* Open Table */}
-        {myOpenTableRoom && (
-          <OpenTableCard roomId={myOpenTableRoom.id} expiresAt={myOpenTableRoom.expires_at} />
-        )}
-
-        {/* Rosta Index */}
-        <RostaIndex
-          intros={rostaIndex.intros}
-          outcomes={rostaIndex.outcomes}
-          signals={rostaIndex.signals}
-          tables={rostaIndex.tables}
-        />
-
-        {/* Network activity */}
-        {networkActivity.length > 0 && (
-          <section>
-            <Eyebrow label="Network activity" />
-            <div className="bg-white border border-border rounded-2xl overflow-hidden divide-y divide-border">
-              {networkActivity.map(signal => {
-                const p = byId[signal.user_id]
-                if (!p) return null
-                const name = displayName(p)
-                const label = activityLabel(signal.working_on, signal.need_right_now)
-                const profileSlug = slug(signal.user_id)
-                const initials = name
-                  .trim()
-                  .split(' ')
-                  .map(s => s[0])
-                  .slice(0, 2)
-                  .join('')
-                  .toUpperCase()
-                return (
-                  <Link
-                    key={signal.user_id}
-                    href={`/profile/${profileSlug}`}
-                    className="flex items-center gap-4 px-5 py-4 hover:bg-surface/60 transition-colors group"
-                  >
-                    {p.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={p.avatar_url}
-                        alt={name}
-                        className="w-9 h-9 rounded-full object-cover shrink-0"
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-navy/10 text-navy font-semibold flex items-center justify-center shrink-0 text-sm">
-                        {initials || '?'}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-navy group-hover:underline flex items-center gap-1.5">
-                        {name}
-                        {p.is_verified && <VerifiedBadge />}
-                      </p>
-                      <p className="text-xs text-body-grey truncate">{label}</p>
-                    </div>
-                    <svg
-                      className="w-4 h-4 text-border group-hover:text-navy/40 transition-colors shrink-0"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Link>
-                )
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* Matchmaker */}
-        {matchPair && (
-          <section>
-            <Eyebrow label="Matchmaker" />
-            <div className="bg-white border border-border rounded-2xl p-5">
-              <p className="text-sm font-medium text-navy mb-4">
-                Do you think{' '}
-                <Link
-                  href={`/profile/${slug(matchPair[0])}`}
-                  className="underline underline-offset-2"
-                >
-                  {displayName(byId[matchPair[0]])}
-                </Link>{' '}
-                and{' '}
-                <Link
-                  href={`/profile/${slug(matchPair[1])}`}
-                  className="underline underline-offset-2"
-                >
-                  {displayName(byId[matchPair[1]])}
-                </Link>{' '}
-                should meet?
+      {/* ── 8. Badge progress teaser ── */}
+      {showBadgeTeaser && (
+        <section>
+          <Eyebrow label="Your badges" />
+          <Link
+            href={`/profile/${profileSlugSelf}`}
+            className="block bg-white border border-border rounded-2xl p-5 hover:shadow-sm transition-shadow group"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold text-navy">
+                {earnedCount} of {TOTAL_BADGES} badges earned
               </p>
-              <div className="flex gap-2 flex-wrap">
-                <Link
-                  href={`/intro/request/${matchPair[1]}?suggest=${matchPair[0]}`}
-                  className="text-xs font-medium bg-navy text-warm-white px-4 py-2 rounded-full hover:bg-navy/90 transition-colors"
-                >
-                  Yes — draft intro
-                </Link>
-                <Link
-                  href="/dashboard"
-                  className="text-xs font-medium text-body-grey border border-border px-4 py-2 rounded-full hover:border-navy hover:text-navy transition-colors"
-                >
-                  Not this time
-                </Link>
-              </div>
+              <span className="text-xs text-body-grey group-hover:text-navy transition-colors">
+                View all →
+              </span>
             </div>
-          </section>
-        )}
+            {/* Progress bar */}
+            <div className="h-1.5 bg-surface rounded-full overflow-hidden mb-3">
+              <div
+                className="h-full bg-lime rounded-full transition-all"
+                style={{ width: `${Math.max(2, (earnedCount / TOTAL_BADGES) * 100)}%` }}
+              />
+            </div>
+            {nextBadge ? (
+              <p className="text-xs text-body-grey">
+                Next:{' '}
+                <span className="font-semibold text-navy">{nextBadge.label}</span>
+                {' '}— {nextBadge.hint}
+              </p>
+            ) : (
+              <p className="text-xs font-medium text-navy">All badges earned.</p>
+            )}
+          </Link>
+        </section>
+      )}
 
-        {/* New-user empty state */}
-        {!hasConnections && pendingActions.length === 0 && (
-          <div className="bg-white border border-border rounded-2xl p-8 text-center">
-            <p className="font-display text-xl font-bold text-navy mb-2">
-              Start building your network
-            </p>
-            <p className="text-sm text-body-grey mb-6">
-              Browse members, make connections, and start facilitating intros.
-            </p>
-            <Link
-              href="/members"
-              className="inline-block bg-navy text-warm-white px-6 py-3 rounded-full text-sm font-medium hover:bg-navy/90 transition-colors"
-            >
-              Browse members
-            </Link>
-          </div>
-        )}
+      {/* ── 9. Network pulse ── */}
+      <RostaIndex
+        intros={rostaIndex.intros}
+        outcomes={rostaIndex.outcomes}
+        signals={rostaIndex.signals}
+        tables={rostaIndex.tables}
+      />
+
+      {/* ── 10. Stats row ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatCard
+          label="Connections"
+          value={connectionIds.length}
+          href="/members"
+        />
+        <StatCard
+          label="Intro credits"
+          value={creditBalance}
+          href="/intro"
+        />
+        <StatCard
+          label="Connector Score"
+          value={connectorScore.total}
+          href={`/profile/${profileSlugSelf}`}
+        />
+        <StatCard
+          label="Outcomes this month"
+          value={realOutcomes}
+          lime={realOutcomes > 0}
+        />
       </div>
+
+      {/* ── 11. Empty state ── */}
+      {!hasConnections && pendingActions.length === 0 && (
+        <div className="bg-white border border-border rounded-2xl p-8 text-center">
+          <p className="font-display text-xl font-bold text-navy mb-2">
+            Start building your network
+          </p>
+          <p className="text-sm text-body-grey mb-6">
+            Browse members, make connections, and start facilitating intros.
+          </p>
+          <Link
+            href="/members"
+            className="inline-block bg-navy text-warm-white px-6 py-3 rounded-full text-sm font-medium hover:bg-navy/90 transition-colors"
+          >
+            Browse members
+          </Link>
+        </div>
+      )}
+
     </main>
   )
 }
