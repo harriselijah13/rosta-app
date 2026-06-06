@@ -363,6 +363,15 @@ export function verificationPaidEmail(name: string) {
   )
 }
 
+export function onboardingReminderEmail() {
+  return wrap(
+    'Finish setting up your ROSTA profile',
+    "You're almost in. Your account is ready — you just need to complete your profile to join the network.",
+    'Complete your profile',
+    'https://app.onrosta.com/onboarding',
+  )
+}
+
 export function adminVerificationGrantedEmail(name: string) {
   return wrap(
     "You're now a Verified ROSTA member",
