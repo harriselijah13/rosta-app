@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Textarea from '@/components/ui/Textarea'
+import LocationPicker from '@/components/ui/LocationPicker'
 
 type Step = 1 | 2 | 3 | 4
 
@@ -454,13 +455,9 @@ export default function OnboardingFlow({ userId, initialFirstName, initialLastNa
                 value={form.whoIWantToMeet}
                 onChange={e => update({ whoIWantToMeet: e.target.value })}
               />
-              <Input
-                label="Where I operate"
-                id="where-i-operate"
-                type="text"
-                placeholder="London, remote globally"
+              <LocationPicker
                 value={form.whereIOperate}
-                onChange={e => update({ whereIOperate: e.target.value })}
+                onChange={v => update({ whereIOperate: v })}
               />
               <Input
                 label="One thing people don't know about me"

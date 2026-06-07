@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Textarea from '@/components/ui/Textarea'
+import LocationPicker from '@/components/ui/LocationPicker'
 import { OPEN_TO_OPTIONS, PROFILE_MODES } from '@/lib/constants'
 
 const USERNAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/
@@ -352,12 +353,9 @@ export default function SettingsClient({ userId, profile, signals, openTableOpte
             value={whoIWantToMeet}
             onChange={e => setWhoIWantToMeet(e.target.value)}
           />
-          <Input
-            label="Where I operate"
-            id="where-i-operate"
-            type="text"
+          <LocationPicker
             value={whereIOperate}
-            onChange={e => setWhereIOperate(e.target.value)}
+            onChange={setWhereIOperate}
           />
           <Input
             label={"One thing people don't know about me"}
