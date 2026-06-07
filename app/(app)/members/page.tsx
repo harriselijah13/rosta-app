@@ -14,23 +14,30 @@ export default async function MembersPage() {
 
   const admin = createAdminClient()
 
-  // Fetch all onboarded members — no connection filter, all are visible
-  const [{ data: members }, { data: connRows }] = await Promise.all([
+  const SELECT = `id, username, first_name, last_name, avatar_url, what_i_do, building_now,
+                  where_i_operate, profile_mode, onboarding_completed, founding_member, is_verified, updated_at,
+                  signals ( open_to, working_on, need_right_now, updated_at )`
+
+  // Fetch all onboarded members, current user's connections, and current user's own profile in parallel.
+  // The current user may not appear in `members` (e.g. onboarding_completed mismatch), so their profile
+  // is fetched separately so the My Network centre node always has the right data.
+  const [{ data: members }, { data: connRows }, { data: currentProfile }] = await Promise.all([
     admin
       .from('profiles')
-      .select(
-        `id, username, first_name, last_name, avatar_url, what_i_do, building_now,
-         where_i_operate, profile_mode, onboarding_completed, founding_member, is_verified, updated_at,
-         signals ( open_to, working_on, need_right_now, updated_at )`
-      )
+      .select(SELECT)
       .eq('onboarding_completed', true)
       .order('updated_at', { ascending: false }),
 
-    // Fetch current user's connections to drive limited vs full card view
     admin
       .from('connections')
       .select('user_a, user_b')
       .or(`user_a.eq.${user.id},user_b.eq.${user.id}`),
+
+    admin
+      .from('profiles')
+      .select(SELECT)
+      .eq('id', user.id)
+      .single(),
   ])
 
   const connectedUserIds: string[] = (connRows ?? []).map(c =>
@@ -41,6 +48,7 @@ export default async function MembersPage() {
     <MemberDirectory
       members={(members ?? []) as Profile[]}
       currentUserId={user.id}
+      currentUserProfile={(currentProfile ?? null) as Profile | null}
       connectedUserIds={connectedUserIds}
     />
   )

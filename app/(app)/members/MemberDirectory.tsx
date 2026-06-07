@@ -475,10 +475,12 @@ const FILTER_OPEN_TO = [{ value: '', label: 'Any signal' }, ...OPEN_TO_OPTIONS]
 export default function MemberDirectory({
   members,
   currentUserId,
+  currentUserProfile,
   connectedUserIds,
 }: {
   members: Profile[]
   currentUserId: string
+  currentUserProfile: Profile | null
   connectedUserIds: string[]
 }) {
   const [tab,          setTab]          = useState<'network' | 'members'>('network')
@@ -489,15 +491,14 @@ export default function MemberDirectory({
 
   const connectedSet = useMemo(() => new Set(connectedUserIds), [connectedUserIds])
 
-  const currentUser      = useMemo(() => members.find(m => m.id === currentUserId), [members, currentUserId])
   const connectedMembers = useMemo(() => members.filter(m => connectedSet.has(m.id)), [members, connectedSet])
   const discoverMembers  = useMemo(
     () => members.filter(m => m.id !== currentUserId && !connectedSet.has(m.id)),
     [members, currentUserId, connectedSet],
   )
   const suggestions = useMemo(
-    () => computeSuggestions(currentUser, discoverMembers, 4),
-    [currentUser, discoverMembers],
+    () => computeSuggestions(currentUserProfile ?? undefined, discoverMembers, 4),
+    [currentUserProfile, discoverMembers],
   )
 
   const filteredConnected = useMemo(
@@ -600,7 +601,7 @@ export default function MemberDirectory({
       {tab === 'network' && (
         <>
           <NetworkWeb
-            current={currentUser}
+            current={currentUserProfile ?? undefined}
             connections={connectedMembers}
             onBrowse={() => setTab('members')}
           />
