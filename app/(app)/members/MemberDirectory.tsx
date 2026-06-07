@@ -198,46 +198,25 @@ function MemberCard({ member, isSelf, isConnected }: { member: Profile; isSelf: 
 
 // ── Network web graphic ────────────────────────────────────────────────────────
 
+const GHOST_COUNT = 7
+
 function NetworkWeb({ current, connections, onBrowse }: { current: Profile; connections: Profile[]; onBrowse: () => void }) {
+  const isEmpty    = connections.length === 0
   const visible    = connections.slice(0, 12)
   const extraCount = connections.length - 12
   const cx = 200, cy = 150, R = 110
-  const positions  = visible.map((_, i) => {
-    const angle = (i / Math.max(visible.length, 1)) * 2 * Math.PI - Math.PI / 2
+
+  // Real node positions, or ghost positions when empty
+  const nodeCount = isEmpty ? GHOST_COUNT : visible.length
+  const positions = Array.from({ length: nodeCount }, (_, i) => {
+    const angle = (i / nodeCount) * 2 * Math.PI - Math.PI / 2
     return { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle) }
   })
-
-  if (connections.length === 0) {
-    return (
-      <div className="flex flex-col items-center py-16 text-center">
-        <svg viewBox="0 0 120 120" width="80" className="mb-5 opacity-20" aria-hidden="true">
-          <circle cx="60" cy="60" r="20" fill="#0F1B3C" />
-          {[0, 1, 2, 3, 4].map(i => {
-            const a = (i / 5) * 2 * Math.PI - Math.PI / 2
-            return (
-              <g key={i}>
-                <line x1={60} y1={60} x2={60 + 45 * Math.cos(a)} y2={60 + 45 * Math.sin(a)} stroke="#0F1B3C" strokeWidth="1" opacity="0.4" />
-                <circle cx={60 + 45 * Math.cos(a)} cy={60 + 45 * Math.sin(a)} r="8" fill="#0F1B3C" opacity="0.3" />
-              </g>
-            )
-          })}
-        </svg>
-        <p className="font-display text-lg font-bold text-navy mb-1">Your network starts here</p>
-        <p className="text-sm text-body-grey mb-5">Make your first connection.</p>
-        <button
-          onClick={onBrowse}
-          className="px-6 py-2.5 bg-navy text-warm-white rounded-full font-semibold text-sm hover:bg-navy/90 transition-colors"
-        >
-          Browse members
-        </button>
-      </div>
-    )
-  }
 
   const myIni = initials(current)
 
   return (
-    <div className="flex justify-center mb-6 select-none" aria-hidden="true">
+    <div className="flex flex-col items-center mb-6 select-none">
       <style>{`
         @media (prefers-reduced-motion: no-preference) {
           @keyframes rosta-drift {
@@ -246,14 +225,32 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile; conn
           }
         }
       `}</style>
-      <svg viewBox="0 0 400 300" className="w-full max-w-sm sm:max-w-md">
-        {/* Spoke lines */}
+
+      <svg viewBox="0 0 400 300" className="w-full max-w-sm sm:max-w-md" aria-hidden="true">
+        {/* Spoke lines — dashed for ghost state */}
         {positions.map((pos, i) => (
-          <line key={`l-${i}`} x1={cx} y1={cy} x2={pos.x} y2={pos.y} stroke="#E5E1DB" strokeWidth="1.5" />
+          <line
+            key={`l-${i}`}
+            x1={cx} y1={cy} x2={pos.x} y2={pos.y}
+            stroke="#E5E1DB"
+            strokeWidth="1.5"
+            strokeDasharray={isEmpty ? '4 4' : undefined}
+          />
         ))}
 
-        {/* Satellite nodes */}
-        {visible.map((m, i) => {
+        {/* Ghost nodes (empty state) */}
+        {isEmpty && positions.map((pos, i) => {
+          const dur   = `${22 + (i % 5) * 4}s`
+          const delay = `${(i * 2.5).toFixed(1)}s`
+          return (
+            <g key={`ghost-${i}`} style={{ animation: `rosta-drift ${dur} ease-in-out ${delay} infinite` }}>
+              <circle cx={pos.x} cy={pos.y} r="22" fill="#0F1B3C" opacity="0.2" />
+            </g>
+          )
+        })}
+
+        {/* Real connection nodes */}
+        {!isEmpty && visible.map((m, i) => {
           const { x, y } = positions[i]
           const dur   = `${22 + (i % 5) * 4}s`
           const delay = `${(i * 2.5).toFixed(1)}s`
@@ -267,18 +264,31 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile; conn
           )
         })}
 
-        {/* Centre node */}
+        {/* Centre node — always shown */}
         <circle cx={cx} cy={cy} r="30" fill="#0F1B3C" />
         <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fill="#C8F53C" fontSize="12" fontWeight="700">
           {myIni}
         </text>
 
-        {extraCount > 0 && (
+        {!isEmpty && extraCount > 0 && (
           <text x={390} y={290} textAnchor="end" fill="#6B7280" fontSize="11">
             +{extraCount} more
           </text>
         )}
       </svg>
+
+      {/* Empty-state prompt — two lines only, no card */}
+      {isEmpty && (
+        <div className="text-center mt-1">
+          <p className="font-display font-bold text-navy text-lg mb-1">Your network starts here.</p>
+          <button
+            onClick={onBrowse}
+            className="text-sm text-body-grey hover:text-navy transition-colors"
+          >
+            Find people worth knowing.
+          </button>
+        </div>
+      )}
     </div>
   )
 }
