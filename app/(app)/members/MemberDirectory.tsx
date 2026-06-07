@@ -235,7 +235,7 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile | und
     return { x: NW_CX + NW_R * Math.cos(a), y: NW_CY + NW_R * Math.sin(a) }
   })
 
-  const myIni  = current ? initials(current) : ''
+  const myIni  = current ? (initials(current) || '?') : '?'
   const avatar = current?.avatar_url ?? null
 
   return (
@@ -249,7 +249,7 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile | und
           <div style={{
             position: 'relative', width: `${NW_W}px`, height: `${NW_H}px`,
             perspective: '800px',
-            background: 'radial-gradient(circle at 50% 50%, rgba(15,27,60,0.04) 0%, transparent 70%)',
+            background: 'radial-gradient(circle at 50% 50%, rgba(15,27,60,0.05) 0%, transparent 65%)',
           }}>
             <style>{`
               @media (prefers-reduced-motion: no-preference) {
@@ -260,12 +260,12 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile | und
                 @keyframes nw-c4 { from{transform:translate(0px,0px)} to{transform:translate(-7px,7px)}  }
                 @keyframes nw-c5 { from{transform:translate(0px,0px)} to{transform:translate(-6px,-9px)} }
                 @keyframes nw-spoke {
-                  0%,100% { opacity:0.2; }
-                  50%     { opacity:0.5; }
+                  0%,100% { opacity:0.55; }
+                  50%     { opacity:1;    }
                 }
                 @keyframes nw-halo {
-                  0%,100% { transform:scale(1);   opacity:0.2; }
-                  50%     { transform:scale(1.1); opacity:0.5; }
+                  0%,100% { transform:scale(1);   opacity:0.4; }
+                  50%     { transform:scale(1.1); opacity:0.75; }
                 }
                 @keyframes nw-breathe {
                   0%,100% { transform:scale(1);    }
@@ -276,14 +276,18 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile | und
 
             {/* SVG overlay — connection lines only */}
             <svg
-              width={NW_W} height={NW_H} aria-hidden="true"
-              style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible', zIndex: 0 }}
+              aria-hidden="true"
+              style={{
+                position: 'absolute', top: 0, left: 0,
+                width: `${NW_W}px`, height: `${NW_H}px`,
+                pointerEvents: 'none', overflow: 'visible', zIndex: 0,
+              }}
             >
               {positions.map((pos, i) => (
                 <line
                   key={`l-${i}`}
                   x1={NW_CX} y1={NW_CY} x2={pos.x} y2={pos.y}
-                  stroke="rgba(200,245,60,0.35)" strokeWidth="1.5" strokeDasharray="4 6"
+                  stroke="rgba(200,245,60,0.65)" strokeWidth="1.5" strokeDasharray="4 6"
                   style={{ animation: `nw-spoke ${4 + (i % 3)}s ease-in-out ${(i * 0.65).toFixed(2)}s infinite` }}
                 />
               ))}
@@ -296,20 +300,20 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile | und
                 <div
                   key={`ghost-${i}`}
                   style={{
-                    position: 'absolute', left: `${pos.x - 60}px`, top: `${pos.y - 32}px`,
+                    position: 'absolute', left: `${pos.x - 50}px`, top: `${pos.y - 27}px`,
                     zIndex: 1, transform: `scale(0.92) rotateX(${s.rotX}deg) rotateY(${s.rotY}deg)`,
                   }}
                 >
                   <div style={{
-                    width: '120px', height: '64px', borderRadius: '12px', background: '#ffffff',
-                    border: '1px solid #E5E1DB', boxShadow: '0 4px 16px rgba(15,27,60,0.08)',
-                    display: 'flex', alignItems: 'center', padding: '0 12px', gap: '10px',
+                    width: '100px', height: '54px', borderRadius: '12px', background: '#ffffff',
+                    border: '1px solid #D4D0CB', boxShadow: '0 6px 20px rgba(15,27,60,0.12)',
+                    display: 'flex', alignItems: 'center', padding: '0 10px', gap: '8px',
                     animation: `nw-c${i} ${s.dur}s ease-in-out ${s.delay}s infinite alternate`,
                   }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#F0EDE8', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-                      <div style={{ width: '60px', height: '8px', borderRadius: '4px', background: '#E5E1DB' }} />
-                      <div style={{ width: '40px', height: '8px', borderRadius: '4px', background: '#E5E1DB' }} />
+                    <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#F0EDE8', flexShrink: 0 }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', flex: 1 }}>
+                      <div style={{ width: '44px', height: '7px', borderRadius: '4px', background: '#E5E1DB' }} />
+                      <div style={{ width: '30px', height: '7px', borderRadius: '4px', background: '#E5E1DB' }} />
                     </div>
                   </div>
                 </div>
@@ -325,14 +329,14 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile | und
                 <div
                   key={m.id}
                   style={{
-                    position: 'absolute', left: `${pos.x - 60}px`, top: `${pos.y - 32}px`,
+                    position: 'absolute', left: `${pos.x - 50}px`, top: `${pos.y - 27}px`,
                     zIndex: 1, transform: `scale(0.92) rotateX(${s.rotX}deg) rotateY(${s.rotY}deg)`,
                   }}
                 >
                   <div style={{
-                    width: '120px', height: '64px', borderRadius: '12px', background: '#ffffff',
-                    border: '1px solid #E5E1DB', boxShadow: '0 4px 16px rgba(15,27,60,0.08)',
-                    display: 'flex', alignItems: 'center', padding: '0 12px', gap: '10px',
+                    width: '100px', height: '54px', borderRadius: '12px', background: '#ffffff',
+                    border: '1px solid #D4D0CB', boxShadow: '0 6px 20px rgba(15,27,60,0.12)',
+                    display: 'flex', alignItems: 'center', padding: '0 10px', gap: '8px',
                     animation: `nw-c${i} ${s.dur}s ease-in-out ${s.delay}s infinite alternate`,
                   }}>
                     {m.avatar_url ? (
@@ -364,7 +368,7 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile | und
             <div style={{
               position: 'absolute', left: `${NW_CX - 44}px`, top: `${NW_CY - 44}px`,
               width: '88px', height: '88px', borderRadius: '50%',
-              border: '1.5px solid rgba(200,245,60,0.35)', pointerEvents: 'none',
+              border: '2px solid rgba(200,245,60,0.6)', pointerEvents: 'none',
               zIndex: 2, animation: 'nw-halo 3s ease-in-out infinite',
             }} />
 
