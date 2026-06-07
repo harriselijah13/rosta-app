@@ -200,7 +200,7 @@ function MemberCard({ member, isSelf, isConnected }: { member: Profile; isSelf: 
 
 const GHOST_COUNT = 7
 
-function NetworkWeb({ current, connections, onBrowse }: { current: Profile; connections: Profile[]; onBrowse: () => void }) {
+function NetworkWeb({ current, connections, onBrowse }: { current: Profile | undefined; connections: Profile[]; onBrowse: () => void }) {
   const isEmpty    = connections.length === 0
   const visible    = connections.slice(0, 12)
   const extraCount = connections.length - 12
@@ -213,7 +213,7 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile; conn
     return { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle) }
   })
 
-  const myIni = initials(current)
+  const myIni = current ? initials(current) : '?'
 
   return (
     <div className="flex flex-col items-center mb-6 select-none">
@@ -458,13 +458,11 @@ export default function MemberDirectory({
       {/* ── Tab 1: My Network ── */}
       {tab === 'network' && (
         <>
-          {currentUser && (
-            <NetworkWeb
-              current={currentUser}
-              connections={connectedMembers}
-              onBrowse={() => setTab('members')}
-            />
-          )}
+          <NetworkWeb
+            current={currentUser}
+            connections={connectedMembers}
+            onBrowse={() => setTab('members')}
+          />
 
           {connectedMembers.length > 0 && (
             <>
