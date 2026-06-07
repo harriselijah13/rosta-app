@@ -411,6 +411,36 @@ export function scanCardInviteEmail(
   )
 }
 
+// ── Event performance report ──────────────────────────────────────────────────
+
+export function eventReportEmail(
+  organiserName: string,
+  eventName: string,
+  stats: { scans: number; members: number; connections: number; outcomes: number },
+  reportUrl: string,
+): string {
+  const pl = (n: number, w: string) => `${n} ${w}${n !== 1 ? 's' : ''}`
+  const body = [
+    `Hi ${organiserName},`,
+    '',
+    `${eventName} was 7 days ago. Here's how your ROSTA event QR performed:`,
+    '',
+    `• ${pl(stats.scans, 'QR scan')}`,
+    `• ${pl(stats.members, 'new member')} joined ROSTA`,
+    `• ${pl(stats.connections, 'connection')} made on ROSTA`,
+    `• ${pl(stats.outcomes, 'outcome')} marked`,
+    '',
+    'View the full report for connection timelines, network growth, and more.',
+  ].join('\n')
+  return wrap(
+    `Your ${eventName} ROSTA report is ready`,
+    body,
+    'View full report',
+    reportUrl,
+    { preLineBody: true },
+  )
+}
+
 // ── Admin email blast (free-text body — HTML-escaped) ─────────────────────────
 
 export function adminEmailHtml(subject: string, body: string): string {
