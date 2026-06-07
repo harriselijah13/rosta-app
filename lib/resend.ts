@@ -393,6 +393,24 @@ export function digestEmailHtml(name: string, body: string): string {
   )
 }
 
+// ── Business card scan invite ─────────────────────────────────────────────────
+
+export function scanCardInviteEmail(
+  recipientName: string,
+  memberName: string,
+  metAt: string,
+  inviteCode: string | null,
+): string {
+  const body = `Hi ${recipientName},\n\n${memberName} met you at ${metAt} and wants to stay connected. They use ROSTA — a professional network built around real introductions.\n\nJoin here${inviteCode ? ` — use invite code: ${inviteCode}` : ''}.`
+  return wrap(
+    `${memberName} wants to connect on ROSTA`,
+    body,
+    'Join ROSTA',
+    inviteCode ? `${BASE}/signup?invite=${inviteCode}` : `${BASE}/signup`,
+    { preLineBody: true },
+  )
+}
+
 // ── Admin email blast (free-text body — HTML-escaped) ─────────────────────────
 
 export function adminEmailHtml(subject: string, body: string): string {
