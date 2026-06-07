@@ -198,15 +198,16 @@ function MemberCard({ member, isSelf, isConnected }: { member: Profile; isSelf: 
 
 // ── Network web graphic ────────────────────────────────────────────────────────
 
-const GHOST_COUNT = 7
+const GHOST_COUNT     = 7
+const GHOST_DURATIONS = [9, 10, 11, 9.5, 10.5, 8.5, 11.5]
+const GHOST_DELAYS    = [0, 0.8, 1.6, 0.4, 1.2, 2.0, 0.2]
 
 function NetworkWeb({ current, connections, onBrowse }: { current: Profile | undefined; connections: Profile[]; onBrowse: () => void }) {
   const isEmpty    = connections.length === 0
   const visible    = connections.slice(0, 12)
   const extraCount = connections.length - 12
-  const cx = 200, cy = 150, R = 110
+  const cx = 240, cy = 190, R = 110
 
-  // Real node positions, or ghost positions when empty
   const nodeCount = isEmpty ? GHOST_COUNT : visible.length
   const positions = Array.from({ length: nodeCount }, (_, i) => {
     const angle = (i / nodeCount) * 2 * Math.PI - Math.PI / 2
@@ -219,43 +220,82 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile | und
     <div className="flex flex-col items-center mb-6 select-none">
       <style>{`
         @media (prefers-reduced-motion: no-preference) {
-          @keyframes rosta-drift {
-            0%, 100% { transform: translateY(0px); }
-            50%       { transform: translateY(-6px); }
+          /* 7 unique XY drift paths for ghost + real nodes */
+          @keyframes rosta-g0 { 0%,100%{transform:translate(0px,0px)}  50%{transform:translate(4px,-6px)}  }
+          @keyframes rosta-g1 { 0%,100%{transform:translate(0px,0px)}  50%{transform:translate(-5px,-4px)} }
+          @keyframes rosta-g2 { 0%,100%{transform:translate(0px,0px)}  50%{transform:translate(-4px,5px)}  }
+          @keyframes rosta-g3 { 0%,100%{transform:translate(0px,0px)}  50%{transform:translate(5px,3px)}   }
+          @keyframes rosta-g4 { 0%,100%{transform:translate(0px,0px)}  50%{transform:translate(-3px,-7px)} }
+          @keyframes rosta-g5 { 0%,100%{transform:translate(0px,0px)}  50%{transform:translate(6px,-2px)}  }
+          @keyframes rosta-g6 { 0%,100%{transform:translate(0px,0px)}  50%{transform:translate(-2px,6px)}  }
+          /* Lime halo pulse: scale + opacity */
+          @keyframes rosta-halo {
+            0%,100% { transform:scale(1);    opacity:0.3; }
+            50%     { transform:scale(1.08); opacity:0.6; }
+          }
+          /* Spoke opacity pulse */
+          @keyframes rosta-spoke {
+            0%,100% { opacity:0.15; }
+            50%     { opacity:0.35; }
+          }
+          /* Centre node subtle breathe */
+          @keyframes rosta-breathe {
+            0%,100% { transform:scale(1);    }
+            50%     { transform:scale(1.03); }
           }
         }
       `}</style>
 
-      <svg viewBox="0 0 400 300" className="w-full max-w-sm sm:max-w-md" aria-hidden="true">
-        {/* Spoke lines — dashed for ghost state */}
+      <svg viewBox="0 0 480 380" className="w-full max-w-md sm:max-w-lg" aria-hidden="true">
+        <defs>
+          <radialGradient id="rosta-bg-grad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%"   stopColor="#0F1B3C" stopOpacity="0.04" />
+            <stop offset="100%" stopColor="#0F1B3C" stopOpacity="0"    />
+          </radialGradient>
+        </defs>
+
+        {/* Subtle navy radial background */}
+        <rect x="0" y="0" width="480" height="380" fill="url(#rosta-bg-grad)" rx="16" />
+
+        {/* Spoke lines — lime-tinted, dashed in ghost state, with opacity pulse */}
         {positions.map((pos, i) => (
           <line
             key={`l-${i}`}
             x1={cx} y1={cy} x2={pos.x} y2={pos.y}
-            stroke="#E5E1DB"
+            stroke="rgba(200,245,60,0.2)"
             strokeWidth="1.5"
             strokeDasharray={isEmpty ? '4 4' : undefined}
+            style={{ animation: `rosta-spoke ${4 + (i % 3)}s ease-in-out ${(i * 0.65).toFixed(2)}s infinite` }}
           />
         ))}
 
-        {/* Ghost nodes (empty state) */}
-        {isEmpty && positions.map((pos, i) => {
-          const dur   = `${22 + (i % 5) * 4}s`
-          const delay = `${(i * 2.5).toFixed(1)}s`
-          return (
-            <g key={`ghost-${i}`} style={{ animation: `rosta-drift ${dur} ease-in-out ${delay} infinite` }}>
-              <circle cx={pos.x} cy={pos.y} r="22" fill="#0F1B3C" opacity="0.2" />
-            </g>
-          )
-        })}
+        {/* Ghost nodes: refined, dashed lime border, "?" placeholder */}
+        {isEmpty && positions.map((pos, i) => (
+          <g
+            key={`ghost-${i}`}
+            style={{ animation: `rosta-g${i} ${GHOST_DURATIONS[i]}s ease-in-out ${GHOST_DELAYS[i]}s infinite` }}
+          >
+            <circle
+              cx={pos.x} cy={pos.y} r="26"
+              fill="#0F1B3C" fillOpacity="0.15"
+              stroke="rgba(200,245,60,0.25)" strokeWidth="1.5" strokeDasharray="3 4"
+            />
+            <text
+              x={pos.x} y={pos.y}
+              textAnchor="middle" dominantBaseline="central"
+              fill="rgba(200,245,60,0.4)" fontSize="11" fontWeight="600"
+            >?</text>
+          </g>
+        ))}
 
         {/* Real connection nodes */}
         {!isEmpty && visible.map((m, i) => {
           const { x, y } = positions[i]
-          const dur   = `${22 + (i % 5) * 4}s`
-          const delay = `${(i * 2.5).toFixed(1)}s`
           return (
-            <g key={m.id} style={{ animation: `rosta-drift ${dur} ease-in-out ${delay} infinite` }}>
+            <g
+              key={m.id}
+              style={{ animation: `rosta-g${i % 7} ${12 + (i % 5) * 1.5}s ease-in-out ${(i * 1.2).toFixed(1)}s infinite` }}
+            >
               <circle cx={x} cy={y} r="22" fill="#0F1B3C" opacity="0.82" />
               <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="10" fontWeight="600">
                 {initials(m)}
@@ -264,26 +304,45 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile | und
           )
         })}
 
-        {/* Centre node — always shown */}
-        <circle cx={cx} cy={cy} r="30" fill="#0F1B3C" />
-        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fill="#C8F53C" fontSize="12" fontWeight="700">
-          {myIni}
-        </text>
+        {/* Lime halo ring — pulses in scale + opacity */}
+        <circle
+          cx={cx} cy={cy} r="44"
+          fill="none"
+          stroke="rgba(200,245,60,0.3)"
+          strokeWidth="1.5"
+          style={{
+            transformOrigin: `${cx}px ${cy}px`,
+            animation: 'rosta-halo 3s ease-in-out infinite',
+          }}
+        />
+
+        {/* Centre node — breathes gently */}
+        <g style={{ transformOrigin: `${cx}px ${cy}px`, animation: 'rosta-breathe 4s ease-in-out infinite' }}>
+          <circle cx={cx} cy={cy} r="36" fill="#0F1B3C" />
+          <text
+            x={cx} y={cy}
+            textAnchor="middle" dominantBaseline="central"
+            fill="#C8F53C" fontSize="14" fontWeight="700"
+            fontFamily="var(--font-fraunces), Georgia, serif"
+          >
+            {myIni}
+          </text>
+        </g>
 
         {!isEmpty && extraCount > 0 && (
-          <text x={390} y={290} textAnchor="end" fill="#6B7280" fontSize="11">
+          <text x={470} y={370} textAnchor="end" fill="#6B7280" fontSize="11">
             +{extraCount} more
           </text>
         )}
       </svg>
 
-      {/* Empty-state prompt — two lines only, no card */}
+      {/* Empty-state prompt — two clean lines */}
       {isEmpty && (
-        <div className="text-center mt-1">
-          <p className="font-display font-bold text-navy text-lg mb-1">Your network starts here.</p>
+        <div className="text-center mt-2">
+          <p className="font-display font-bold text-navy text-xl mb-1.5">Your network starts here.</p>
           <button
             onClick={onBrowse}
-            className="text-sm text-body-grey hover:text-navy transition-colors"
+            className="text-sm text-navy hover:underline decoration-lime transition-colors"
           >
             Find people worth knowing.
           </button>
