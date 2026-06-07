@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
 export type ScannedCard = {
@@ -44,6 +44,7 @@ const FIELDS: { key: keyof Omit<Fields, 'met_at'>; label: string; placeholder: s
 
 export default function ScanClient({ pastCards }: { pastCards: ScannedCard[] }) {
   const fileRef  = useRef<HTMLInputElement>(null)
+  const [isMobile,    setIsMobile]    = useState(false)
   const [phase,       setPhase]       = useState<Phase>('idle')
   const [fields,      setFields]      = useState<Fields>({ name: '', email: '', company: '', role: '', phone: '', met_at: '' })
   const [savedCardId, setSavedCardId] = useState<string | null>(null)
@@ -51,6 +52,10 @@ export default function ScanClient({ pastCards }: { pastCards: ScannedCard[] }) 
   const [history,     setHistory]     = useState<ScannedCard[]>(pastCards)
   const [scanError,   setScanError]   = useState<string | null>(null)
   const [metAtError,  setMetAtError]  = useState(false)
+
+  useEffect(() => {
+    setIsMobile(/Mobi|Android/i.test(navigator.userAgent))
+  }, [])
 
   function prependHistory(action: ScannedCard['action_taken']) {
     setHistory(prev => [{
@@ -206,9 +211,13 @@ export default function ScanClient({ pastCards }: { pastCards: ScannedCard[] }) 
             className="inline-flex items-center gap-2.5 bg-navy text-warm-white px-7 py-3.5 rounded-full font-semibold text-sm hover:bg-navy/90 transition-colors"
           >
             <CameraIcon />
-            Take a photo
+            {isMobile ? 'Take a photo' : 'Upload a photo'}
           </button>
-          <p className="text-xs text-body-grey">or choose from your gallery</p>
+          <p className="text-xs text-body-grey">
+            {isMobile
+              ? 'Point your camera at the card.'
+              : 'Select an image of the business card from your device.'}
+          </p>
         </div>
       )}
 
