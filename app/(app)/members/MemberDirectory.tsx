@@ -13,7 +13,18 @@ const MODE_MAP    = Object.fromEntries(PROFILE_MODES.map(m => [m.value, m.label]
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function initials(m: Profile): string {
-  return [m.first_name?.[0], m.last_name?.[0]].filter(Boolean).join('').toUpperCase() || '?'
+  // Join both fields then split on whitespace so "Harris Elijah" in first_name
+  // and separate first_name/last_name both produce "HE".
+  const words = [m.first_name, m.last_name]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (words.length === 0) return '?'
+  const a = words[0][0]
+  const b = words.length > 1 ? words[words.length - 1][0] : ''
+  return (a + b).toUpperCase()
 }
 
 function isActive(m: Profile): boolean {
@@ -228,6 +239,12 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile | und
     ro.observe(wrapperRef.current)
     return () => ro.disconnect()
   }, [])
+
+  useEffect(() => {
+    console.log('[NetworkWeb] current:', current
+      ? { id: current.id, first_name: current.first_name, last_name: current.last_name, avatar_url: current.avatar_url ? '[set]' : null }
+      : undefined)
+  }, [current])
 
   const nodeCount = isEmpty ? NW_MAX : visible.length
   const positions = Array.from({ length: nodeCount }, (_, i) => {
