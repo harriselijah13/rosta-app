@@ -256,7 +256,7 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile | und
   const avatar = current?.avatar_url ?? null
 
   return (
-    <div ref={wrapperRef} className="w-full max-w-[560px] mx-auto mb-6 select-none">
+    <div ref={wrapperRef} className="w-full max-w-[560px] mx-auto mb-6 select-none" style={{ paddingTop: '48px' }}>
 
       {/* Height shim: reserves correct vertical space after the scale transform */}
       <div style={{ height: `${NW_H * scale}px`, overflow: 'visible' }}>
@@ -322,8 +322,8 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile | und
                   }}
                 >
                   <div style={{
-                    width: '100px', height: '54px', borderRadius: '12px', background: '#ffffff',
-                    border: '1px solid #D4D0CB', boxShadow: '0 6px 20px rgba(15,27,60,0.12)',
+                    width: '100px', height: '54px', borderRadius: '12px', background: '#FFFFFF',
+                    border: '1px solid #C8C4BE', boxShadow: '0 4px 20px rgba(15,27,60,0.1)',
                     display: 'flex', alignItems: 'center', padding: '0 10px', gap: '8px',
                     animation: `nw-c${i} ${s.dur}s ease-in-out ${s.delay}s infinite alternate`,
                   }}>
@@ -351,8 +351,8 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile | und
                   }}
                 >
                   <div style={{
-                    width: '100px', height: '54px', borderRadius: '12px', background: '#ffffff',
-                    border: '1px solid #D4D0CB', boxShadow: '0 6px 20px rgba(15,27,60,0.12)',
+                    width: '100px', height: '54px', borderRadius: '12px', background: '#FFFFFF',
+                    border: '1px solid #C8C4BE', boxShadow: '0 4px 20px rgba(15,27,60,0.1)',
                     display: 'flex', alignItems: 'center', padding: '0 10px', gap: '8px',
                     animation: `nw-c${i} ${s.dur}s ease-in-out ${s.delay}s infinite alternate`,
                   }}>
@@ -490,6 +490,14 @@ export default function MemberDirectory({
   const [openToFilter, setOpenTo]       = useState('')
 
   const connectedSet = useMemo(() => new Set(connectedUserIds), [connectedUserIds])
+
+  useEffect(() => {
+    console.log('[MemberDirectory] currentUserProfile received:', currentUserProfile
+      ? { id: currentUserProfile.id, first_name: currentUserProfile.first_name, last_name: currentUserProfile.last_name, avatar_url: currentUserProfile.avatar_url ? '[set]' : null }
+      : null)
+    console.log('[MemberDirectory] currentUserId:', currentUserId)
+    console.log('[MemberDirectory] members.length:', members.length)
+  }, [currentUserProfile, currentUserId, members.length])
 
   const connectedMembers = useMemo(() => members.filter(m => connectedSet.has(m.id)), [members, connectedSet])
   const discoverMembers  = useMemo(
