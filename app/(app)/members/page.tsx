@@ -14,17 +14,20 @@ export default async function MembersPage() {
 
   const admin = createAdminClient()
 
-  const SELECT = `id, username, first_name, last_name, avatar_url, what_i_do, building_now,
-                  where_i_operate, profile_mode, onboarding_completed, founding_member, is_verified, updated_at,
-                  signals ( open_to, working_on, need_right_now, updated_at )`
+  const MEMBERS_SELECT = `id, username, first_name, last_name, avatar_url, what_i_do, building_now,
+                          where_i_operate, profile_mode, onboarding_completed, founding_member, is_verified, updated_at,
+                          signals ( open_to, working_on, need_right_now, updated_at )`
 
-  // Fetch all onboarded members, current user's connections, and current user's own profile in parallel.
-  // The current user may not appear in `members` (e.g. onboarding_completed mismatch), so their profile
-  // is fetched separately so the My Network centre node always has the right data.
-  const [{ data: members }, { data: connRows }, { data: currentProfile }] = await Promise.all([
+  // Current user's own profile uses a simpler select (no signals join) via their session
+  // client — the same pattern as the app layout, which is known to work. Using .maybeSingle()
+  // so a missing row returns null instead of an error.
+  const SELF_SELECT = `id, first_name, last_name, avatar_url, what_i_do, building_now,
+                       where_i_operate, profile_mode, onboarding_completed, founding_member, is_verified, updated_at`
+
+  const [{ data: members }, { data: connRows }, { data: currentProfile, error: profileFetchError }] = await Promise.all([
     admin
       .from('profiles')
-      .select(SELECT)
+      .select(MEMBERS_SELECT)
       .eq('onboarding_completed', true)
       .order('updated_at', { ascending: false }),
 
@@ -33,12 +36,16 @@ export default async function MembersPage() {
       .select('user_a, user_b')
       .or(`user_a.eq.${user.id},user_b.eq.${user.id}`),
 
-    admin
+    supabase
       .from('profiles')
-      .select(SELECT)
+      .select(SELF_SELECT)
       .eq('id', user.id)
-      .single(),
+      .maybeSingle(),
   ])
+
+  if (profileFetchError) {
+    console.error('[MembersPage] currentProfile fetch error:', profileFetchError)
+  }
 
   const connectedUserIds: string[] = (connRows ?? []).map(c =>
     c.user_a === user.id ? c.user_b : c.user_a
