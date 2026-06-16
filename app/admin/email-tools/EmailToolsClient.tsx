@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { sendAdminEmail, getPreviewHtml } from './actions'
 
 export type SendLog = {
@@ -18,6 +18,8 @@ export type ScopeCounts = {
   founding: number
   inactive: number
 }
+
+export type AvailableCode = { id: string; token: string }
 
 type Scope = 'all' | 'founding' | 'inactive' | 'specific'
 
@@ -68,9 +70,11 @@ function scopeCount(scope: Scope, counts: ScopeCounts, specificEmail: string): s
 export default function EmailToolsClient({
   counts,
   log,
+  availableCodes,
 }: {
   counts: ScopeCounts
   log: SendLog[]
+  availableCodes: AvailableCode[]
 }) {
   const [scope, setScope]                 = useState<Scope>('all')
   const [specificEmail, setSpecificEmail] = useState('')
@@ -81,6 +85,9 @@ export default function EmailToolsClient({
   const [sending, setSending]             = useState(false)
   const [result, setResult]               = useState<{ sent: number; errors: number } | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState('')
+  const [inviteCodeId, setInviteCodeId]   = useState('')
+  // Store the unsubstituted template body so re-selecting a code always starts clean
+  const templateBodyRef = useRef(WAITLIST_INVITE_BODY)
 
   const remainingPlaceholders = body.trim() ? detectPlaceholders(body) : []
   const hasPlaceholders       = remainingPlaceholders.length > 0
@@ -88,13 +95,25 @@ export default function EmailToolsClient({
 
   function applyTemplate(value: string) {
     setSelectedTemplate(value)
+    setInviteCodeId('')
     if (value === 'waitlist') {
+      templateBodyRef.current = WAITLIST_INVITE_BODY
       setScope('specific')
       setSubject("You're invited to ROSTA.")
       setBody(WAITLIST_INVITE_BODY)
       setSpecificEmail('')
       setPreviewing(false)
       setResult(null)
+    }
+  }
+
+  function handleCodeSelect(id: string) {
+    const code = availableCodes.find(c => c.id === id)
+    setInviteCodeId(id)
+    if (code) {
+      // Always substitute from the unedited template so re-selecting a code is clean
+      setBody(templateBodyRef.current.replace(/\[INVITE CODE\]/g, code.token))
+      setPreviewing(false)
     }
   }
 
@@ -118,7 +137,7 @@ export default function EmailToolsClient({
 
     setSending(true)
     setResult(null)
-    const res = await sendAdminEmail(scope, specificEmail, subject, body)
+    const res = await sendAdminEmail(scope, specificEmail, subject, body, inviteCodeId || undefined)
     setResult(res)
     setSending(false)
     if (res.sent > 0) {
@@ -126,6 +145,7 @@ export default function EmailToolsClient({
       setBody('')
       setSpecificEmail('')
       setSelectedTemplate('')
+      setInviteCodeId('')
       setPreviewing(false)
     }
   }
@@ -152,9 +172,32 @@ export default function EmailToolsClient({
               ))}
             </select>
             {selectedTemplate === 'waitlist' && (
-              <p className="text-xs text-body-grey mt-1.5">
-                Replace <span className="font-mono font-medium text-navy">[Name]</span> and <span className="font-mono font-medium text-navy">[INVITE CODE]</span> before sending.
-              </p>
+              <div className="mt-3 space-y-2">
+                <label className="block text-xs font-medium text-body-grey">Invite code</label>
+                {availableCodes.length === 0 ? (
+                  <p className="text-xs text-amber-600">
+                    No unreserved admin pool codes available.{' '}
+                    <a href="/admin/invite-codes" className="underline hover:text-amber-800">Generate codes →</a>
+                  </p>
+                ) : (
+                  <>
+                    <select
+                      value={inviteCodeId}
+                      onChange={e => handleCodeSelect(e.target.value)}
+                      className="w-full max-w-xs px-3 py-2.5 bg-white border border-border rounded-xl text-sm text-navy focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy transition-colors font-mono"
+                    >
+                      <option value="">Select a code…</option>
+                      {availableCodes.map(c => (
+                        <option key={c.id} value={c.id}>{c.token}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-body-grey">
+                      {availableCodes.length} unreserved code{availableCodes.length !== 1 ? 's' : ''} available.
+                      Selecting auto-replaces <span className="font-mono">[INVITE CODE]</span> and marks the code reserved on send.
+                    </p>
+                  </>
+                )}
+              </div>
             )}
           </div>
 

@@ -28,3 +28,16 @@ export async function generateCodeForMember(userId: string): Promise<string> {
   revalidatePath('/admin/invite-codes')
   return token
 }
+
+export async function generateAdminPoolCodes(count: number): Promise<string[]> {
+  const admin = await requireAdmin()
+  const n = Math.min(Math.max(1, count), 50)
+  const rows = Array.from({ length: n }, () => ({
+    owner_id: null as null,
+    token: generateInviteToken(),
+    type: 'founding_invite' as const,
+  }))
+  await admin.from('invite_codes').insert(rows)
+  revalidatePath('/admin/invite-codes')
+  return rows.map(r => r.token)
+}

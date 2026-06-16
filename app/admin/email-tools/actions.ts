@@ -46,6 +46,7 @@ export async function sendAdminEmail(
   specificEmail: string,
   subject: string,
   body: string,
+  codeId?: string,
 ): Promise<{ sent: number; errors: number }> {
   const { admin, userId } = await requireAdmin()
 
@@ -58,7 +59,6 @@ export async function sendAdminEmail(
   let sent = 0
   let errors = 0
 
-  // Send in batches to avoid blocking too long
   for (const email of emails) {
     try {
       await sendEmail(email, fullSubject, html)
@@ -68,7 +68,17 @@ export async function sendAdminEmail(
     }
   }
 
-  // Log the send
+  // Stamp the invite code as reserved once the email has been sent successfully
+  if (codeId && scope === 'specific' && specificEmail.trim() && sent > 0) {
+    await admin
+      .from('invite_codes')
+      .update({ reserved_for_email: specificEmail.trim().toLowerCase() })
+      .eq('id', codeId)
+      .is('owner_id', null)        // guard: only stamp admin pool codes
+      .is('reserved_for_email', null) // idempotent: skip if already reserved
+      .is('used_at', null)
+  }
+
   await admin.from('admin_email_logs').insert({
     sent_by:         userId,
     scope,

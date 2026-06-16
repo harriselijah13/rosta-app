@@ -13,6 +13,7 @@ export default async function EmailToolsPage() {
     { count: inactiveCount },
     { data: logRows },
     { data: adminProfiles },
+    { data: availableCodeRows },
   ] = await Promise.all([
     admin.from('profiles').select('id', { count: 'exact', head: true }).eq('onboarding_completed', true),
     admin.from('profiles').select('id', { count: 'exact', head: true }).eq('onboarding_completed', true).eq('founding_member', true),
@@ -20,6 +21,13 @@ export default async function EmailToolsPage() {
       .or(`last_active_at.is.null,last_active_at.lt.${fourteenDaysAgo}`),
     admin.from('admin_email_logs').select('id, sent_at, scope, subject, recipient_count, recipient_email, sent_by').order('sent_at', { ascending: false }).limit(50),
     admin.from('profiles').select('id, first_name, last_name'),
+    admin.from('invite_codes')
+      .select('id, token')
+      .eq('type', 'founding_invite')
+      .is('owner_id', null)
+      .is('reserved_for_email', null)
+      .is('used_at', null)
+      .order('created_at', { ascending: false }),
   ])
 
   const profileById = Object.fromEntries(
@@ -42,5 +50,7 @@ export default async function EmailToolsPage() {
     sent_by_name:    profileById[r.sent_by] ?? 'Unknown',
   }))
 
-  return <EmailToolsClient counts={counts} log={log} />
+  const availableCodes = (availableCodeRows ?? []).map(c => ({ id: c.id, token: c.token }))
+
+  return <EmailToolsClient counts={counts} log={log} availableCodes={availableCodes} />
 }

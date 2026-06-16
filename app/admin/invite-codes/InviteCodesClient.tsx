@@ -2,12 +2,12 @@
 
 import { useState, useMemo, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { revokeCode, generateCodeForMember } from './actions'
+import { revokeCode, generateCodeForMember, generateAdminPoolCodes } from './actions'
 
 export type InviteCode = {
   id: string
   token: string
-  owner_id: string
+  owner_id: string | null   // null = admin pool
   owner_name: string
   created_at: string
   used_at: string | null
@@ -48,6 +48,9 @@ export default function InviteCodesClient({
   const [selectedMember, setSelectedMember] = useState('')
   const [generating, setGenerating]         = useState(false)
   const [lastGenerated, setLastGenerated]   = useState<string | null>(null)
+  const [poolCount, setPoolCount]           = useState('10')
+  const [generatingPool, setGeneratingPool] = useState(false)
+  const [lastPoolTokens, setLastPoolTokens] = useState<string[]>([])
 
   const filtered = useMemo(() => {
     if (filter === 'used')   return codes.filter(c => !!c.used_at)
@@ -77,13 +80,60 @@ export default function InviteCodesClient({
     router.refresh()
   }
 
+  async function handleGeneratePool(e: React.FormEvent) {
+    e.preventDefault()
+    const n = Math.min(Math.max(1, parseInt(poolCount, 10) || 1), 50)
+    setGeneratingPool(true)
+    setLastPoolTokens([])
+    const tokens = await generateAdminPoolCodes(n)
+    setLastPoolTokens(tokens)
+    setGeneratingPool(false)
+    router.refresh()
+  }
+
   return (
     <div>
       <h1 className="font-display text-3xl font-bold text-navy mb-6">Invite Codes</h1>
 
-      {/* Generate form */}
+      {/* Generate admin pool codes */}
+      <div className="bg-white border border-border rounded-2xl p-5 mb-4">
+        <h2 className="font-display text-base font-bold text-navy mb-1">Generate admin pool codes</h2>
+        <p className="text-xs text-body-grey mb-3">Unassigned codes for waitlist invitations via Email Tools. No overall limit.</p>
+        <form onSubmit={handleGeneratePool} className="flex items-end gap-3 flex-wrap">
+          <div>
+            <label htmlFor="pool-count" className="block text-xs font-medium text-body-grey mb-1.5">
+              Count (1–50)
+            </label>
+            <input
+              id="pool-count"
+              type="number"
+              min="1"
+              max="50"
+              value={poolCount}
+              onChange={e => setPoolCount(e.target.value)}
+              className="w-24 px-3 py-2.5 bg-white border border-border rounded-xl text-sm text-navy focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy transition-colors"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={generatingPool}
+            className="px-5 py-2.5 bg-navy text-warm-white text-sm font-medium rounded-full hover:bg-navy/90 transition-colors disabled:opacity-40"
+          >
+            {generatingPool ? 'Generating…' : 'Generate pool codes'}
+          </button>
+        </form>
+        {lastPoolTokens.length > 0 && (
+          <p className="mt-3 text-xs text-body-grey">
+            Generated {lastPoolTokens.length} code{lastPoolTokens.length !== 1 ? 's' : ''}:{' '}
+            <span className="font-mono font-medium text-navy">{lastPoolTokens.join(', ')}</span>
+          </p>
+        )}
+      </div>
+
+      {/* Generate member code */}
       <div className="bg-white border border-border rounded-2xl p-5 mb-6">
-        <h2 className="font-display text-base font-bold text-navy mb-3">Generate a code</h2>
+        <h2 className="font-display text-base font-bold text-navy mb-1">Generate a member code</h2>
+        <p className="text-xs text-body-grey mb-3">Assigns a new code to an existing member's account.</p>
         <form onSubmit={handleGenerate} className="flex items-end gap-3 flex-wrap">
           <div className="flex-1 min-w-[200px]">
             <label htmlFor="member-select" className="block text-xs font-medium text-body-grey mb-1.5">
@@ -149,7 +199,11 @@ export default function InviteCodesClient({
               )}
               {filtered.map(code => (
                 <tr key={code.id} className="hover:bg-surface/50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-navy whitespace-nowrap">{code.owner_name}</td>
+                  <td className="px-4 py-3 font-medium text-navy whitespace-nowrap">
+                    {code.owner_id === null
+                      ? <span className="text-xs font-medium text-body-grey italic">Admin pool</span>
+                      : code.owner_name}
+                  </td>
                   <td className="px-4 py-3">
                     <span className="font-mono text-xs bg-surface px-2 py-1 rounded border border-border text-navy">
                       {code.token}
