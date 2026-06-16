@@ -1,4 +1,4 @@
-const TOKEN = 'REDACTED'
+const TOKEN = process.env.SUPABASE_ACCESS_TOKEN
 const REF   = 'gukouwplaofdydbetfoz'
 const ADMIN_EMAIL = 'harriselijah8@googlemail.com'
 
