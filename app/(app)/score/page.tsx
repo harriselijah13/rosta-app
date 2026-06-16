@@ -114,8 +114,8 @@ export default async function ScorePage() {
       {/* ── Section A — Hero ── */}
       <div className="text-center py-10 mb-10">
         <p
-          className="font-display font-black leading-none"
-          style={{ fontSize: 'clamp(80px, 20vw, 120px)', color: '#C8F53C' }}
+          className="font-display font-black text-navy leading-none"
+          style={{ fontSize: 'clamp(80px, 20vw, 120px)' }}
         >
           {score.total}
         </p>
@@ -169,8 +169,15 @@ export default async function ScorePage() {
           {HOW_IT_WORKS.map(row => (
             <div key={row.event} className="flex items-start gap-4 px-5 py-4">
               <span
-                className="font-display font-black text-base shrink-0 w-8 text-right leading-tight pt-0.5"
-                style={{ color: '#C8F53C' }}
+                className="shrink-0 inline-flex items-center justify-center text-[13px] font-semibold leading-none"
+                style={{
+                  backgroundColor: '#C8F53C',
+                  color: '#0F1B3C',
+                  padding: '4px 10px',
+                  borderRadius: '100px',
+                  minWidth: '44px',
+                  marginTop: '1px',
+                }}
               >
                 {row.pts}
               </span>

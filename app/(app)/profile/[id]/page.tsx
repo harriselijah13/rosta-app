@@ -163,7 +163,17 @@ export default async function ProfilePage({
                   {active ? 'Active on ROSTA' : 'Inactive'}
                 </span>
                 <span className="text-xs text-body-grey">
-                  Score <span className="font-medium text-navy">{score}</span>
+                  Score{' '}
+                  {isSelf ? (
+                    <Link
+                      href="/score"
+                      className="font-medium text-navy hover:opacity-70 transition-opacity"
+                    >
+                      {score}
+                    </Link>
+                  ) : (
+                    <span className="font-medium text-navy">{score}</span>
+                  )}
                 </span>
               </div>
             </div>
