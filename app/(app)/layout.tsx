@@ -63,6 +63,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex-1">{children}</div>
       <footer className="py-8 px-6 border-t border-border mt-12 text-center">
         <p className="text-xs text-body-grey flex items-center justify-center gap-2 flex-wrap">
+          <Link href="/help" className="hover:text-navy transition-colors">How it works</Link>
+          <span>·</span>
           <Link href="/privacy" className="hover:text-navy transition-colors">Privacy Policy</Link>
           <span>·</span>
           <Link href="/terms" className="hover:text-navy transition-colors">Terms</Link>
