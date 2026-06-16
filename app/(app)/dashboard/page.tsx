@@ -12,6 +12,7 @@ import HeroCanvas from './HeroCanvas'
 import FloatingAvatars from './FloatingAvatars'
 import ScoreCounter from './ScoreCounter'
 import NetworkPulseStats from './NetworkPulseStats'
+import SuggestIntroBlock from './SuggestIntroBlock'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
 const TOTAL_BADGES = 14
@@ -370,6 +371,9 @@ export default async function DashboardPage() {
             </div>
           </section>
         )}
+
+        {/* ── Suggest an intro ── */}
+        <SuggestIntroBlock />
 
         {/* ── Matchmaker ── */}
         {matchPair && (
