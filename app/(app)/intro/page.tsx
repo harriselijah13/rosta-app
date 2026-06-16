@@ -1,7 +1,11 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import InvitePanel from './InvitePanel'
+import MarkVisited from './MarkVisited'
+import { IntroCardDismissable } from './IntroCardDismissable'
 
 type IntroRow = {
   id: string
@@ -13,6 +17,9 @@ type IntroRow = {
   requester_note: string | null
   expires_at: string
   created_at: string
+  responded_at: string | null
+  dismissed_by_requester_at: string | null
+  dismissed_by_recipient_at: string | null
 }
 
 function currentPeriod() {
@@ -115,11 +122,13 @@ export default async function IntroInboxPage() {
   const admin = createAdminClient()
   const period = currentPeriod()
 
-  // Fetch intro requests + credits in parallel
-  const [{ data: rows }, { data: creditsRow }] = await Promise.all([
+  const lastIntroVisit = cookies().get('intro-last-visited')?.value ?? new Date(0).toISOString()
+
+  // Fetch intro requests, credits, invite codes, and conversations in parallel
+  const [{ data: rows }, { data: creditsRow }, { data: rawCodes }, { data: userConvs }] = await Promise.all([
     admin
       .from('intro_requests')
-      .select('id, type, requester_id, target_id, facilitator_id, status, requester_note, expires_at, created_at')
+      .select('id, type, requester_id, target_id, facilitator_id, status, requester_note, expires_at, created_at, responded_at, dismissed_by_requester_at, dismissed_by_recipient_at')
       .or(`requester_id.eq.${user.id},facilitator_id.eq.${user.id},target_id.eq.${user.id}`)
       .order('created_at', { ascending: false }),
     admin
@@ -127,7 +136,24 @@ export default async function IntroInboxPage() {
       .select('balance, period, lifetime_earned')
       .eq('user_id', user.id)
       .maybeSingle(),
+    admin
+      .from('invite_codes')
+      .select('*')
+      .eq('owner_id', user.id)
+      .eq('type', 'founding_invite')
+      .order('created_at'),
+    admin
+      .from('conversations')
+      .select('id, user_a, user_b')
+      .or(`user_a.eq.${user.id},user_b.eq.${user.id}`),
   ])
+
+  const inviteCodes = (rawCodes ?? []).map(c => ({
+    id: c.id as string,
+    token: c.token as string,
+    used_at: c.used_at as string | null,
+    reserved_for_email: (c as Record<string, unknown>).reserved_for_email as string | null ?? null,
+  }))
 
   // Lazy monthly reset: if no row or period changed, balance is 3
   const isNewPeriod = !creditsRow || creditsRow.period !== period
@@ -135,6 +161,19 @@ export default async function IntroInboxPage() {
   const lifetimeEarned = creditsRow?.lifetime_earned ?? 0
 
   const allRows = (rows ?? []) as IntroRow[]
+
+  // Conversations keyed by the other participant's ID
+  const convByPartner = Object.fromEntries(
+    (userConvs ?? []).map(c => [c.user_a === user.id ? c.user_b : c.user_a, c.id])
+  )
+
+  // Accepted requests the viewer initiated, not yet seen (responded after last /intro visit)
+  const acceptedUnseen = allRows.filter(r =>
+    r.requester_id === user.id &&
+    r.status === 'accepted' &&
+    r.responded_at &&
+    r.responded_at > lastIntroVisit
+  )
 
   const profileIds = Array.from(new Set(allRows.flatMap(r =>
     [r.requester_id, r.target_id, r.facilitator_id].filter(Boolean) as string[]
@@ -153,28 +192,48 @@ export default async function IntroInboxPage() {
       (r.type === 'warm_intro' && r.facilitator_id === user.id)
     )
   )
-  const mine = allRows.filter(r => r.requester_id === user.id)
-  const asTarget = allRows.filter(r => r.target_id === user.id && r.type !== 'warm_intro')
+  const mine = allRows.filter(r =>
+    r.requester_id === user.id && !r.dismissed_by_requester_at
+  )
+  const asTarget = allRows.filter(r =>
+    r.target_id === user.id && r.type !== 'warm_intro' && !r.dismissed_by_recipient_at
+  )
 
-  function IntroCard({ row }: { row: IntroRow }) {
+  function IntroCard({ row, outgoing = false }: { row: IntroRow; outgoing?: boolean }) {
     const label = timeLabel(row.expires_at, row.status)
+
+    let headline: string
+    let subline: string | null = null
+
+    if (outgoing) {
+      // Current user is the requester — name the recipient
+      headline = row.type === 'open_door'
+        ? `Request to connect with ${name(row.target_id)}`
+        : `Intro request to ${name(row.target_id)}`
+      if (row.type === 'warm_intro' && row.facilitator_id) {
+        subline = `via ${name(row.facilitator_id)}`
+      }
+    } else {
+      // Current user is responding (facilitator/target) or viewing intros directed at them
+      headline = row.type === 'open_door'
+        ? `${name(row.requester_id)} wants to connect`
+        : `${name(row.requester_id)} → ${name(row.target_id)}`
+      if (row.type === 'warm_intro' && row.facilitator_id) {
+        subline = `via ${name(row.facilitator_id)}`
+      }
+      if (row.type === 'open_door') {
+        subline = 'Open Door'
+      }
+    }
+
     return (
       <Link
         href={`/intro/${row.id}`}
         className="flex items-start justify-between gap-4 p-4 rounded-xl border border-border hover:border-navy/30 hover:bg-surface/50 transition-all"
       >
         <div className="min-w-0">
-          <p className="text-sm font-medium text-navy">
-            {row.type === 'open_door'
-              ? `${name(row.requester_id)} wants to connect`
-              : `${name(row.requester_id)} → ${name(row.target_id)}`}
-          </p>
-          {row.type === 'warm_intro' && row.facilitator_id && (
-            <p className="text-xs text-body-grey mt-0.5">via {name(row.facilitator_id)}</p>
-          )}
-          {row.type === 'open_door' && (
-            <p className="text-xs text-body-grey mt-0.5">Open Door</p>
-          )}
+          <p className="text-sm font-medium text-navy">{headline}</p>
+          {subline && <p className="text-xs text-body-grey mt-0.5">{subline}</p>}
           {label && <p className="text-xs text-body-grey mt-1">{label}</p>}
         </div>
         <StatusPill status={row.status} expiresAt={row.expires_at} />
@@ -190,13 +249,67 @@ export default async function IntroInboxPage() {
 
       <CreditsCard balance={balance} lifetimeEarned={lifetimeEarned} />
 
+      <InvitePanel codes={inviteCodes} />
+
+      {/* Accepted-unseen banners — clears on next visit via MarkVisited cookie action */}
+      {acceptedUnseen.length > 0 && (
+        <div className="mb-6 space-y-2">
+          {acceptedUnseen.map(r => {
+            const connectedName = name(r.target_id)
+            const convId = convByPartner[r.target_id]
+            return (
+              <div key={r.id} className="flex items-center justify-between gap-4 bg-lime/10 border border-lime/40 rounded-xl px-5 py-3.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-lime shrink-0" />
+                  <p className="text-sm font-medium text-navy truncate">
+                    Your connection request to {connectedName} was accepted.
+                  </p>
+                </div>
+                {convId && (
+                  <Link
+                    href={`/messages/${convId}`}
+                    className="shrink-0 inline-flex items-center gap-1 text-sm font-medium text-navy hover:underline decoration-lime underline-offset-2"
+                  >
+                    Start the conversation
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <MarkVisited />
+
+      {/* Suggest an intro CTA */}
+      <div className="mb-8 bg-white border border-border rounded-2xl p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="font-display text-base font-bold text-navy">Suggest an intro</h2>
+            <p className="text-sm text-body-grey mt-0.5">Know two people who should meet? Introduce them.</p>
+          </div>
+          <Link
+            href="/intro/suggest"
+            className="shrink-0 text-sm font-medium bg-navy text-warm-white px-4 py-2 rounded-full hover:bg-navy/90 transition-colors"
+          >
+            Suggest
+          </Link>
+        </div>
+      </div>
+
       {isEmpty ? (
-        <div className="bg-white border border-border rounded-2xl p-10 text-center">
-          <p className="text-navy font-medium mb-1">No intro requests yet</p>
-          <p className="text-sm text-body-grey mb-4">
-            Request an intro from a member&apos;s profile when you have a mutual connection.
+        <div className="bg-white border border-border rounded-2xl p-8">
+          <h2 className="font-display text-xl font-bold text-navy mb-3">How introductions work</h2>
+          <p className="text-sm text-body-grey leading-relaxed mb-5">
+            You can request a warm introduction to any member you share a mutual connection with. Your mutual connection gets asked if they&apos;re willing to facilitate — they write a short note putting you both in context, and the introduction is made. You have 3 intro credits per month. You earn one back each time you facilitate an intro for someone else. Cold connect buttons don&apos;t exist here.
           </p>
-          <Link href="/members" className="text-sm font-medium text-navy hover:underline">
+          <Link
+            href="/members"
+            className="inline-flex items-center gap-1.5 text-sm font-medium bg-navy text-warm-white px-5 py-2.5 rounded-full hover:bg-navy/90 transition-colors"
+          >
             Browse members
           </Link>
         </div>
@@ -217,7 +330,25 @@ export default async function IntroInboxPage() {
             <section>
               <h2 className="font-display text-lg font-bold text-navy mb-3">Your requests</h2>
               <div className="bg-white border border-border rounded-2xl divide-y divide-border overflow-hidden">
-                {mine.map(r => <IntroCard key={r.id} row={r} />)}
+                {mine.map(r => {
+                  const headline = r.type === 'open_door'
+                    ? `Request to connect with ${name(r.target_id)}`
+                    : `Intro request to ${name(r.target_id)}`
+                  const subline = r.type === 'warm_intro' && r.facilitator_id
+                    ? `via ${name(r.facilitator_id)}`
+                    : null
+                  return (
+                    <IntroCardDismissable
+                      key={r.id}
+                      id={r.id}
+                      headline={headline}
+                      subline={subline}
+                      label={timeLabel(r.expires_at, r.status)}
+                      status={r.status}
+                      expiresAt={r.expires_at}
+                    />
+                  )
+                })}
               </div>
             </section>
           )}
@@ -226,7 +357,23 @@ export default async function IntroInboxPage() {
             <section>
               <h2 className="font-display text-lg font-bold text-navy mb-3">Intros to you</h2>
               <div className="bg-white border border-border rounded-2xl divide-y divide-border overflow-hidden">
-                {asTarget.map(r => <IntroCard key={r.id} row={r} />)}
+                {asTarget.map(r => {
+                  const headline = r.type === 'open_door'
+                    ? `${name(r.requester_id)} wants to connect`
+                    : `${name(r.requester_id)} → ${name(r.target_id)}`
+                  const subline = r.type === 'open_door' ? 'Open Door' : null
+                  return (
+                    <IntroCardDismissable
+                      key={r.id}
+                      id={r.id}
+                      headline={headline}
+                      subline={subline}
+                      label={timeLabel(r.expires_at, r.status)}
+                      status={r.status}
+                      expiresAt={r.expires_at}
+                    />
+                  )
+                })}
               </div>
             </section>
           )}
