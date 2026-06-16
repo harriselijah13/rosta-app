@@ -447,3 +447,82 @@ export function adminEmailHtml(subject: string, body: string): string {
   const escapedBody = escapeHtml(body).replace(/\n/g, '<br/>')
   return wrap(escapeHtml(subject), escapedBody, 'Go to ROSTA', `${BASE}/dashboard`)
 }
+
+// ── Facilitated intro — suggestion request (sent to both parties by facilitator) ─
+
+export function facilitatedIntroRequestEmail(
+  recipientName: string,
+  facilitatorName: string,
+  otherName: string,
+  note: string,
+  introId: string,
+): string {
+  const body = `Hi ${recipientName},\n\n${facilitatorName} thinks you and ${otherName} should meet.\n\n"${note}"\n\nYou can accept or decline — no pressure either way.`
+  return wrap(
+    `${facilitatorName} wants to introduce you to ${otherName}`,
+    body,
+    'See the introduction',
+    `${BASE}/intro/accept/${introId}`,
+    { preLineBody: true },
+  )
+}
+
+// ── Facilitated intro — connection confirmed (sent when both parties accept) ───
+
+export function facilitatedIntroEmail(
+  recipientName: string,
+  facilitatorName: string,
+  otherName: string,
+  otherSlug: string,
+  note: string,
+  conversationId: string,
+): string {
+  const body = `Hi ${recipientName},\n\n${facilitatorName} introduced you to ${otherName}.\n\n"${note}"\n\nYou can now message each other directly on ROSTA.`
+  return wrap(
+    `You're now connected with ${otherName}`,
+    body,
+    'Start the conversation',
+    `${BASE}/messages/${conversationId}`,
+    { preLineBody: true },
+  )
+}
+
+// ── Facilitated intro — declined (sent to facilitator) ───────────────────────
+
+export function facilitatedIntroDeclinedEmail(
+  facilitatorName: string,
+  declinerName: string,
+  otherName: string,
+): string {
+  const body = `Hi ${facilitatorName},\n\n${declinerName} has declined the introduction to ${otherName}. No action needed — we've let them both know.`
+  return wrap(
+    `${declinerName} declined the intro to ${otherName}`,
+    body,
+    'Go to ROSTA',
+    `${BASE}/dashboard`,
+    { preLineBody: true },
+  )
+}
+
+// ── Founding invite email ─────────────────────────────────────────────────────
+
+export function inviteByEmailHtml(
+  senderFullName: string,
+  senderFirstName: string,
+  token: string,
+  recipientName: string | null,
+  note: string | null,
+): string {
+  const greeting = recipientName ? `Hi ${recipientName},` : 'Hi,'
+  const intro = note
+    ? `${senderFirstName} wanted you to have this: "${note}"`
+    : `${senderFirstName} thinks you'd be a good fit for ROSTA.`
+  const body = `${greeting}\n\n${intro}\n\nROSTA is a professional network built around real introductions — no cold connections, no noise. Use the invite code below to join.\n\nInvite code: ${token}`
+  return wrap(
+    `${senderFullName} invited you to ROSTA`,
+    body,
+    'Accept invite',
+    `${BASE}/signup?invite=${token}`,
+    { preLineBody: true },
+  )
+}
