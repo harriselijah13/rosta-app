@@ -504,6 +504,70 @@ export function facilitatedIntroDeclinedEmail(
   )
 }
 
+// ── Badge earned notification ─────────────────────────────────────────────────
+//
+// Standalone template (not using wrap()) so we can:
+//   • Use Fraunces 900 in the @import and on the heading
+//   • Place the badge visual between body copy and the CTA without injection hacks
+
+export function badgeEarnedEmail(
+  badgeName: string,
+  earnDescription: string,
+  ringColor: string,
+  recipientUsername: string,
+): string {
+  const initial = badgeName.charAt(0).toUpperCase()
+  const badgeNameEncoded = badgeName.replace(/\s+/g, '+')
+  const profileUrl = `${BASE}/profile/${recipientUsername}`
+  const twitterUrl = `https://twitter.com/intent/tweet?text=Just+earned+the+${badgeNameEncoded}+badge+on+%40getrosta+%E2%80%94+the+professional+network+built+around+real+introductions.+onrosta.com`
+  const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${BASE}`
+  const sans = "'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
+  const serif = "'Fraunces',Georgia,'Times New Roman',serif"
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=Plus+Jakarta+Sans:wght@400;600&display=swap');
+  </style>
+</head>
+<body style="margin:0;padding:0;background:#F5F2EE;">
+  <div style="font-family:${sans};max-width:480px;margin:0 auto;padding:48px 24px;background:#F5F2EE;">
+
+    <p style="font-size:22px;font-weight:700;color:#0F1B3C;margin:0 0 4px;font-family:${serif};">ROSTA<span style="color:#C8F53C;">.</span></p>
+    <hr style="border:none;border-top:1px solid #E5E1DB;margin:20px 0 32px;"/>
+
+    <h1 style="font-size:24px;color:#0F1B3C;margin:0 0 12px;font-weight:900;font-family:${serif};">You earned ${escapeHtml(badgeName)}.</h1>
+    <p style="color:#6B7280;font-size:15px;line-height:1.6;margin:0 0 24px;font-family:${sans};">${escapeHtml(earnDescription)}</p>
+
+    <!-- Badge visual: outer ring uses the tier ringColor; inner dome is navy linear-gradient -->
+    <div style="width:80px;height:80px;border-radius:18px;background:${ringColor};margin:0 0 24px;">
+      <div style="width:70px;height:70px;border-radius:14px;background:linear-gradient(135deg,#1A2F5E 0%,#080F1E 100%);margin:5px;text-align:center;line-height:70px;">
+        <span style="font-family:${serif};font-size:32px;font-weight:900;color:#ffffff;line-height:70px;">${initial}</span>
+      </div>
+    </div>
+
+    <p style="color:#6B7280;font-size:15px;line-height:1.6;margin:0 0 28px;font-family:${sans};">This badge is now visible on your ROSTA profile.</p>
+
+    <p style="font-size:13px;font-weight:600;color:#0F1B3C;margin:0 0 8px;font-family:${sans};">Tell your network.</p>
+    <p style="font-size:13px;color:#6B7280;margin:0 0 32px;font-family:${sans};">
+      <a href="${twitterUrl}" style="color:#0F1B3C;text-decoration:underline;">Share on Twitter/X</a>
+      &nbsp;&middot;&nbsp;
+      <a href="${linkedinUrl}" style="color:#0F1B3C;text-decoration:underline;">Share on the other platform</a>
+    </p>
+
+    <a href="${profileUrl}" style="display:inline-block;background:#0F1B3C;color:#ffffff;padding:13px 28px;border-radius:100px;text-decoration:none;font-weight:600;font-size:15px;font-family:${sans};">View your profile</a>
+
+    <p style="color:#6B7280;font-size:12px;margin-top:32px;line-height:1.5;font-family:${sans};">You're receiving this because you're a member of ROSTA.</p>
+    <p style="color:#6B7280;font-size:12px;margin-top:6px;line-height:1.5;font-family:${sans};"><a href="${BASE}/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; onrosta.com</p>
+
+  </div>
+</body>
+</html>`
+}
+
 // ── Founding invite email ─────────────────────────────────────────────────────
 
 export function inviteByEmailHtml(

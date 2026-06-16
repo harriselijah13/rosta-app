@@ -1,5 +1,7 @@
 import { createAdminClient } from './supabase/admin'
 import { computeConnectorScore } from './connector-score'
+import { BADGE_MAP } from './badge-catalog'
+import { sendEmail, badgeEarnedEmail } from './resend'
 
 // Award a single badge — silently no-ops if already earned
 async function award(admin: ReturnType<typeof createAdminClient>, userId: string, slug: string) {
@@ -19,9 +21,10 @@ export async function checkAndAwardBadges(userId: string): Promise<void> {
     { count: thankYousReceived },
     { count: outcomesCount },
     score,
+    { data: authData },
   ] = await Promise.all([
     admin.from('profiles')
-      .select('founding_member, is_verified, signal_streak')
+      .select('founding_member, is_verified, signal_streak, onboarding_completed, username')
       .eq('id', userId)
       .single(),
 
@@ -61,13 +64,31 @@ export async function checkAndAwardBadges(userId: string): Promise<void> {
     })(),
 
     computeConnectorScore(userId),
+    admin.auth.admin.getUserById(userId),
   ])
 
   const alreadyEarned = new Set((earnedRows ?? []).map(r => r.badge_slug))
+  const userEmail = authData.user?.email ?? null
+  const userSlug = profile?.username ?? userId
 
   async function maybeAward(slug: string, condition: boolean) {
     if (condition && !alreadyEarned.has(slug)) {
       await award(admin, userId, slug)
+      // Guard: only send if the member has completed onboarding
+      if (profile?.onboarding_completed && userEmail) {
+        const badge = BADGE_MAP[slug]
+        if (badge) {
+          try {
+            await sendEmail(
+              userEmail,
+              `You've earned a new badge on ROSTA — ${badge.label}`,
+              badgeEarnedEmail(badge.label, badge.earnDescription, badge.ringColor, userSlug),
+            )
+          } catch (err) {
+            console.error('[badges] email send failed', { userId, slug, err })
+          }
+        }
+      }
     }
   }
 
