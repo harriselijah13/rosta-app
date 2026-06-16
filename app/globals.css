@@ -91,4 +91,18 @@
   .particle-burst {
     animation: particleBurst 0.35s ease-out both;
   }
+
+  @keyframes suggestPulse {
+    0%, 100% { opacity: 0.15; }
+    50%       { opacity: 1;    }
+  }
+
+  @keyframes orbitDot {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  .suggest-pulse {
+    animation: suggestPulse 3s ease-in-out infinite;
+  }
 }

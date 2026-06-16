@@ -13,8 +13,6 @@ const MODE_MAP    = Object.fromEntries(PROFILE_MODES.map(m => [m.value, m.label]
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function initials(m: Profile): string {
-  // Join both fields then split on whitespace so "Harris Elijah" in first_name
-  // and separate first_name/last_name both produce "HE".
   const words = [m.first_name, m.last_name]
     .filter(Boolean)
     .join(' ')
@@ -209,11 +207,9 @@ function MemberCard({ member, isSelf, isConnected }: { member: Profile; isSelf: 
 
 // ── Network web graphic ────────────────────────────────────────────────────────
 
-// Fixed coordinate space: 560×420, centre (280,210)
 const NW_W = 560, NW_H = 420, NW_CX = 280, NW_CY = 210, NW_R = 150
-const NW_MAX = 6  // max cards (ghost or real)
+const NW_MAX = 6
 
-// Per-slot 3D tilt + unique float path + timing
 const NW_SLOTS = [
   { rotX:  3, rotY:  0, dur: 12, delay: 0.0, tx:  4, ty: -8 },
   { rotX:  2, rotY: -3, dur: 14, delay: 1.5, tx:  7, ty: -6 },
@@ -223,14 +219,41 @@ const NW_SLOTS = [
   { rotX:  2, rotY:  3, dur: 10, delay: 1.0, tx: -6, ty: -9 },
 ] as const
 
-function NetworkWeb({ current, connections, onBrowse }: { current: Profile | undefined; connections: Profile[]; onBrowse: () => void }) {
+// 14 background ambient dots — warm white on navy backdrop
+const NW_BG_DOTS = [
+  { cx: '12%', cy: '15%', r: 3,   dur: '5.2s', delay: '0s'   },
+  { cx: '85%', cy: '20%', r: 2.5, dur: '6.1s', delay: '1.3s' },
+  { cx: '8%',  cy: '70%', r: 3.5, dur: '4.8s', delay: '2.7s' },
+  { cx: '90%', cy: '75%', r: 2.5, dur: '5.5s', delay: '0.6s' },
+  { cx: '25%', cy: '88%', r: 2,   dur: '7.0s', delay: '3.4s' },
+  { cx: '75%', cy: '85%', r: 3,   dur: '5.8s', delay: '1.8s' },
+  { cx: '18%', cy: '40%', r: 2,   dur: '6.5s', delay: '4.1s' },
+  { cx: '82%', cy: '50%', r: 2.5, dur: '4.4s', delay: '0.9s' },
+  { cx: '50%', cy: '8%',  r: 2,   dur: '5.0s', delay: '2.2s' },
+  { cx: '45%', cy: '92%', r: 2,   dur: '6.8s', delay: '3.0s' },
+  { cx: '60%', cy: '12%', r: 2,   dur: '5.5s', delay: '1.0s' },
+  { cx: '35%', cy: '5%',  r: 1.5, dur: '6.3s', delay: '2.0s' },
+  { cx: '93%', cy: '42%', r: 2,   dur: '4.7s', delay: '3.8s' },
+  { cx: '5%',  cy: '30%', r: 2,   dur: '7.2s', delay: '0.5s' },
+]
+
+function NetworkWeb({ current, connections, onBrowse }: {
+  current: Profile | undefined
+  connections: Profile[]
+  onBrowse: () => void
+}) {
   const isEmpty    = connections.length === 0
   const visible    = connections.slice(0, NW_MAX)
   const extraCount = connections.length - NW_MAX
 
-  // Scale to fit narrower screens
   const wrapperRef = useRef<HTMLDivElement>(null)
-  const [scale, setScale] = useState(1)
+  const reduced    = useRef(false)
+  const [scale,        setScale]        = useState(1)
+  const [entered,      setEntered]      = useState(false)
+  const [ambientReady, setAmbientReady] = useState(false)
+  const [hoveredIdx,   setHoveredIdx]   = useState<number | null>(null)
+
+  // Responsive scaling
   useEffect(() => {
     if (!wrapperRef.current) return
     const ro = new ResizeObserver(([e]) => {
@@ -240,11 +263,25 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile | und
     return () => ro.disconnect()
   }, [])
 
+  // Entrance + ambient sequencing
   useEffect(() => {
-    console.log('[NetworkWeb] current:', current
-      ? { id: current.id, first_name: current.first_name, last_name: current.last_name, avatar_url: current.avatar_url ? '[set]' : null }
-      : undefined)
-  }, [current])
+    reduced.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduced.current) { setEntered(true); setAmbientReady(true); return }
+    const el = wrapperRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) setEntered(true) },
+      { threshold: 0.2 },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!entered || reduced.current) return
+    const t = setTimeout(() => setAmbientReady(true), 2000)
+    return () => clearTimeout(t)
+  }, [entered])
 
   const nodeCount = isEmpty ? NW_MAX : visible.length
   const positions = Array.from({ length: nodeCount }, (_, i) => {
@@ -256,178 +293,334 @@ function NetworkWeb({ current, connections, onBrowse }: { current: Profile | und
   const avatar = current?.avatar_url ?? null
 
   return (
-    <div ref={wrapperRef} className="w-full max-w-[560px] mx-auto mb-6 select-none" style={{ paddingTop: '48px' }}>
+    <div
+      style={{
+        background: 'radial-gradient(ellipse at 50% 45%, #1a2a55 0%, #0F1B3C 65%)',
+        borderRadius: '18px',
+        padding: 'clamp(28px, 5vw, 40px) clamp(20px, 4vw, 32px)',
+        marginBottom: '24px',
+      }}
+    >
+      <div ref={wrapperRef} className="w-full max-w-[560px] mx-auto select-none">
+        <div style={{ height: `${NW_H * scale}px`, overflow: 'visible' }}>
+          <div style={{ width: `${NW_W}px`, transformOrigin: 'top left', transform: `scale(${scale})` }}>
 
-      {/* Height shim: reserves correct vertical space after the scale transform */}
-      <div style={{ height: `${NW_H * scale}px`, overflow: 'visible' }}>
-        <div style={{ width: `${NW_W}px`, transformOrigin: 'top left', transform: `scale(${scale})` }}>
+            <div style={{
+              position: 'relative', width: `${NW_W}px`, height: `${NW_H}px`,
+              perspective: '800px',
+            }}>
+              <style>{`
+                @media (prefers-reduced-motion: no-preference) {
+                  @keyframes nw-c0 { from{transform:translate(0,0)} to{transform:translate(4px,-8px)}  }
+                  @keyframes nw-c1 { from{transform:translate(0,0)} to{transform:translate(7px,-6px)}  }
+                  @keyframes nw-c2 { from{transform:translate(0,0)} to{transform:translate(8px,6px)}   }
+                  @keyframes nw-c3 { from{transform:translate(0,0)} to{transform:translate(-4px,9px)}  }
+                  @keyframes nw-c4 { from{transform:translate(0,0)} to{transform:translate(-7px,7px)}  }
+                  @keyframes nw-c5 { from{transform:translate(0,0)} to{transform:translate(-6px,-9px)} }
+                  @keyframes nw-spoke {
+                    0%,100% { opacity:0.55; }
+                    50%     { opacity:1;    }
+                  }
+                  @keyframes nw-ring-pulse {
+                    0%,100% { opacity:0.7; }
+                    50%     { opacity:1.0; }
+                  }
+                  @keyframes nw-breathe {
+                    0%,100% { transform:scale(1);    }
+                    50%     { transform:scale(1.04); }
+                  }
+                }
+              `}</style>
 
-          {/* 3D perspective container + radial bg */}
-          <div style={{
-            position: 'relative', width: `${NW_W}px`, height: `${NW_H}px`,
-            perspective: '800px',
-            background: 'radial-gradient(circle at 50% 50%, rgba(15,27,60,0.05) 0%, transparent 65%)',
-          }}>
-            <style>{`
-              @media (prefers-reduced-motion: no-preference) {
-                @keyframes nw-c0 { from{transform:translate(0px,0px)} to{transform:translate(4px,-8px)}  }
-                @keyframes nw-c1 { from{transform:translate(0px,0px)} to{transform:translate(7px,-6px)}  }
-                @keyframes nw-c2 { from{transform:translate(0px,0px)} to{transform:translate(8px,6px)}   }
-                @keyframes nw-c3 { from{transform:translate(0px,0px)} to{transform:translate(-4px,9px)}  }
-                @keyframes nw-c4 { from{transform:translate(0px,0px)} to{transform:translate(-7px,7px)}  }
-                @keyframes nw-c5 { from{transform:translate(0px,0px)} to{transform:translate(-6px,-9px)} }
-                @keyframes nw-spoke {
-                  0%,100% { opacity:0.55; }
-                  50%     { opacity:1;    }
-                }
-                @keyframes nw-halo {
-                  0%,100% { transform:scale(1);   opacity:0.4; }
-                  50%     { transform:scale(1.1); opacity:0.75; }
-                }
-                @keyframes nw-breathe {
-                  0%,100% { transform:scale(1);    }
-                  50%     { transform:scale(1.04); }
-                }
-              }
-            `}</style>
-
-            {/* SVG overlay — connection lines only */}
-            <svg
-              aria-hidden="true"
-              style={{
-                position: 'absolute', top: 0, left: 0,
-                width: `${NW_W}px`, height: `${NW_H}px`,
-                pointerEvents: 'none', overflow: 'visible', zIndex: 0,
-              }}
-            >
-              {positions.map((pos, i) => (
-                <line
-                  key={`l-${i}`}
-                  x1={NW_CX} y1={NW_CY} x2={pos.x} y2={pos.y}
-                  stroke="rgba(200,245,60,0.65)" strokeWidth="1.5" strokeDasharray="4 6"
-                  style={{ animation: `nw-spoke ${4 + (i % 3)}s ease-in-out ${(i * 0.65).toFixed(2)}s infinite` }}
+              {/* Background ambient dots — warm white on navy, higher colour value so networkFloat pulse is visible */}
+              {NW_BG_DOTS.map((d, i) => (
+                <div
+                  key={`bg-${i}`}
+                  aria-hidden="true"
+                  className={ambientReady ? 'absolute rounded-full pointer-events-none network-node' : 'absolute rounded-full pointer-events-none'}
+                  style={{
+                    left: d.cx, top: d.cy,
+                    width: d.r * 2, height: d.r * 2,
+                    backgroundColor: 'rgba(245,242,238,0.22)',
+                    opacity: ambientReady ? undefined : 0,
+                    transition: 'opacity 0.6s ease-out',
+                    '--node-duration': d.dur,
+                    '--node-delay':    d.delay,
+                  } as React.CSSProperties}
                 />
               ))}
-            </svg>
 
-            {/* Ghost cards (empty state) */}
-            {isEmpty && positions.map((pos, i) => {
-              const s = NW_SLOTS[i]
-              return (
-                <div
-                  key={`ghost-${i}`}
-                  style={{
-                    position: 'absolute', left: `${pos.x - 50}px`, top: `${pos.y - 27}px`,
-                    zIndex: 1, transform: `scale(0.92) rotateX(${s.rotX}deg) rotateY(${s.rotY}deg)`,
-                  }}
-                >
-                  <div style={{
-                    width: '100px', height: '54px', borderRadius: '12px', background: '#FFFFFF',
-                    border: '1px solid #C8C4BE', boxShadow: '0 4px 20px rgba(15,27,60,0.1)',
-                    display: 'flex', alignItems: 'center', padding: '0 10px', gap: '8px',
-                    animation: `nw-c${i} ${s.dur}s ease-in-out ${s.delay}s infinite alternate`,
-                  }}>
-                    <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#F0EDE8', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', flex: 1 }}>
-                      <div style={{ width: '44px', height: '7px', borderRadius: '4px', background: '#E5E1DB' }} />
-                      <div style={{ width: '30px', height: '7px', borderRadius: '4px', background: '#E5E1DB' }} />
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+              {/* SVG overlay — spokes + heartbeat dots */}
+              <svg
+                aria-hidden="true"
+                style={{
+                  position: 'absolute', top: 0, left: 0,
+                  width: `${NW_W}px`, height: `${NW_H}px`,
+                  pointerEvents: 'none', overflow: 'visible', zIndex: 0,
+                }}
+              >
+                {positions.map((pos, i) => {
+                  const isHovered = hoveredIdx === i
+                  const isDimmed  = hoveredIdx !== null && !isHovered
+                  const lineDelay = 0.3 + i * 0.08
+                  const mx = (NW_CX + pos.x) / 2
+                  const my = (NW_CY + pos.y) / 2
 
-            {/* Real connection cards */}
-            {!isEmpty && visible.map((m, i) => {
-              const s   = NW_SLOTS[i]
-              const pos = positions[i]
-              const ini = initials(m)
-              return (
-                <div
-                  key={m.id}
-                  style={{
-                    position: 'absolute', left: `${pos.x - 50}px`, top: `${pos.y - 27}px`,
-                    zIndex: 1, transform: `scale(0.92) rotateX(${s.rotX}deg) rotateY(${s.rotY}deg)`,
-                  }}
-                >
-                  <div style={{
-                    width: '100px', height: '54px', borderRadius: '12px', background: '#FFFFFF',
-                    border: '1px solid #C8C4BE', boxShadow: '0 4px 20px rgba(15,27,60,0.1)',
-                    display: 'flex', alignItems: 'center', padding: '0 10px', gap: '8px',
-                    animation: `nw-c${i} ${s.dur}s ease-in-out ${s.delay}s infinite alternate`,
-                  }}>
-                    {m.avatar_url ? (
-                      <img src={m.avatar_url} alt={ini}
-                        style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                    ) : (
-                      <div style={{
-                        width: '40px', height: '40px', borderRadius: '50%', background: '#0F1B3C', flexShrink: 0,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#fff', fontSize: '11px', fontWeight: 600, lineHeight: 1,
-                      }}>{ini}</div>
-                    )}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '10px', fontWeight: 600, color: '#0F1B3C', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {m.first_name ?? ini}
-                      </div>
-                      {m.what_i_do && (
-                        <div style={{ fontSize: '9px', color: '#6B7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {m.what_i_do}
-                        </div>
+                  return (
+                    <g key={`spoke-${i}`}>
+                      {/* Glow layer — stronger on navy backdrop */}
+                      <line
+                        x1={NW_CX} y1={NW_CY} x2={pos.x} y2={pos.y}
+                        stroke="rgba(200,245,60,0.22)"
+                        strokeWidth="8"
+                        style={{
+                          filter: 'blur(4px)',
+                          opacity: entered ? (isDimmed ? 0.2 : 1) : 0,
+                          transition: ambientReady
+                            ? 'opacity 0.3s ease-out'
+                            : `opacity 0.4s ${lineDelay}s ease-out`,
+                        }}
+                      />
+                      {/* Main spoke — dashed lime */}
+                      <line
+                        x1={NW_CX} y1={NW_CY} x2={pos.x} y2={pos.y}
+                        stroke="rgba(200,245,60,0.70)"
+                        strokeWidth="1.5"
+                        strokeDasharray={isHovered ? undefined : '4 6'}
+                        style={{
+                          animation: ambientReady
+                            ? `nw-spoke ${4 + (i % 3)}s ease-in-out ${(i * 0.65).toFixed(2)}s infinite`
+                            : 'none',
+                          opacity: entered ? (isDimmed ? 0.3 : 1) : 0,
+                          transition: ambientReady
+                            ? 'opacity 0.3s ease-out'
+                            : `opacity 0.4s ${lineDelay}s ease-out`,
+                        }}
+                      />
+                      {/* Heartbeat dot at midpoint */}
+                      {entered && (
+                        <circle
+                          cx={mx} cy={my}
+                          r={2}
+                          fill="#C8F53C"
+                          style={{
+                            animationName: ambientReady ? 'suggestPulse' : 'none',
+                            animationDuration: isHovered ? '2s' : '4s',
+                            animationTimingFunction: 'ease-in-out',
+                            animationIterationCount: 'infinite',
+                            animationDelay: `${(i * 0.65).toFixed(2)}s`,
+                            opacity: isDimmed ? 0.15 : 1,
+                            transition: 'opacity 0.3s ease-out',
+                          }}
+                        />
                       )}
+                    </g>
+                  )
+                })}
+              </svg>
+
+              {/* Ghost cards (empty state) — navy palette, half opacity to read as "future" */}
+              {isEmpty && positions.map((pos, i) => {
+                const s = NW_SLOTS[i]
+                const cardDelay = 0.3 + 5 * 0.08 + 0.5 + i * 0.08
+                return (
+                  <div
+                    key={`ghost-${i}`}
+                    style={{
+                      position: 'absolute', left: `${pos.x - 50}px`, top: `${pos.y - 27}px`,
+                      zIndex: 1,
+                      animation: ambientReady
+                        ? `nw-c${i} ${s.dur}s ease-in-out ${s.delay}s infinite alternate`
+                        : 'none',
+                      opacity: entered ? 0.5 : 0,
+                      transform: `scale(0.92) rotateX(${s.rotX}deg) rotateY(${s.rotY}deg)`,
+                      transition: ambientReady
+                        ? 'opacity 0.3s ease-out'
+                        : `opacity 0.4s ${cardDelay}s ease-out`,
+                    }}
+                  >
+                    <div style={{
+                      width: '100px', height: '54px', borderRadius: '12px',
+                      background: '#1e2d5c',
+                      border: '1px solid rgba(245,242,238,0.10)',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+                      display: 'flex', alignItems: 'center', padding: '0 10px', gap: '8px',
+                    }}>
+                      <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(245,242,238,0.10)', flexShrink: 0 }} />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', flex: 1 }}>
+                        <div style={{ width: '44px', height: '7px', borderRadius: '4px', background: 'rgba(245,242,238,0.10)' }} />
+                        <div style={{ width: '30px', height: '7px', borderRadius: '4px', background: 'rgba(245,242,238,0.07)' }} />
+                      </div>
                     </div>
                   </div>
+                )
+              })}
+
+              {/* Real connection cards — navy palette */}
+              {!isEmpty && visible.map((m, i) => {
+                const s          = NW_SLOTS[i]
+                const pos        = positions[i]
+                const ini        = initials(m)
+                const isHovered  = hoveredIdx === i
+                const isDimmed   = hoveredIdx !== null && !isHovered
+                const cardDelay  = 0.3 + 5 * 0.08 + 0.5 + i * 0.08
+
+                return (
+                  <div
+                    key={m.id}
+                    style={{
+                      position: 'absolute', left: `${pos.x - 50}px`, top: `${pos.y - 27}px`,
+                      zIndex: isHovered ? 3 : 1,
+                      animation: ambientReady
+                        ? `nw-c${i} ${s.dur}s ease-in-out ${s.delay}s infinite alternate`
+                        : 'none',
+                      opacity: entered ? (isDimmed ? 0.45 : 1) : 0,
+                      transition: ambientReady
+                        ? 'opacity 0.3s ease-out'
+                        : `opacity 0.4s ${cardDelay}s ease-out`,
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={() => setHoveredIdx(i)}
+                    onMouseLeave={() => setHoveredIdx(null)}
+                  >
+                    <div style={{
+                      width: '100px', height: '54px', borderRadius: '12px',
+                      background: '#1e2d5c',
+                      border: `1px solid ${isHovered ? 'rgba(245,242,238,0.30)' : 'rgba(245,242,238,0.12)'}`,
+                      boxShadow: isHovered
+                        ? '0 12px 32px rgba(0,0,0,0.40)'
+                        : '0 4px 20px rgba(0,0,0,0.30)',
+                      display: 'flex', alignItems: 'center', padding: '0 10px', gap: '8px',
+                      transform: `scale(0.92) rotateX(${s.rotX}deg) rotateY(${s.rotY}deg) translateY(${isHovered ? -6 : 0}px)`,
+                      transition: 'transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out',
+                    }}>
+                      {m.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={m.avatar_url} alt={ini}
+                          style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                      ) : (
+                        <div style={{
+                          width: '40px', height: '40px', borderRadius: '50%',
+                          background: 'rgba(245,242,238,0.15)', flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: '#F5F2EE', fontSize: '11px', fontWeight: 600, lineHeight: 1,
+                        }}>{ini}</div>
+                      )}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '10px', fontWeight: 600, color: '#F5F2EE', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {m.first_name ?? ini}
+                        </div>
+                        {m.what_i_do && (
+                          <div style={{ fontSize: '9px', color: 'rgba(245,242,238,0.60)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {m.what_i_do}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+
+              {/* Lime ring — pulse + slow rotation */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'absolute', left: `${NW_CX - 44}px`, top: `${NW_CY - 44}px`,
+                  width: '88px', height: '88px', borderRadius: '50%',
+                  border: '2px solid rgba(200,245,60,0.75)',
+                  pointerEvents: 'none', zIndex: 2,
+                  opacity: entered ? 1 : 0,
+                  transition: 'opacity 0.6s ease-out 0.2s',
+                  animation: ambientReady
+                    ? 'nw-ring-pulse 5s ease-in-out infinite, orbitDot 40s linear infinite'
+                    : 'none',
+                }}
+              />
+
+              {/* Orbital dot rotating on the outside of the lime ring (~25s) */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  left: `${NW_CX - 50}px`, top: `${NW_CY - 50}px`,
+                  width: '100px', height: '100px',
+                  pointerEvents: 'none', zIndex: 3,
+                  opacity: ambientReady ? 1 : 0,
+                  transition: 'opacity 0.8s ease-out 1s',
+                  animationName: ambientReady ? 'orbitDot' : 'none',
+                  animationDuration: '25s',
+                  animationTimingFunction: 'linear',
+                  animationIterationCount: 'infinite',
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: 0, left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: 6, height: 6,
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(200,245,60,0.60)',
+                }} />
+              </div>
+
+              {/* Centre node — warm white outer glow on navy backdrop */}
+              <div style={{
+                position: 'absolute', left: `${NW_CX - 36}px`, top: `${NW_CY - 36}px`,
+                width: '72px', height: '72px', borderRadius: '50%',
+                border: '2px solid rgba(200,245,60,0.40)',
+                boxShadow: '0 0 32px 8px rgba(200,245,60,0.10), 0 0 50px 16px rgba(245,242,238,0.07), 0 8px 24px rgba(0,0,0,0.30)',
+                overflow: 'hidden', zIndex: 4, background: '#0F1B3C',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: entered ? 1 : 0,
+                transform: entered ? 'scale(1)' : 'scale(0.96)',
+                transition: 'opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.16,1,0.3,1)',
+                animation: ambientReady ? 'nw-breathe 4s ease-in-out infinite' : 'none',
+              }}>
+                {avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatar} alt={myIni}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                ) : (
+                  <span style={{
+                    color: '#C8F53C', fontSize: '18px', fontWeight: 700,
+                    fontFamily: 'var(--font-fraunces), Georgia, serif',
+                    lineHeight: 1, userSelect: 'none',
+                  }}>
+                    {myIni}
+                  </span>
+                )}
+              </div>
+
+              {!isEmpty && extraCount > 0 && (
+                <div style={{ position: 'absolute', bottom: '12px', right: '16px', fontSize: '11px', color: 'rgba(245,242,238,0.50)' }}>
+                  +{extraCount} more
                 </div>
-              )
-            })}
-
-            {/* Lime halo ring — pulses behind centre node */}
-            <div style={{
-              position: 'absolute', left: `${NW_CX - 44}px`, top: `${NW_CY - 44}px`,
-              width: '88px', height: '88px', borderRadius: '50%',
-              border: '2px solid rgba(200,245,60,0.6)', pointerEvents: 'none',
-              zIndex: 2, animation: 'nw-halo 3s ease-in-out infinite',
-            }} />
-
-            {/* Centre node */}
-            <div style={{
-              position: 'absolute', left: `${NW_CX - 36}px`, top: `${NW_CY - 36}px`,
-              width: '72px', height: '72px', borderRadius: '50%',
-              border: '2px solid #0F1B3C', boxShadow: '0 8px 24px rgba(15,27,60,0.15)',
-              overflow: 'hidden', zIndex: 4, background: '#0F1B3C',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              animation: 'nw-breathe 4s ease-in-out infinite',
-            }}>
-              {avatar ? (
-                <img src={avatar} alt={myIni}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-              ) : (
-                <span style={{
-                  color: '#C8F53C', fontSize: '18px', fontWeight: 700,
-                  fontFamily: 'var(--font-fraunces), Georgia, serif',
-                  lineHeight: 1, userSelect: 'none',
-                }}>
-                  {myIni}
-                </span>
               )}
             </div>
-
-            {!isEmpty && extraCount > 0 && (
-              <div style={{ position: 'absolute', bottom: '12px', right: '16px', fontSize: '11px', color: '#6B7280' }}>
-                +{extraCount} more
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Empty-state prompt */}
       {isEmpty && (
-        <div className="text-center mt-4">
-          <p className="font-display font-bold text-navy text-xl mb-1.5">Your network starts here.</p>
-          <button onClick={onBrowse} className="text-sm text-navy hover:underline decoration-lime transition-colors">
+        <div className="text-center" style={{ marginTop: '8px', paddingBottom: '4px' }}>
+          <p className="font-display font-bold text-xl mb-2" style={{ color: 'var(--warm-white)' }}>Your network starts here.</p>
+          <button
+            onClick={onBrowse}
+            className="text-sm transition-colors hover:underline decoration-lime"
+            style={{ color: 'rgba(245,242,238,0.65)' }}
+          >
             Find people worth knowing.
           </button>
+          <p style={{
+            marginTop: '16px',
+            fontFamily: 'var(--font-fraunces), Georgia, serif',
+            fontStyle: 'italic',
+            fontSize: '14px',
+            color: 'rgba(245,242,238,0.42)',
+            fontWeight: 400,
+          }}>
+            Your network grows as you connect.
+          </p>
         </div>
       )}
     </div>
@@ -465,7 +658,7 @@ function LocationSelect({ value, onChange }: { value: string; onChange: (v: stri
   )
 }
 
-// ── Filter pill rows (mode + openTo — Tab 2 only) ──────────────────────────────
+// ── Filter pill rows ───────────────────────────────────────────────────────────
 
 const FILTER_MODES   = [{ value: '', label: 'All modes' },   ...PROFILE_MODES.map(m => ({ value: m.value, label: m.label }))]
 const FILTER_OPEN_TO = [{ value: '', label: 'Any signal' }, ...OPEN_TO_OPTIONS]
@@ -483,21 +676,13 @@ export default function MemberDirectory({
   currentUserProfile: Profile | null
   connectedUserIds: string[]
 }) {
-  const [tab,          setTab]          = useState<'network' | 'members'>('network')
-  const [search,       setSearch]       = useState('')
-  const [locationFilter, setLocation]  = useState('')
-  const [modeFilter,   setMode]         = useState('')
-  const [openToFilter, setOpenTo]       = useState('')
+  const [tab,            setTab]      = useState<'network' | 'members'>('network')
+  const [search,         setSearch]   = useState('')
+  const [locationFilter, setLocation] = useState('')
+  const [modeFilter,     setMode]     = useState('')
+  const [openToFilter,   setOpenTo]   = useState('')
 
   const connectedSet = useMemo(() => new Set(connectedUserIds), [connectedUserIds])
-
-  useEffect(() => {
-    console.log('[MemberDirectory] currentUserProfile received:', currentUserProfile
-      ? { id: currentUserProfile.id, first_name: currentUserProfile.first_name, last_name: currentUserProfile.last_name, avatar_url: currentUserProfile.avatar_url ? '[set]' : null }
-      : null)
-    console.log('[MemberDirectory] currentUserId:', currentUserId)
-    console.log('[MemberDirectory] members.length:', members.length)
-  }, [currentUserProfile, currentUserId, members.length])
 
   const connectedMembers = useMemo(() => members.filter(m => connectedSet.has(m.id)), [members, connectedSet])
   const discoverMembers  = useMemo(
@@ -524,7 +709,6 @@ export default function MemberDirectory({
     setSearch(''); setLocation(''); setMode(''); setOpenTo('')
   }
 
-  // Shared search + location bar
   function FilterBar({ showAdvanced = false }: { showAdvanced?: boolean }) {
     return (
       <div className="flex flex-col gap-3 mb-6">
@@ -581,12 +765,10 @@ export default function MemberDirectory({
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
-      {/* Page heading */}
       <div className="mb-6">
         <h1 className="font-display text-4xl font-bold text-navy">Members</h1>
       </div>
 
-      {/* Tab bar */}
       <div className="border-b border-border mb-8">
         <div className="flex gap-8">
           {([['network', 'My Network'], ['members', 'Members']] as const).map(([key, label]) => (
@@ -642,7 +824,6 @@ export default function MemberDirectory({
       {/* ── Tab 2: Members ── */}
       {tab === 'members' && (
         <>
-          {/* Suggestions */}
           {suggestions.length > 0 && (
             <div className="mb-8">
               <p className="text-xs font-semibold uppercase tracking-widest text-body-grey mb-3">
