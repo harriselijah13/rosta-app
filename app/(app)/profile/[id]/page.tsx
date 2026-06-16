@@ -8,6 +8,8 @@ import BadgeTile from '@/components/badges/BadgeTile'
 import { OPEN_TO_OPTIONS, PROFILE_MODES } from '@/lib/constants'
 import { computeConnectorScore } from '@/lib/connector-score'
 import { BADGE_CATALOG } from '@/lib/badge-catalog'
+import OpenDoorToggle from './OpenDoorToggle'
+import AvatarLightbox from './AvatarLightbox'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
 const MODE_MAP = Object.fromEntries(PROFILE_MODES.map(m => [m.value, m.label]))
@@ -15,15 +17,6 @@ const MODE_MAP = Object.fromEntries(PROFILE_MODES.map(m => [m.value, m.label]))
 function isActive(signalUpdatedAt: string | null, profileUpdatedAt: string): boolean {
   const ref = signalUpdatedAt ?? profileUpdatedAt
   return Date.now() - new Date(ref).getTime() < 14 * 24 * 60 * 60 * 1000
-}
-
-function Initials({ name }: { name: string }) {
-  const initials = name.trim().split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()
-  return (
-    <div className="w-20 h-20 rounded-full bg-navy/10 text-navy text-xl font-semibold flex items-center justify-center">
-      {initials || '?'}
-    </div>
-  )
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -133,21 +126,14 @@ export default async function ProfilePage({
         Members
       </Link>
 
+      {/* Open Door toggle — own profile only */}
+      {isSelf && <OpenDoorToggle initialEnabled={hasOpenDoor} />}
+
       {/* Header card */}
       <div className="bg-white border border-border rounded-2xl p-8 mb-4">
         <div className="flex items-start gap-6">
-          {/* Avatar */}
-          <div className="shrink-0">
-            {profile.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={name}
-                className="w-20 h-20 rounded-full object-cover"
-              />
-            ) : (
-              <Initials name={name} />
-            )}
-          </div>
+          {/* Avatar — click to enlarge */}
+          <AvatarLightbox avatarUrl={profile.avatar_url} name={name} />
 
           {/* Name + meta */}
           <div className="flex-1 min-w-0">
