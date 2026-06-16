@@ -319,14 +319,18 @@ export default async function DashboardPage() {
           style={{ background: 'radial-gradient(ellipse at 80% 50%, rgba(200,245,60,0.06) 0%, transparent 60%)' }}
         />
         <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-12">
-          {/* Connector score — top right, count-up animation */}
+          {/* Connector score — top right, links to /score breakdown */}
           <div className="flex justify-end mb-8">
-            <div className="flex items-baseline gap-1.5">
+            <Link
+              href="/score"
+              className="flex items-baseline gap-1.5 hover:opacity-75 transition-opacity"
+              aria-label="View your Connector Score breakdown"
+            >
               <span className="text-xs font-medium" style={{ color: 'rgba(200,245,60,0.6)' }}>Score</span>
               <span className="text-2xl font-bold text-lime">
                 <ScoreCounter value={connectorScore.total} />
               </span>
-            </div>
+            </Link>
           </div>
           {/* Greeting */}
           <div className="flex items-start gap-3">
