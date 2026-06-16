@@ -4,6 +4,7 @@ export type BadgeDef = {
   earnDescription: string
   iconColor: string  // hex, used for the icon stroke/fill
   iconBg: string     // hex, used for the icon bubble background
+  ringColor: string  // hex, metallic ring tier colour for the dome badge
 }
 
 export const BADGE_CATALOG: BadgeDef[] = [
@@ -13,6 +14,7 @@ export const BADGE_CATALOG: BadgeDef[] = [
     earnDescription: 'Joined ROSTA as a founding member',
     iconColor: '#D97706',
     iconBg: '#FEF3C7',
+    ringColor: '#C8F53C',
   },
   {
     slug: 'verified',
@@ -20,6 +22,7 @@ export const BADGE_CATALOG: BadgeDef[] = [
     earnDescription: 'Identity verified by the ROSTA team',
     iconColor: '#2563EB',
     iconBg: '#DBEAFE',
+    ringColor: '#D4A853',
   },
   {
     slug: 'first-connection',
@@ -27,6 +30,7 @@ export const BADGE_CATALOG: BadgeDef[] = [
     earnDescription: 'Made your first connection on ROSTA',
     iconColor: '#0F766E',
     iconBg: '#CCFBF1',
+    ringColor: '#4ECDC4',
   },
   {
     slug: 'introducer',
@@ -34,6 +38,7 @@ export const BADGE_CATALOG: BadgeDef[] = [
     earnDescription: 'Facilitated your first warm introduction',
     iconColor: '#7C3AED',
     iconBg: '#EDE9FE',
+    ringColor: '#4ECDC4',
   },
   {
     slug: 'connector',
@@ -41,6 +46,7 @@ export const BADGE_CATALOG: BadgeDef[] = [
     earnDescription: 'Reached a Connector Score of 15',
     iconColor: '#4F46E5',
     iconBg: '#E0E7FF',
+    ringColor: '#9B8EC4',
   },
   {
     slug: 'bridge',
@@ -48,6 +54,7 @@ export const BADGE_CATALOG: BadgeDef[] = [
     earnDescription: 'Reached a Connector Score of 40',
     iconColor: '#0891B2',
     iconBg: '#CFFAFE',
+    ringColor: '#4ECDC4',
   },
   {
     slug: 'catalyst',
@@ -55,6 +62,7 @@ export const BADGE_CATALOG: BadgeDef[] = [
     earnDescription: 'Reached a Connector Score of 80',
     iconColor: '#EA580C',
     iconBg: '#FFEDD5',
+    ringColor: '#D4A853',
   },
   {
     slug: 'architect',
@@ -62,6 +70,7 @@ export const BADGE_CATALOG: BadgeDef[] = [
     earnDescription: 'Reached a Connector Score of 150',
     iconColor: '#E11D48',
     iconBg: '#FFE4E6',
+    ringColor: '#C8F53C',
   },
   {
     slug: 'spark',
@@ -69,6 +78,7 @@ export const BADGE_CATALOG: BadgeDef[] = [
     earnDescription: 'Marked your first connection outcome',
     iconColor: '#CA8A04',
     iconBg: '#FEF9C3',
+    ringColor: '#D4A853',
   },
   {
     slug: 'five-outcomes',
@@ -76,6 +86,7 @@ export const BADGE_CATALOG: BadgeDef[] = [
     earnDescription: 'Marked 5 connection outcomes',
     iconColor: '#059669',
     iconBg: '#D1FAE5',
+    ringColor: '#9B8EC4',
   },
   {
     slug: 'table-setter',
@@ -83,6 +94,7 @@ export const BADGE_CATALOG: BadgeDef[] = [
     earnDescription: 'Matched in an Open Table session',
     iconColor: '#0284C7',
     iconBg: '#E0F2FE',
+    ringColor: '#4ECDC4',
   },
   {
     slug: 'signal-strength',
@@ -90,6 +102,7 @@ export const BADGE_CATALOG: BadgeDef[] = [
     earnDescription: 'Active signals for 4 consecutive weeks',
     iconColor: '#16A34A',
     iconBg: '#DCFCE7',
+    ringColor: '#9B8EC4',
   },
   {
     slug: 'thanked',
@@ -97,6 +110,7 @@ export const BADGE_CATALOG: BadgeDef[] = [
     earnDescription: 'Received 3 thank-yous for intro-making',
     iconColor: '#DB2777',
     iconBg: '#FCE7F3',
+    ringColor: '#9B8EC4',
   },
   {
     slug: 'all-in',
@@ -104,6 +118,7 @@ export const BADGE_CATALOG: BadgeDef[] = [
     earnDescription: 'Earned 5 or more ROSTA badges',
     iconColor: '#0F1B3C',
     iconBg: '#ECFCCB',
+    ringColor: '#C8F53C',
   },
 ]
 
