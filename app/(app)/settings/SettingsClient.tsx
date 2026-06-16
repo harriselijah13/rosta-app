@@ -550,7 +550,7 @@ export default function SettingsClient({ userId, profile, signals, openTableOpte
       </section>
 
       {/* ── Open Table section ── */}
-      <section className="bg-white border border-border rounded-2xl p-6 mb-4">
+      <section id="open-table" className="bg-white border border-border rounded-2xl p-6 mb-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="font-display text-xl font-bold text-navy mb-1">Open Table</h2>

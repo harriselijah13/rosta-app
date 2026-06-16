@@ -140,7 +140,7 @@ export default function MessageThread({
   }
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100svh - 65px)' }}>
+    <div className="flex flex-col max-w-[720px] mx-auto w-full" style={{ height: 'calc(100svh - 65px)' }}>
       {/* Header */}
       <div className="border-b border-border bg-white px-4 py-3 flex items-center gap-3 shrink-0">
         <Link
