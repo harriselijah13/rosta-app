@@ -46,7 +46,14 @@ export default async function ProfilePage({
 
   if (!profile || !profile.onboarding_completed) notFound()
 
-  const { data: signalsRows } = await supabase
+  // IMPORTANT: signals MUST be fetched via the admin client (service role).
+  // The "own or connected signals" RLS policy hides the target's signals from
+  // non-connected viewers, which incorrectly returns hasOpenDoor = false and
+  // suppresses the Connect button for members with Open Door enabled.
+  // Do NOT change this back to the session client (supabase).
+  const admin = createAdminClient()
+
+  const { data: signalsRows } = await admin
     .from('signals')
     .select('open_to, working_on, need_right_now, updated_at')
     .eq('user_id', profile.id)
@@ -68,7 +75,6 @@ export default async function ProfilePage({
   let hasPendingRequest = false
 
   if (!isSelf) {
-    const admin = createAdminClient()
     const [ua, ub] = [user.id, profile.id].sort()
     const { data: conn } = await admin.from('connections')
       .select('id').eq('user_a', ua).eq('user_b', ub).maybeSingle()
@@ -99,9 +105,8 @@ export default async function ProfilePage({
 
   const canSeeFullProfile = isSelf || isConnected
 
-  // Fetch earned badges (admin client so it works regardless of RLS)
-  const adminForBadges = createAdminClient()
-  const { data: earnedBadgeRows } = await adminForBadges
+  // Fetch earned badges — reuse the admin client already in scope
+  const { data: earnedBadgeRows } = await admin
     .from('member_badges')
     .select('badge_slug')
     .eq('user_id', profile.id)
