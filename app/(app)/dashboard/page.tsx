@@ -13,6 +13,7 @@ import FloatingAvatars from './FloatingAvatars'
 import ScoreCounter from './ScoreCounter'
 import NetworkPulseStats from './NetworkPulseStats'
 import SuggestIntroBlock from './SuggestIntroBlock'
+import MatchmakerCard, { type MatchPair } from './MatchmakerCard'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
 const TOTAL_BADGES = 14
@@ -119,6 +120,7 @@ export default async function DashboardPage() {
     { data: mySignals },
     { data: creditsRow },
     { data: earnedBadgeRows },
+    { data: dismissalRows },
   ] = await Promise.all([
     supabase.from('profiles').select('first_name, username, onboarding_completed').eq('id', user.id).single(),
     admin.from('intro_requests')
@@ -130,6 +132,7 @@ export default async function DashboardPage() {
     admin.from('signals').select('open_to, working_on, need_right_now, updated_at').eq('user_id', user.id).maybeSingle(),
     admin.from('intro_credits').select('balance, period').eq('user_id', user.id).maybeSingle(),
     admin.from('member_badges').select('badge_slug').eq('user_id', user.id),
+    admin.from('matchmaker_dismissals').select('member_a_id, member_b_id').eq('user_id', user.id),
   ])
 
   const connectionIds = (myConnections ?? []).map(c => c.user_a === user.id ? c.user_b : c.user_a)
@@ -150,6 +153,7 @@ export default async function DashboardPage() {
     { count: indexSignalsThisWeek },
     { count: indexOpenTables },
     { data: myMemberships },
+    { data: crossConns },
   ] = await Promise.all([
     connectionIds.length > 0
       ? admin.from('signals')
@@ -166,12 +170,31 @@ export default async function DashboardPage() {
     admin.from('signals').select('id', { count: 'exact', head: true }).gte('updated_at', sevenDaysAgo),
     admin.from('open_table_rooms').select('id', { count: 'exact', head: true }).gt('expires_at', now),
     admin.from('open_table_members').select('room_id, open_table_rooms(id, expires_at)').eq('user_id', user.id),
+    // Cross-connections: pairs within the user's network already connected to each other
+    connectionIds.length >= 2
+      ? admin.from('connections').select('user_a, user_b').in('user_a', connectionIds).in('user_b', connectionIds)
+      : Promise.resolve({ data: [] as { user_a: string; user_b: string }[] }),
   ])
+
+  // ── Matchmaker pair computation ───────────────────────────────────────────
+  const dismissedSet = new Set((dismissalRows ?? []).map(d => `${d.member_a_id}:${d.member_b_id}`))
+  const crossConnSet = new Set((crossConns ?? []).map(c => `${c.user_a}:${c.user_b}`))
+
+  const candidatePairIds: Array<[string, string]> = []
+  for (let i = 0; i < connectionIds.length && candidatePairIds.length < 5; i++) {
+    for (let j = i + 1; j < connectionIds.length && candidatePairIds.length < 5; j++) {
+      const [a, b] = [connectionIds[i], connectionIds[j]].sort() as [string, string]
+      if (crossConnSet.has(`${a}:${b}`)) continue  // already connected to each other
+      if (dismissedSet.has(`${a}:${b}`)) continue  // dismissed by current user
+      candidatePairIds.push([a, b])
+    }
+  }
+  const matchmakerProfileIds = Array.from(new Set(candidatePairIds.flat()))
 
   // ── Round 3: names for referenced users ───────────────────────────────────
   const activityIds = (activitySignals ?? []).map(s => s.user_id)
   const pendingPartyIds = pendingActions.flatMap(r => [r.requester_id, r.target_id].filter(Boolean))
-  const allProfileIds = Array.from(new Set([...activityIds, ...pendingPartyIds]))
+  const allProfileIds = Array.from(new Set([...activityIds, ...pendingPartyIds, ...matchmakerProfileIds]))
 
   const { data: profiles } = allProfileIds.length > 0
     ? await admin.from('profiles').select('id, first_name, last_name, avatar_url, username, is_verified').in('id', allProfileIds)
@@ -188,8 +211,14 @@ export default async function DashboardPage() {
   const networkActivity = activitySignals ?? []
   const realOutcomes    = outcomesThisMonth ?? 0
 
-  const connWithSignals = (activitySignals ?? []).map(s => s.user_id)
-  const matchPair = connWithSignals.length >= 2 ? ([connWithSignals[0], connWithSignals[1]] as [string, string]) : null
+  const matchPairs: MatchPair[] = candidatePairIds.map(([a, b]) => ({
+    memberAId:   a,
+    memberBId:   b,
+    memberAName: displayName(byId[a]),
+    memberBName: displayName(byId[b]),
+    memberASlug: byId[a]?.username ?? a,
+    memberBSlug: byId[b]?.username ?? b,
+  }))
 
   const myOpenTo = (mySignals?.open_to ?? []).filter((v: string) => v !== 'open_door')
 
@@ -376,41 +405,10 @@ export default async function DashboardPage() {
         <SuggestIntroBlock />
 
         {/* ── Matchmaker ── */}
-        {matchPair && (
+        {matchPairs.length > 0 && (
           <section className="card-enter" style={{ animationDelay: '0.2s' }}>
             <Eyebrow label="Matchmaker" />
-            <div className={`${cardCls} p-6`}>
-              <p className="text-sm font-medium text-navy mb-4">
-                Do you think{' '}
-                <Link href={`/profile/${slug(matchPair[0])}`} className="underline underline-offset-2">
-                  {displayName(byId[matchPair[0]])}
-                </Link>{' '}
-                and{' '}
-                <Link href={`/profile/${slug(matchPair[1])}`} className="underline underline-offset-2">
-                  {displayName(byId[matchPair[1]])}
-                </Link>{' '}
-                should meet?
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                <Link
-                  href={`/intro/request/${matchPair[1]}?suggest=${matchPair[0]}`}
-                  className="text-xs font-medium bg-navy text-warm-white px-4 py-2 rounded-full
-                    hover:bg-navy/90 hover:scale-[1.02]
-                    hover:shadow-[0_0_12px_rgba(200,245,60,0.4)]
-                    transition-all duration-150"
-                >
-                  Yes — draft intro
-                </Link>
-                <Link
-                  href="/dashboard"
-                  className="text-xs font-medium text-body-grey border border-border px-4 py-2 rounded-full
-                    hover:border-navy hover:text-navy hover:scale-[1.02]
-                    transition-all duration-150"
-                >
-                  Not this time
-                </Link>
-              </div>
-            </div>
+            <MatchmakerCard pairs={matchPairs} />
           </section>
         )}
 
