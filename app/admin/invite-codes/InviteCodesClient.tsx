@@ -133,7 +133,7 @@ export default function InviteCodesClient({
       {/* Generate member code */}
       <div className="bg-white border border-border rounded-2xl p-5 mb-6">
         <h2 className="font-display text-base font-bold text-navy mb-1">Generate a member code</h2>
-        <p className="text-xs text-body-grey mb-3">Assigns a new code to an existing member's account.</p>
+        <p className="text-xs text-body-grey mb-3">Assigns a new code to an existing member&apos;s account.</p>
         <form onSubmit={handleGenerate} className="flex items-end gap-3 flex-wrap">
           <div className="flex-1 min-w-[200px]">
             <label htmlFor="member-select" className="block text-xs font-medium text-body-grey mb-1.5">
