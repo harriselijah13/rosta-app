@@ -2,12 +2,26 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { startOfISOWeek, parseISO } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Textarea from '@/components/ui/Textarea'
 import LocationPicker from '@/components/ui/LocationPicker'
 import { OPEN_TO_OPTIONS, PROFILE_MODES } from '@/lib/constants'
+
+// Returns the new streak count based on when signals were last saved.
+// Uses startOfISOWeek on both sides so year-boundary weeks are handled correctly.
+function computeNewStreak(currentStreak: number, lastWeekStr: string | null): number {
+  if (!lastWeekStr) return 1
+  const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
+  const thisWeekStart = startOfISOWeek(new Date())
+  const lastWeekStart = startOfISOWeek(parseISO(lastWeekStr))
+  const weeksDiff = Math.round((thisWeekStart.getTime() - lastWeekStart.getTime()) / MS_PER_WEEK)
+  if (weeksDiff === 0) return currentStreak       // same week — no change
+  if (weeksDiff === 1) return currentStreak + 1   // consecutive — increment
+  return 1                                         // gap — reset
+}
 
 const USERNAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/
 
@@ -32,9 +46,11 @@ type Props = {
   } | null
   openTableOptedIn: boolean
   openTablePeriod: string
+  currentStreak: number
+  currentStreakLastWeek: string | null
 }
 
-export default function SettingsClient({ userId, profile, signals, openTableOptedIn, openTablePeriod }: Props) {
+export default function SettingsClient({ userId, profile, signals, openTableOptedIn, openTablePeriod, currentStreak, currentStreakLastWeek }: Props) {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
@@ -187,6 +203,8 @@ export default function SettingsClient({ userId, profile, signals, openTableOpte
 
     try {
       const avatarUrl = await uploadAvatar()
+      const today      = new Date().toISOString().split('T')[0]
+      const newStreak  = computeNewStreak(currentStreak, currentStreakLastWeek)
 
       const { error: pe } = await supabase
         .from('profiles')
@@ -201,6 +219,9 @@ export default function SettingsClient({ userId, profile, signals, openTableOpte
           where_i_operate:      whereIOperate.trim() || null,
           fun_fact:             funFact.trim() || null,
           profile_mode:         profileMode || null,
+          signal_score_last_awarded: today,
+          signal_streak:             newStreak,
+          signal_streak_last_week:   today,
         })
         .eq('id', userId)
       if (pe) {

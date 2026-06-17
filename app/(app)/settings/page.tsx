@@ -26,7 +26,8 @@ export default async function SettingsPage() {
       .from('profiles')
       .select(
         `username, first_name, last_name, avatar_url, what_i_do, building_now,
-         who_i_want_to_meet, where_i_operate, fun_fact, profile_mode, founding_member`
+         who_i_want_to_meet, where_i_operate, fun_fact, profile_mode, founding_member,
+         signal_streak, signal_streak_last_week`
       )
       .eq('id', user.id)
       .single(),
@@ -76,6 +77,8 @@ export default async function SettingsPage() {
         signals={signalRow ?? null}
         openTableOptedIn={!!optinRow}
         openTablePeriod={period}
+        currentStreak={profile?.signal_streak ?? 0}
+        currentStreakLastWeek={profile?.signal_streak_last_week ?? null}
       />
       {memberToken && <QRSection url={qrUrl(memberToken)} />}
       {guestQR && (
