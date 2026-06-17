@@ -4,7 +4,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import SuggestForm from './SuggestForm'
 
-export default async function SuggestIntroPage() {
+export default async function SuggestIntroPage({
+  searchParams,
+}: {
+  searchParams: { memberA?: string }
+}) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -19,6 +23,7 @@ export default async function SuggestIntroPage() {
   const connectionIds = (connRows ?? []).map(c =>
     c.user_a === user.id ? c.user_b : c.user_a
   )
+  const prefilledId = searchParams.memberA ?? null
 
   const backLink = (
     <Link
@@ -68,6 +73,10 @@ export default async function SuggestIntroPage() {
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 
+  const initialMemberA = prefilledId
+    ? (connections.find(c => c.id === prefilledId) ?? null)
+    : null
+
   return (
     <div className="max-w-2xl mx-auto px-6 py-10">
       {backLink}
@@ -80,6 +89,7 @@ export default async function SuggestIntroPage() {
       <SuggestForm
         connections={connections}
         edges={(edgeRows ?? []) as { user_a: string; user_b: string }[]}
+        initialMemberA={initialMemberA}
       />
     </div>
   )

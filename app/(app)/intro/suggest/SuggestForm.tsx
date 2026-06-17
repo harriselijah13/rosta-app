@@ -104,11 +104,13 @@ function MemberPicker({
 export default function SuggestForm({
   connections,
   edges,
+  initialMemberA = null,
 }: {
   connections: Member[]
   edges: Edge[]
+  initialMemberA?: Member | null
 }) {
-  const [memberA, setMemberA] = useState<Member | null>(null)
+  const [memberA, setMemberA] = useState<Member | null>(initialMemberA)
   const [memberB, setMemberB] = useState<Member | null>(null)
   const [searchA, setSearchA] = useState('')
   const [searchB, setSearchB] = useState('')

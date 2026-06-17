@@ -153,7 +153,7 @@ export default async function DashboardPage() {
       ? admin.from('signals')
           .select('user_id, updated_at, working_on, need_right_now, open_to')
           .in('user_id', connectionIds).gt('updated_at', sevenDaysAgo)
-          .order('updated_at', { ascending: false }).limit(5)
+          .order('updated_at', { ascending: false }).limit(6)
       : Promise.resolve({ data: [] as { user_id: string; updated_at: string; working_on: string | null; need_right_now: string | null; open_to: string[] | null }[] }),
     connectionIds.length > 0
       ? admin.from('intro_requests').select('id', { count: 'exact', head: true }).eq('requester_id', user.id)
@@ -533,7 +533,7 @@ export default async function DashboardPage() {
         {hasConnections && (
           <section className="card-enter" style={{ animationDelay: '0.4s' }}>
             <Eyebrow label="Network activity" />
-            <NetworkActivityList items={activityItems} hasMore={networkActivity.length === 5} />
+            <NetworkActivityList items={activityItems.slice(0, 5)} hasMore={networkActivity.length > 5} />
           </section>
         )}
 

@@ -81,7 +81,7 @@ function HelpDropdown({ item, messageHref }: { item: ActivityItem; messageHref: 
           />
           <div className="absolute right-0 top-full mt-1.5 z-20 bg-white border border-border rounded-xl shadow-lg py-1 min-w-[168px]">
             <Link
-              href={`/members?introduce=${item.userId}`}
+              href={`/intro/suggest?memberA=${item.userId}`}
               className="block px-4 py-2.5 text-sm text-navy hover:bg-surface transition-colors"
               onClick={() => setOpen(false)}
             >
@@ -211,7 +211,7 @@ export default function NetworkActivityList({
       {hasMore && (
         <div className="px-5 py-3 border-t border-border">
           <Link
-            href="/members"
+            href="/activity"
             className="text-xs font-medium text-body-grey hover:text-navy transition-colors"
           >
             View all activity →
