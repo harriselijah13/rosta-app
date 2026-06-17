@@ -72,7 +72,7 @@ export default function OnboardingFlow({ userId, initialFirstName, initialLastNa
     whoIWantToMeet: '',
     whereIOperate:  '',
     funFact:        '',
-    openTo:         [],
+    openTo:         ['open_door'],
     workingOn:      '',
     needRightNow:   '',
     profileMode:    '',
