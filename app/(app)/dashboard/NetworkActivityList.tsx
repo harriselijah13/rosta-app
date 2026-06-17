@@ -194,7 +194,7 @@ export default function NetworkActivityList({
           Quiet week
         </p>
         <p className="text-sm text-body-grey">
-          When your connections update their signals, you'll see it here.
+          When your connections update their signals, you&apos;ll see it here.
         </p>
       </div>
     )
