@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { computeConnectorScore } from '@/lib/connector-score'
 import { OPEN_TO_OPTIONS } from '@/lib/constants'
-import VerifiedBadge from '@/components/ui/VerifiedBadge'
 import WelcomeBanner from './WelcomeBanner'
 import ProgressBar from './ProgressBar'
 import NetworkBackground from './NetworkBackground'
@@ -14,6 +13,7 @@ import ScoreCounter from './ScoreCounter'
 import NetworkPulseStats from './NetworkPulseStats'
 import SuggestIntroBlock from './SuggestIntroBlock'
 import MatchmakerCard, { type MatchPair } from './MatchmakerCard'
+import NetworkActivityList, { type ActivityItem } from './NetworkActivityList'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
 const TOTAL_BADGES = 14
@@ -35,12 +35,6 @@ function timeLeft(expiresAt: string): string {
 
 function displayName(p: { first_name: string | null; last_name: string | null } | undefined): string {
   return [p?.first_name, p?.last_name].filter(Boolean).join(' ') || 'A member'
-}
-
-function activityLabel(working_on: string | null, need_right_now: string | null): string {
-  if (working_on) return "Updated what they're building"
-  if (need_right_now) return 'Updated what they need right now'
-  return 'Updated their signals'
 }
 
 // ─── sub-components ──────────────────────────────────────────────────────────
@@ -157,10 +151,10 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     connectionIds.length > 0
       ? admin.from('signals')
-          .select('user_id, updated_at, working_on, need_right_now')
+          .select('user_id, updated_at, working_on, need_right_now, open_to')
           .in('user_id', connectionIds).gt('updated_at', sevenDaysAgo)
-          .order('updated_at', { ascending: false }).limit(8)
-      : Promise.resolve({ data: [] as { user_id: string; updated_at: string; working_on: string | null; need_right_now: string | null }[] }),
+          .order('updated_at', { ascending: false }).limit(5)
+      : Promise.resolve({ data: [] as { user_id: string; updated_at: string; working_on: string | null; need_right_now: string | null; open_to: string[] | null }[] }),
     connectionIds.length > 0
       ? admin.from('intro_requests').select('id', { count: 'exact', head: true }).eq('requester_id', user.id)
       : Promise.resolve({ count: 0 }),
@@ -191,17 +185,37 @@ export default async function DashboardPage() {
   }
   const matchmakerProfileIds = Array.from(new Set(candidatePairIds.flat()))
 
-  // ── Round 3: names for referenced users ───────────────────────────────────
+  // ── Round 3: profiles + activity conversations in parallel ────────────────
   const activityIds = (activitySignals ?? []).map(s => s.user_id)
   const pendingPartyIds = pendingActions.flatMap(r => [r.requester_id, r.target_id].filter(Boolean))
   const allProfileIds = Array.from(new Set([...activityIds, ...pendingPartyIds, ...matchmakerProfileIds]))
 
-  const { data: profiles } = allProfileIds.length > 0
-    ? await admin.from('profiles').select('id, first_name, last_name, avatar_url, username, is_verified').in('id', allProfileIds)
-    : { data: [] as { id: string; first_name: string | null; last_name: string | null; avatar_url: string | null; username: string | null; is_verified: boolean }[] }
+  type ProfileRow = { id: string; first_name: string | null; last_name: string | null; avatar_url: string | null; username: string | null; is_verified: boolean }
+  type ConvRow = { id: string; user_a: string; user_b: string }
+
+  const [{ data: profiles }, { data: activityConvs }] = await Promise.all([
+    allProfileIds.length > 0
+      ? admin.from('profiles').select('id, first_name, last_name, avatar_url, username, is_verified').in('id', allProfileIds)
+      : Promise.resolve({ data: [] as ProfileRow[] }),
+    activityIds.length > 0
+      ? admin.from('conversations')
+          .select('id, user_a, user_b')
+          .or(activityIds.map(id => {
+            const [a, b] = [user.id, id].sort()
+            return `and(user_a.eq.${a},user_b.eq.${b})`
+          }).join(','))
+      : Promise.resolve({ data: [] as ConvRow[] }),
+  ])
 
   const byId = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
   const slug = (id: string) => byId[id]?.username ?? id
+
+  // Conversation ID lookup keyed by the other user's ID
+  const convByUserId: Record<string, string> = {}
+  for (const c of activityConvs ?? []) {
+    const otherId = c.user_a === user.id ? c.user_b : c.user_a
+    convByUserId[otherId] = c.id
+  }
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const firstName       = profile?.first_name ?? null
@@ -210,6 +224,25 @@ export default async function DashboardPage() {
   const hasConnections  = connectionIds.length > 0
   const networkActivity = activitySignals ?? []
   const realOutcomes    = outcomesThisMonth ?? 0
+
+  const activityItems: ActivityItem[] = networkActivity.flatMap(signal => {
+    const p = byId[signal.user_id]
+    if (!p) return []
+    const name = displayName(p)
+    return [{
+      userId:         signal.user_id,
+      name,
+      avatarUrl:      p.avatar_url,
+      isVerified:     p.is_verified,
+      profileSlug:    slug(signal.user_id),
+      initials:       name.trim().split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase(),
+      workingOn:      signal.working_on,
+      needRightNow:   signal.need_right_now,
+      openTo:         (signal.open_to ?? []) as string[],
+      updatedAt:      signal.updated_at,
+      conversationId: convByUserId[signal.user_id] ?? null,
+    }]
+  })
 
   const matchPairs: MatchPair[] = candidatePairIds.map(([a, b]) => ({
     memberAId:   a,
@@ -497,47 +530,10 @@ export default async function DashboardPage() {
         )}
 
         {/* ── Network activity ── */}
-        {networkActivity.length > 0 && (
+        {hasConnections && (
           <section className="card-enter" style={{ animationDelay: '0.4s' }}>
             <Eyebrow label="Network activity" />
-            <div className={`${cardCls} overflow-hidden divide-y divide-border`}>
-              {networkActivity.map(signal => {
-                const p = byId[signal.user_id]
-                if (!p) return null
-                const name        = displayName(p)
-                const label       = activityLabel(signal.working_on, signal.need_right_now)
-                const profileSlug = slug(signal.user_id)
-                const initials    = name.trim().split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase()
-                return (
-                  <Link
-                    key={signal.user_id}
-                    href={`/profile/${profileSlug}`}
-                    className="flex items-center gap-4 px-5 py-4 transition-all duration-150 group
-                      border-l-[3px] border-l-transparent
-                      hover:border-l-lime/70 hover:bg-[rgba(200,245,60,0.04)]"
-                  >
-                    {p.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.avatar_url} alt={name} className="w-9 h-9 rounded-full object-cover shrink-0" />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-navy/10 text-navy font-semibold flex items-center justify-center shrink-0 text-sm">
-                        {initials || '?'}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-navy group-hover:underline flex items-center gap-1.5">
-                        {name}{p.is_verified && <VerifiedBadge />}
-                      </p>
-                      <p className="text-xs text-body-grey truncate">{label}</p>
-                    </div>
-                    <svg className="w-4 h-4 text-border group-hover:text-navy/40 transition-colors shrink-0"
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Link>
-                )
-              })}
-            </div>
+            <NetworkActivityList items={activityItems} hasMore={networkActivity.length === 5} />
           </section>
         )}
 
