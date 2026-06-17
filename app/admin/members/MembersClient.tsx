@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { setFoundingMember, generateInviteCode, removeMember, grantVerification } from './actions'
 
+export type OpenDoorStatus = 'on' | 'off' | 'no_signals'
+
 export type AdminMember = {
   id: string
   email: string
@@ -19,6 +21,7 @@ export type AdminMember = {
   is_complete: boolean
   is_verified: boolean
   onboarding_completed: boolean
+  open_door: OpenDoorStatus
 }
 
 const PAGE_SIZE = 50
@@ -104,6 +107,11 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
   const [actionTarget,    setActionTarget]    = useState<string | null>(null)
   // Track admin-granted verifications this session so the row updates immediately
   const [grantedIds, setGrantedIds] = useState<Set<string>>(new Set())
+  // Optimistic open-door overrides (populated on per-member toggles, cleared on bulk refresh)
+  const [openDoorOverrides, setOpenDoorOverrides] = useState<Record<string, 'on' | 'off'>>({})
+  // Bulk open-door modal state
+  const [bulkModal, setBulkModal] = useState<{ enabled: boolean; affectedCount: number } | null>(null)
+  const [bulkPending, setBulkPending] = useState(false)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -160,6 +168,63 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
       setActionTarget(null)
     })
   }
+
+  // ── Open Door helpers ────────────────────────────────────────────────────────
+
+  function effectiveOpenDoor(m: AdminMember): OpenDoorStatus {
+    if (m.open_door === 'no_signals') return 'no_signals'
+    return openDoorOverrides[m.id] ?? m.open_door
+  }
+
+  async function handleOpenDoorToggle(m: AdminMember) {
+    const current = effectiveOpenDoor(m)
+    if (current === 'no_signals') return
+    const newEnabled = current !== 'on'
+    // Optimistic update
+    setOpenDoorOverrides(prev => ({ ...prev, [m.id]: newEnabled ? 'on' : 'off' }))
+    try {
+      const res = await fetch(`/api/admin/members/${m.id}/open-door`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: newEnabled }),
+      })
+      if (!res.ok) throw new Error('Toggle failed')
+    } catch {
+      // Revert on failure
+      setOpenDoorOverrides(prev => ({ ...prev, [m.id]: newEnabled ? 'off' : 'on' }))
+    }
+  }
+
+  function openBulkModal(enabled: boolean) {
+    const affectedCount = members.filter(m => {
+      const s = effectiveOpenDoor(m)
+      return s !== 'no_signals' && (enabled ? s === 'off' : s === 'on')
+    }).length
+    setBulkModal({ enabled, affectedCount })
+  }
+
+  async function handleBulkConfirm() {
+    if (!bulkModal) return
+    setBulkPending(true)
+    try {
+      const res = await fetch('/api/admin/members/open-door/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: bulkModal.enabled }),
+      })
+      if (!res.ok) throw new Error('Bulk update failed')
+      setBulkModal(null)
+      setOpenDoorOverrides({})
+      router.refresh()
+    } catch (err) {
+      console.error('[bulk open-door]', err)
+      setBulkModal(null)
+    } finally {
+      setBulkPending(false)
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
 
   async function handleGrantVerification(m: AdminMember) {
     if (!confirm(`Grant verified status to ${fullName(m)}? They will receive a "You're now verified" email immediately.`)) return
@@ -230,13 +295,30 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
         </div>
       </div>
 
+      {/* Bulk Open Door controls */}
+      <div className="flex items-center gap-2 mb-4 px-1">
+        <span className="text-xs font-medium text-body-grey mr-1">Bulk Open Door:</span>
+        <button
+          onClick={() => openBulkModal(true)}
+          className="text-xs font-medium border border-border text-navy px-3 py-1.5 rounded-full hover:border-navy transition-colors"
+        >
+          Turn all ON
+        </button>
+        <button
+          onClick={() => openBulkModal(false)}
+          className="text-xs font-medium border border-border text-navy px-3 py-1.5 rounded-full hover:border-navy transition-colors"
+        >
+          Turn all OFF
+        </button>
+      </div>
+
       {/* Table */}
       <div className="bg-white border border-border rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-surface text-left">
-                {['Name', 'Email', 'Joined', 'Location', 'Mode', 'Last active', 'Complete', 'Actions'].map(h => (
+                {['Name', 'Email', 'Joined', 'Location', 'Mode', 'Open Door', 'Last active', 'Complete', 'Actions'].map(h => (
                   <th key={h} className="px-4 py-3 text-xs font-medium text-body-grey uppercase tracking-wide whitespace-nowrap">
                     {h}
                   </th>
@@ -246,7 +328,7 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
             <tbody className="divide-y divide-border">
               {currentPage.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-body-grey">
+                  <td colSpan={9} className="px-4 py-10 text-center text-sm text-body-grey">
                     No members match your filters.
                   </td>
                 </tr>
@@ -298,6 +380,30 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
                     {/* Mode */}
                     <td className="px-4 py-3 text-body-grey whitespace-nowrap capitalize">
                       {m.profile_mode ?? '—'}
+                    </td>
+                    {/* Open Door */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {(() => {
+                        const s = effectiveOpenDoor(m)
+                        if (s === 'no_signals') {
+                          return <span className="text-xs text-body-grey">—</span>
+                        }
+                        return (
+                          <button
+                            onClick={() => handleOpenDoorToggle(m)}
+                            title={s === 'on' ? 'Open Door ON — click to turn off' : 'Open Door OFF — click to turn on'}
+                            className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-navy/30 ${
+                              s === 'on' ? 'bg-lime' : 'bg-border'
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-4 w-4 mt-0.5 rounded-full bg-white shadow transition-transform ${
+                                s === 'on' ? 'translate-x-4' : 'translate-x-0.5'
+                              }`}
+                            />
+                          </button>
+                        )
+                      })()}
                     </td>
                     {/* Last active */}
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -384,6 +490,47 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
           </div>
         )}
       </div>
+      {/* Bulk Open Door confirmation modal */}
+      {bulkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl p-6 shadow-xl max-w-sm w-full">
+            <h2 className="font-display text-lg font-bold text-navy mb-2">
+              Turn Open Door {bulkModal.enabled ? 'ON' : 'OFF'}
+            </h2>
+            <p className="text-sm text-body-grey mb-6">
+              {bulkModal.affectedCount === 0
+                ? `All members with signals already have Open Door ${bulkModal.enabled ? 'ON' : 'OFF'}. Nothing to change.`
+                : `Turn Open Door ${bulkModal.enabled ? 'ON' : 'OFF'} for ${bulkModal.affectedCount} member${bulkModal.affectedCount === 1 ? '' : 's'} who currently ${bulkModal.enabled ? 'have it OFF' : 'have it ON'}?`}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setBulkModal(null)}
+                disabled={bulkPending}
+                className="text-sm font-medium border border-border text-navy px-4 py-2 rounded-full hover:border-navy transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              {bulkModal.affectedCount > 0 && (
+                <button
+                  onClick={handleBulkConfirm}
+                  disabled={bulkPending}
+                  className="text-sm font-medium bg-navy text-white px-4 py-2 rounded-full hover:bg-navy/90 transition-colors disabled:opacity-40"
+                >
+                  {bulkPending ? 'Updating…' : 'Confirm'}
+                </button>
+              )}
+              {bulkModal.affectedCount === 0 && (
+                <button
+                  onClick={() => setBulkModal(null)}
+                  className="text-sm font-medium bg-navy text-white px-4 py-2 rounded-full hover:bg-navy/90 transition-colors"
+                >
+                  OK
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
