@@ -19,10 +19,16 @@ export default function SignupPage() {
     setLoading(true)
     setError('')
 
+    if (!inviteCode.trim()) {
+      setError('An invite code is required to join ROSTA.')
+      setLoading(false)
+      return
+    }
+
     const res = await fetch('/api/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, inviteCode: inviteCode || undefined }),
+      body: JSON.stringify({ email, password, inviteCode }),
     })
 
     const data = await res.json()
@@ -67,12 +73,13 @@ export default function SignupPage() {
             autoComplete="new-password"
           />
           <Input
-            label="Invite code (optional)"
+            label="Invite code"
             id="invite-code"
             type="text"
-            placeholder="ROSTA-XXXX"
+            placeholder="e.g. MSCA2GAC"
             value={inviteCode}
-            onChange={e => setInviteCode(e.target.value)}
+            onChange={e => setInviteCode(e.target.value.toUpperCase())}
+            required
           />
 
           {error && (
@@ -81,7 +88,13 @@ export default function SignupPage() {
             </p>
           )}
 
-          <Button type="submit" loading={loading} size="lg" className="w-full mt-1">
+          <Button
+            type="submit"
+            loading={loading}
+            size="lg"
+            className="w-full mt-1"
+            disabled={!inviteCode.trim()}
+          >
             Create account
           </Button>
           <p className="text-center text-xs text-body-grey leading-relaxed">

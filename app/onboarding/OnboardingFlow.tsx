@@ -249,29 +249,32 @@ export default function OnboardingFlow({ userId, initialFirstName, initialLastNa
           </span>
         </nav>
 
-        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-          <h1 className="font-display text-5xl sm:text-6xl font-bold text-warm-white mb-5 max-w-lg leading-tight">
-            Welcome to ROSTA.
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center relative">
+          {/* Ambient background dots — subtle life on the navy canvas */}
+          <div aria-hidden="true" className="absolute inset-0 overflow-hidden pointer-events-none select-none">
+            <div className="absolute top-[14%] left-[11%]  w-1.5 h-1.5 rounded-full bg-white/[0.07]" />
+            <div className="absolute top-[22%] right-[16%] w-1   h-1   rounded-full bg-white/[0.05]" />
+            <div className="absolute top-[55%] left-[7%]   w-1   h-1   rounded-full bg-white/[0.07]" />
+            <div className="absolute top-[40%] right-[9%]  w-1.5 h-1.5 rounded-full bg-white/[0.05]" />
+            <div className="absolute bottom-[28%] left-[18%] w-1  h-1   rounded-full bg-white/[0.06]" />
+            <div className="absolute bottom-[18%] right-[14%] w-1 h-1   rounded-full bg-white/[0.07]" />
+          </div>
+
+          <h1 className="font-display text-5xl sm:text-6xl font-bold text-warm-white mb-5 max-w-lg leading-tight relative z-10">
+            You&apos;re in.
           </h1>
-          <p className="text-warm-white/70 text-base sm:text-lg max-w-sm mb-8 leading-relaxed">
+          <p className="text-warm-white/70 text-base sm:text-lg max-w-sm mb-10 leading-relaxed relative z-10">
             A professional network built around real introductions, real conversations, and real outcomes.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-12">
-            {['No feed', 'Warm introductions only', 'Invite only'].map(tag => (
-              <span
-                key={tag}
-                className="px-4 py-1.5 rounded-full bg-lime text-navy text-sm font-semibold"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
           <button
             onClick={() => setShowWelcome(false)}
-            className="px-8 py-3.5 bg-lime text-navy rounded-full font-semibold text-sm hover:bg-lime/90 transition-colors"
+            className="px-8 py-3.5 bg-lime text-navy rounded-full font-semibold text-sm hover:bg-lime/90 transition-colors relative z-10"
           >
             Set up your profile
           </button>
+          <p className="text-warm-white/50 text-sm mt-4 relative z-10">
+            Takes about 2 minutes.
+          </p>
         </div>
       </div>
     )
