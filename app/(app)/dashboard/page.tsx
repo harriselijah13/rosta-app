@@ -5,7 +5,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { computeConnectorScore } from '@/lib/connector-score'
 import { OPEN_TO_OPTIONS } from '@/lib/constants'
 import FirstVisitGuide from './FirstVisitGuide'
-import ProgressBar from './ProgressBar'
 import NetworkBackground from './NetworkBackground'
 import HeroCanvas from './HeroCanvas'
 import FloatingAvatars from './FloatingAvatars'
@@ -282,41 +281,10 @@ export default async function DashboardPage() {
     tables:   indexOpenTables      ?? 0,
   }
 
-  // ── Badge progress ────────────────────────────────────────────────────────
-  const earnedSlugs  = new Set((earnedBadgeRows ?? []).map(r => r.badge_slug))
-  const earnedCount  = earnedSlugs.size
-  const score        = connectorScore.total
+  // ── Badge summary ─────────────────────────────────────────────────────────
+  const earnedSlugs     = new Set((earnedBadgeRows ?? []).map(r => r.badge_slug))
+  const earnedCount     = earnedSlugs.size
   const showBadgeTeaser = !!profile?.onboarding_completed
-  const badgePercent = Math.max(2, Math.round((earnedCount / TOTAL_BADGES) * 100))
-
-  type NextBadge = { label: string; hint: string }
-  const nextBadge = ((): NextBadge | null => {
-    if (connectionIds.length === 0 && !earnedSlugs.has('first-connection'))
-      return { label: 'First Connection', hint: 'make your first connection' }
-    if (!earnedSlugs.has('connector') && score < 15)
-      return { label: 'Connector', hint: `reach a Connector Score of 15 (currently ${score})` }
-    if (!earnedSlugs.has('bridge') && score < 40)
-      return { label: 'Bridge', hint: `reach a Connector Score of 40 (currently ${score})` }
-    if (!earnedSlugs.has('catalyst') && score < 80)
-      return { label: 'Catalyst', hint: 'reach a Connector Score of 80' }
-    if (!earnedSlugs.has('architect') && score < 150)
-      return { label: 'Architect', hint: 'reach a Connector Score of 150' }
-    if (!earnedSlugs.has('introducer'))
-      return { label: 'Introducer', hint: 'facilitate your first warm introduction' }
-    if (!earnedSlugs.has('spark'))
-      return { label: 'Spark', hint: 'mark your first connection outcome' }
-    if (!earnedSlugs.has('table-setter'))
-      return { label: 'Table Setter', hint: 'join an Open Table session' }
-    if (!earnedSlugs.has('signal-strength'))
-      return { label: 'Signal Strength', hint: 'keep signals active for 4 consecutive weeks' }
-    if (!earnedSlugs.has('thanked'))
-      return { label: 'Thanked', hint: 'receive 3 thank-yous for making intros' }
-    if (!earnedSlugs.has('five-outcomes'))
-      return { label: 'Five Outcomes', hint: 'mark 5 connection outcomes' }
-    if (!earnedSlugs.has('all-in'))
-      return { label: 'All In', hint: 'earn 5 or more badges' }
-    return null
-  })()
 
   // ── Contextual greeting line ──────────────────────────────────────────────
   const contextualLine = (() => {
@@ -562,27 +530,21 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* ── Badge progress teaser ── */}
+        {/* ── Badge teaser ── */}
         {showBadgeTeaser && (
           <section className="card-enter" style={{ animationDelay: '0.6s' }}>
             <Eyebrow label="Your badges" />
             <Link
               href={`/profile/${profileSlugSelf}`}
-              className={`${cardCls} p-6 block group`}
+              className={`${cardCls} p-5 block group`}
             >
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-semibold text-navy">{earnedCount} of {TOTAL_BADGES} badges earned</p>
-                <span className="text-xs text-body-grey group-hover:text-navy transition-colors">View all →</span>
-              </div>
-              <ProgressBar percent={badgePercent} />
-              <div className="mt-4">
-                {nextBadge ? (
-                  <p className="text-xs text-body-grey">
-                    Next: <span className="font-semibold text-navy">{nextBadge.label}</span> — {nextBadge.hint}
-                  </p>
-                ) : (
-                  <p className="text-xs font-medium text-navy">All badges earned.</p>
-                )}
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-navy">
+                  {earnedCount === TOTAL_BADGES
+                    ? 'All badges awarded.'
+                    : `${earnedCount} badge${earnedCount === 1 ? '' : 's'} awarded`}
+                </p>
+                <span className="text-xs text-body-grey group-hover:text-navy transition-colors">View →</span>
               </div>
             </Link>
           </section>
