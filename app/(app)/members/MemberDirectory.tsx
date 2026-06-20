@@ -483,17 +483,21 @@ function NetworkWeb({ current, connections, onBrowse }: {
                     onMouseEnter={() => setHoveredIdx(i)}
                     onMouseLeave={() => setHoveredIdx(null)}
                   >
-                    <div style={{
-                      width: '100px', height: '54px', borderRadius: '12px',
-                      background: '#1e2d5c',
-                      border: `1px solid ${isHovered ? 'rgba(245,242,238,0.30)' : 'rgba(245,242,238,0.12)'}`,
-                      boxShadow: isHovered
-                        ? '0 12px 32px rgba(0,0,0,0.40)'
-                        : '0 4px 20px rgba(0,0,0,0.30)',
-                      display: 'flex', alignItems: 'center', padding: '0 10px', gap: '8px',
-                      transform: `scale(0.92) rotateX(${s.rotX}deg) rotateY(${s.rotY}deg) translateY(${isHovered ? -6 : 0}px)`,
-                      transition: 'transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out',
-                    }}>
+                    <Link
+                      href={`/profile/${m.username ?? m.id}`}
+                      style={{
+                        display: 'flex', alignItems: 'center', padding: '0 10px', gap: '8px',
+                        textDecoration: 'none',
+                        width: '100px', height: '54px', borderRadius: '12px',
+                        background: '#1e2d5c',
+                        border: `1px solid ${isHovered ? 'rgba(245,242,238,0.30)' : 'rgba(245,242,238,0.12)'}`,
+                        boxShadow: isHovered
+                          ? '0 12px 32px rgba(0,0,0,0.40)'
+                          : '0 4px 20px rgba(0,0,0,0.30)',
+                        transform: `scale(0.92) rotateX(${s.rotX}deg) rotateY(${s.rotY}deg) translateY(${isHovered ? -6 : 0}px)`,
+                        transition: 'transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out',
+                      }}
+                    >
                       {m.avatar_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={m.avatar_url} alt={ini}
@@ -516,7 +520,7 @@ function NetworkWeb({ current, connections, onBrowse }: {
                           </div>
                         )}
                       </div>
-                    </div>
+                    </Link>
                   </div>
                 )
               })}
@@ -564,18 +568,22 @@ function NetworkWeb({ current, connections, onBrowse }: {
               </div>
 
               {/* Centre node — warm white outer glow on navy backdrop */}
-              <div style={{
-                position: 'absolute', left: `${NW_CX - 36}px`, top: `${NW_CY - 36}px`,
-                width: '72px', height: '72px', borderRadius: '50%',
-                border: '2px solid rgba(200,245,60,0.40)',
-                boxShadow: '0 0 32px 8px rgba(200,245,60,0.10), 0 0 50px 16px rgba(245,242,238,0.07), 0 8px 24px rgba(0,0,0,0.30)',
-                overflow: 'hidden', zIndex: 4, background: '#0F1B3C',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                opacity: entered ? 1 : 0,
-                transform: entered ? 'scale(1)' : 'scale(0.96)',
-                transition: 'opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.16,1,0.3,1)',
-                animation: ambientReady ? 'nw-breathe 4s ease-in-out infinite' : 'none',
-              }}>
+              <Link
+                href={current?.username ? `/profile/${current.username}` : current ? `/profile/${current.id}` : '#'}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  position: 'absolute', left: `${NW_CX - 36}px`, top: `${NW_CY - 36}px`,
+                  width: '72px', height: '72px', borderRadius: '50%',
+                  border: '2px solid rgba(200,245,60,0.40)',
+                  boxShadow: '0 0 32px 8px rgba(200,245,60,0.10), 0 0 50px 16px rgba(245,242,238,0.07), 0 8px 24px rgba(0,0,0,0.30)',
+                  overflow: 'hidden', zIndex: 4, background: '#0F1B3C',
+                  opacity: entered ? 1 : 0,
+                  transform: entered ? 'scale(1)' : 'scale(0.96)',
+                  transition: 'opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.16,1,0.3,1)',
+                  animation: ambientReady ? 'nw-breathe 4s ease-in-out infinite' : 'none',
+                  cursor: 'pointer',
+                }}
+              >
                 {avatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={avatar} alt={myIni}
@@ -589,12 +597,20 @@ function NetworkWeb({ current, connections, onBrowse }: {
                     {myIni}
                   </span>
                 )}
-              </div>
+              </Link>
 
               {!isEmpty && extraCount > 0 && (
-                <div style={{ position: 'absolute', bottom: '12px', right: '16px', fontSize: '11px', color: 'rgba(245,242,238,0.50)' }}>
+                <Link
+                  href="/members"
+                  onClick={(e) => { e.preventDefault(); onBrowse() }}
+                  style={{
+                    position: 'absolute', bottom: '12px', right: '16px',
+                    fontSize: '11px', color: 'rgba(245,242,238,0.50)',
+                    textDecoration: 'none', cursor: 'pointer',
+                  }}
+                >
                   +{extraCount} more
-                </div>
+                </Link>
               )}
             </div>
           </div>
