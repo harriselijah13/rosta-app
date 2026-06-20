@@ -13,7 +13,7 @@ export async function POST() {
   const admin = createAdminClient()
   const [{ data: profile }, { data: signal }] = await Promise.all([
     admin.from('profiles')
-      .select('first_name, what_i_do, building_now, who_i_want_to_meet, where_i_operate, profile_mode')
+      .select('first_name, what_i_do, building_now, who_i_want_to_meet, where_i_operate')
       .eq('id', user.id)
       .single(),
     admin.from('signals')
@@ -32,7 +32,6 @@ Member profile:
 - Building now: ${profile.building_now ?? 'not set'}
 - Who they want to meet: ${profile.who_i_want_to_meet ?? 'not set'}
 - Where they operate: ${profile.where_i_operate ?? 'not set'}
-- Mode: ${profile.profile_mode ?? 'not set'}
 
 Current signals:
 - Working on: ${signal?.working_on ?? 'empty'}

@@ -18,7 +18,7 @@ export async function POST() {
   const admin = createAdminClient()
   const { data: profile } = await admin
     .from('profiles')
-    .select('first_name, last_name, username, profile_mode, where_i_operate, onboarding_completed')
+    .select('first_name, last_name, username, where_i_operate, onboarding_completed')
     .eq('id', user.id)
     .single()
 
@@ -34,7 +34,6 @@ export async function POST() {
       memberName,
       memberEmail:    user.email ?? '',
       memberUsername: profile.username ?? null,
-      profileMode:    profile.profile_mode ?? null,
       location:       profile.where_i_operate ?? null,
     })
   } catch (err) {

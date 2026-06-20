@@ -2,10 +2,9 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import Badge from '@/components/ui/Badge'
 import VerifiedBadge from '@/components/ui/VerifiedBadge'
 import BadgeTile from '@/components/badges/BadgeTile'
-import { OPEN_TO_OPTIONS, PROFILE_MODES } from '@/lib/constants'
+import { OPEN_TO_OPTIONS } from '@/lib/constants'
 import { computeConnectorScore } from '@/lib/connector-score'
 import { BADGE_CATALOG } from '@/lib/badge-catalog'
 import OpenDoorToggle from './OpenDoorToggle'
@@ -13,7 +12,6 @@ import AvatarLightbox from './AvatarLightbox'
 import RemoveConnectionLink from '@/components/profile/RemoveConnectionLink'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
-const MODE_MAP = Object.fromEntries(PROFILE_MODES.map(m => [m.value, m.label]))
 
 function isActive(signalUpdatedAt: string | null, profileUpdatedAt: string): boolean {
   const ref = signalUpdatedAt ?? profileUpdatedAt
@@ -168,9 +166,6 @@ export default async function ProfilePage({
                 {profile.is_verified && <VerifiedBadge size="md" />}
               </div>
               <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                {profile.profile_mode && (
-                  <Badge variant="navy">{MODE_MAP[profile.profile_mode] ?? profile.profile_mode}</Badge>
-                )}
                 {profile.founding_member && (
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-navy bg-lime/30 border border-lime/50 px-2 py-0.5 rounded-full">
                     Founding member

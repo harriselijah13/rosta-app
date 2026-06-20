@@ -16,6 +16,7 @@ export type Profile = {
   who_i_want_to_meet: string | null
   where_i_operate: string | null
   fun_fact: string | null
+  // @deprecated profile_mode is no longer used in the UI as of 2026-06-20. Column retained for historical data.
   profile_mode: string | null
   onboarding_completed: boolean
   founding_member: boolean

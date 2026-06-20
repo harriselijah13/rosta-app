@@ -599,27 +599,21 @@ export async function notifyAdminOnSignup({
   memberName,
   memberEmail,
   memberUsername,
-  profileMode,
   location,
 }: {
   memberName: string
   memberEmail: string
   memberUsername: string | null
-  profileMode: string | null
   location: string | null
 }): Promise<void> {
   const profileUrl = memberUsername ? `${BASE}/profile/${memberUsername}` : `${BASE}/admin/members`
   const adminUrl   = `${BASE}/admin/members`
-  const modeLabel  = profileMode
-    ? profileMode.charAt(0).toUpperCase() + profileMode.slice(1)
-    : 'Not set'
   const sans = "'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 
   const rows: [string, string][] = [
     ['Name',  escapeHtml(memberName)],
     ['Email', `<a href="mailto:${escapeHtml(memberEmail)}" style="color:#0F1B3C;text-decoration:none;">${escapeHtml(memberEmail)}</a>`],
     ...(memberUsername ? [['Username', `@${escapeHtml(memberUsername)}`] as [string, string]] : []),
-    ['Mode',  escapeHtml(modeLabel)],
     ...(location ? [['Location', escapeHtml(location)] as [string, string]] : []),
   ]
 

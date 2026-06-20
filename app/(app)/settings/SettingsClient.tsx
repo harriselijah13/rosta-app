@@ -8,7 +8,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Textarea from '@/components/ui/Textarea'
 import LocationPicker from '@/components/ui/LocationPicker'
-import { OPEN_TO_OPTIONS, PROFILE_MODES } from '@/lib/constants'
+import { OPEN_TO_OPTIONS } from '@/lib/constants'
 
 // Returns the new streak count based on when signals were last saved.
 // Uses startOfISOWeek on both sides so year-boundary weeks are handled correctly.
@@ -37,7 +37,6 @@ type Props = {
     who_i_want_to_meet?: string | null
     where_i_operate?: string | null
     fun_fact?: string | null
-    profile_mode?: string | null
   }
   signals: {
     open_to: string[]
@@ -68,8 +67,6 @@ export default function SettingsClient({ userId, profile, signals, openTableOpte
   const [whoIWantToMeet, setWhoIWantToMeet] = useState(profile.who_i_want_to_meet ?? '')
   const [whereIOperate, setWhereIOperate] = useState(profile.where_i_operate ?? '')
   const [funFact, setFunFact] = useState(profile.fun_fact ?? '')
-  const [profileMode, setProfileMode] = useState(profile.profile_mode ?? '')
-
   // Signals
   const [openTo, setOpenTo] = useState<string[]>(signals?.open_to ?? [])
   const [workingOn, setWorkingOn] = useState(signals?.working_on ?? '')
@@ -218,7 +215,6 @@ export default function SettingsClient({ userId, profile, signals, openTableOpte
           who_i_want_to_meet:   whoIWantToMeet.trim() || null,
           where_i_operate:      whereIOperate.trim() || null,
           fun_fact:             funFact.trim() || null,
-          profile_mode:         profileMode || null,
           signal_score_last_awarded: today,
           signal_streak:             newStreak,
           signal_streak_last_week:   today,
@@ -387,29 +383,6 @@ export default function SettingsClient({ userId, profile, signals, openTableOpte
           />
         </div>
 
-        {/* Profile mode */}
-        <div className="mt-6">
-          <p className="text-sm font-medium text-navy mb-3">Profile mode</p>
-          <div className="grid grid-cols-2 gap-2">
-            {PROFILE_MODES.map(mode => (
-              <button
-                key={mode.value}
-                type="button"
-                onClick={() => setProfileMode(mode.value)}
-                className={`p-4 rounded-xl border text-left transition-all ${
-                  profileMode === mode.value
-                    ? 'border-navy bg-navy text-warm-white'
-                    : 'border-border bg-white text-navy hover:border-navy'
-                }`}
-              >
-                <p className="font-display font-bold text-base">{mode.label}</p>
-                <p className={`text-xs mt-0.5 leading-snug ${profileMode === mode.value ? 'text-warm-white/70' : 'text-body-grey'}`}>
-                  {mode.description}
-                </p>
-              </button>
-            ))}
-          </div>
-        </div>
       </section>
 
       {/* ── Signals section ── */}

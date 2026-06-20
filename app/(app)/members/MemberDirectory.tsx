@@ -4,11 +4,10 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Badge from '@/components/ui/Badge'
 import VerifiedBadge from '@/components/ui/VerifiedBadge'
-import { OPEN_TO_OPTIONS, PROFILE_MODES } from '@/lib/constants'
+import { OPEN_TO_OPTIONS } from '@/lib/constants'
 import type { Profile } from '@/lib/types'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
-const MODE_MAP    = Object.fromEntries(PROFILE_MODES.map(m => [m.value, m.label]))
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -55,7 +54,6 @@ function applyFilters(
       if (!name.includes(q) && !what.includes(q) && !loc.includes(q)) return false
     }
     if (!matchesLocation(m.where_i_operate ?? '', location)) return false
-    if (mode  && m.profile_mode !== mode) return false
     if (openTo && !(m.signals?.[0]?.open_to ?? []).includes(openTo)) return false
     return true
   })
@@ -174,13 +172,7 @@ function MemberCard({ member, isSelf, isConnected }: { member: Profile; isSelf: 
               </span>
             )}
           </div>
-          {member.profile_mode && (
-            <p className="text-xs text-body-grey mt-0.5">{MODE_MAP[member.profile_mode] ?? member.profile_mode}</p>
-          )}
         </div>
-        {member.profile_mode && (
-          <Badge>{MODE_MAP[member.profile_mode] ?? member.profile_mode}</Badge>
-        )}
       </div>
 
       {member.what_i_do && (
@@ -676,7 +668,6 @@ function LocationSelect({ value, onChange }: { value: string; onChange: (v: stri
 
 // ── Filter pill rows ───────────────────────────────────────────────────────────
 
-const FILTER_MODES   = [{ value: '', label: 'All modes' },   ...PROFILE_MODES.map(m => ({ value: m.value, label: m.label }))]
 const FILTER_OPEN_TO = [{ value: '', label: 'Any signal' }, ...OPEN_TO_OPTIONS]
 
 // ── Main export ────────────────────────────────────────────────────────────────
@@ -695,7 +686,6 @@ export default function MemberDirectory({
   const [tab,            setTab]      = useState<'network' | 'members'>('network')
   const [search,         setSearch]   = useState('')
   const [locationFilter, setLocation] = useState('')
-  const [modeFilter,     setMode]     = useState('')
   const [openToFilter,   setOpenTo]   = useState('')
 
   const connectedSet = useMemo(() => new Set(connectedUserIds), [connectedUserIds])
@@ -715,14 +705,14 @@ export default function MemberDirectory({
     [connectedMembers, search, locationFilter],
   )
   const filteredDiscover = useMemo(
-    () => applyFilters(discoverMembers, search, locationFilter, modeFilter, openToFilter),
-    [discoverMembers, search, locationFilter, modeFilter, openToFilter],
+    () => applyFilters(discoverMembers, search, locationFilter, '', openToFilter),
+    [discoverMembers, search, locationFilter, openToFilter],
   )
 
-  const hasFilters = search || locationFilter || modeFilter || openToFilter
+  const hasFilters = search || locationFilter || openToFilter
 
   function clearFilters() {
-    setSearch(''); setLocation(''); setMode(''); setOpenTo('')
+    setSearch(''); setLocation(''); setOpenTo('')
   }
 
   function FilterBar({ showAdvanced = false }: { showAdvanced?: boolean }) {
@@ -745,34 +735,18 @@ export default function MemberDirectory({
         </div>
 
         {showAdvanced && (
-          <div className="flex flex-wrap gap-2 items-center overflow-x-auto pb-1">
-            <div className="flex flex-wrap gap-1.5">
-              {FILTER_MODES.map(m => (
-                <button
-                  key={m.value}
-                  onClick={() => setMode(m.value)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                    modeFilter === m.value ? 'bg-navy text-warm-white border-navy' : 'bg-white text-navy border-border hover:border-navy'
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-            <div className="w-px h-5 bg-border mx-1" />
-            <div className="flex flex-wrap gap-1.5">
-              {FILTER_OPEN_TO.map(o => (
-                <button
-                  key={o.value}
-                  onClick={() => setOpenTo(o.value)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                    openToFilter === o.value ? 'bg-navy text-warm-white border-navy' : 'bg-white text-navy border-border hover:border-navy'
-                  }`}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
+          <div className="flex flex-wrap gap-1.5 overflow-x-auto pb-1">
+            {FILTER_OPEN_TO.map(o => (
+              <button
+                key={o.value}
+                onClick={() => setOpenTo(o.value)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  openToFilter === o.value ? 'bg-navy text-warm-white border-navy' : 'bg-white text-navy border-border hover:border-navy'
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
           </div>
         )}
       </div>

@@ -55,13 +55,12 @@ function fullName(m: AdminMember): string {
 }
 
 function exportCsv(rows: AdminMember[]) {
-  const headers = ['Name', 'Email', 'Joined', 'Location', 'Mode', 'Founding', 'Verified', 'Last active', 'Complete', 'Onboarded']
+  const headers = ['Name', 'Email', 'Joined', 'Location', 'Founding', 'Verified', 'Last active', 'Complete', 'Onboarded']
   const lines = rows.map(m => [
     fullName(m),
     m.email,
     new Date(m.created_at).toLocaleDateString('en-GB'),
     m.where_i_operate ?? '',
-    m.profile_mode ?? '',
     m.founding_member ? 'Yes' : 'No',
     m.is_verified ? 'Yes' : 'No',
     m.last_active_at ? new Date(m.last_active_at).toLocaleDateString('en-GB') : 'Never',
@@ -318,7 +317,7 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-surface text-left">
-                {['Name', 'Email', 'Joined', 'Location', 'Mode', 'Open Door', 'Last active', 'Complete', 'Actions'].map(h => (
+                {['Name', 'Email', 'Joined', 'Location', 'Open Door', 'Last active', 'Complete', 'Actions'].map(h => (
                   <th key={h} className="px-4 py-3 text-xs font-medium text-body-grey uppercase tracking-wide whitespace-nowrap">
                     {h}
                   </th>
@@ -376,10 +375,6 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
                     {/* Location */}
                     <td className="px-4 py-3 text-body-grey whitespace-nowrap max-w-[140px] truncate">
                       {m.where_i_operate ?? '—'}
-                    </td>
-                    {/* Mode */}
-                    <td className="px-4 py-3 text-body-grey whitespace-nowrap capitalize">
-                      {m.profile_mode ?? '—'}
                     </td>
                     {/* Open Door */}
                     <td className="px-4 py-3 whitespace-nowrap">

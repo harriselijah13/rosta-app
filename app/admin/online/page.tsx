@@ -1,9 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { PROFILE_MODES } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
-
-const MODE_MAP = Object.fromEntries(PROFILE_MODES.map(m => [m.value, m.label]))
 
 function minutesAgo(iso: string): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
@@ -15,7 +12,7 @@ export default async function OnlineNowPage() {
 
   const { data: members } = await admin
     .from('profiles')
-    .select('id, first_name, last_name, username, avatar_url, profile_mode, last_active_at')
+    .select('id, first_name, last_name, username, avatar_url, last_active_at')
     .gte('last_active_at', since)
     .eq('onboarding_completed', true)
     .order('last_active_at', { ascending: false })
@@ -66,12 +63,8 @@ export default async function OnlineNowPage() {
                   </div>
                 )}
 
-                {/* Name + mode */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-navy">{name}</p>
-                  {m.profile_mode && (
-                    <p className="text-xs text-body-grey">{MODE_MAP[m.profile_mode] ?? m.profile_mode}</p>
-                  )}
                 </div>
 
                 {/* Active indicator */}

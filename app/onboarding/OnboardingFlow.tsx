@@ -8,7 +8,7 @@ import Input from '@/components/ui/Input'
 import Textarea from '@/components/ui/Textarea'
 import LocationPicker from '@/components/ui/LocationPicker'
 
-type Step = 1 | 2 | 3 | 4
+type Step = 1 | 2 | 3
 
 type FormData = {
   firstName: string
@@ -25,7 +25,6 @@ type FormData = {
   openTo: string[]
   workingOn: string
   needRightNow: string
-  profileMode: string
 }
 
 const OPEN_TO_OPTIONS = [
@@ -33,16 +32,10 @@ const OPEN_TO_OPTIONS = [
   { value: 'collaboration',label: 'Collaboration' },
   { value: 'clients',      label: 'Clients' },
   { value: 'mentorship',   label: 'Mentorship' },
+  { value: 'speaking',     label: 'Speaking' },
   { value: 'hiring',       label: 'Hiring' },
   { value: 'being_hired',  label: 'Being hired' },
   { value: 'coffee',       label: 'Coffee' },
-]
-
-const PROFILE_MODES = [
-  { value: 'founder',   label: 'Founder',   description: "I'm building something new" },
-  { value: 'creative',  label: 'Creative',  description: 'I make things that move people' },
-  { value: 'operator',  label: 'Operator',  description: 'I make organisations run well' },
-  { value: 'explorer',  label: 'Explorer',  description: "I'm figuring out what's next" },
 ]
 
 const USERNAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/
@@ -78,7 +71,6 @@ export default function OnboardingFlow({ userId, initialFirstName, initialLastNa
     openTo:         ['open_door'],
     workingOn:      '',
     needRightNow:   '',
-    profileMode:    '',
   })
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -201,37 +193,22 @@ export default function OnboardingFlow({ userId, initialFirstName, initialLastNa
     setLoading(true)
     setError('')
     try {
-      const { error } = await supabase.from('signals').upsert(
-        {
-          user_id:        userId,
-          open_to:        form.openTo,
-          working_on:     form.workingOn.trim()     || null,
-          need_right_now: form.needRightNow.trim()  || null,
-        },
-        { onConflict: 'user_id' }
-      )
-      if (error) throw error
-      setStep(4)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function saveStep4() {
-    if (!form.profileMode) {
-      setError('Please select a profile mode to continue.')
-      return
-    }
-    setLoading(true)
-    setError('')
-    try {
-      const { error } = await supabase.from('profiles').update({
-        profile_mode:         form.profileMode,
-        onboarding_completed: true,
-      }).eq('id', userId)
-      if (error) throw error
+      const [signalsResult, profileResult] = await Promise.all([
+        supabase.from('signals').upsert(
+          {
+            user_id:        userId,
+            open_to:        form.openTo,
+            working_on:     form.workingOn.trim()    || null,
+            need_right_now: form.needRightNow.trim() || null,
+          },
+          { onConflict: 'user_id' }
+        ),
+        supabase.from('profiles').update({
+          onboarding_completed: true,
+        }).eq('id', userId),
+      ])
+      if (signalsResult.error) throw signalsResult.error
+      if (profileResult.error) throw profileResult.error
       fetch('/api/invite/redeem', { method: 'POST' }).catch(() => {})
       // TODO: Remove this admin notification once member volume makes it noise (likely past 100 members).
       fetch('/api/admin/notify-signup', { method: 'POST' }).catch(() => {})
@@ -368,14 +345,14 @@ export default function OnboardingFlow({ userId, initialFirstName, initialLastNa
         <span className="font-display text-2xl font-bold text-navy">
           ROSTA<span className="text-lime">.</span>
         </span>
-        <span className="text-sm text-body-grey">Step {step} of 4</span>
+        <span className="text-sm text-body-grey">Step {step} of 3</span>
       </nav>
 
       {/* Progress */}
       <div className="h-0.5 bg-border">
         <div
           className="h-full bg-navy transition-all duration-500 ease-out"
-          style={{ width: `${(step / 4) * 100}%` }}
+          style={{ width: `${(step / 3) * 100}%` }}
         />
       </div>
 
@@ -618,54 +595,7 @@ export default function OnboardingFlow({ userId, initialFirstName, initialLastNa
 
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setStep(2)} size="lg" className="flex-1">Back</Button>
-                <Button onClick={saveStep3} loading={loading} size="lg" className="flex-1">Continue</Button>
-              </div>
-            </div>
-          )}
-
-          {/* ── Step 4: Profile Mode ── */}
-          {step === 4 && (
-            <div className="flex flex-col gap-6">
-              <div>
-                <p className="text-navy text-xs font-medium tracking-widest uppercase mb-2 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
-                  Step 4
-                </p>
-                <h1 className="font-display text-4xl font-bold text-navy">Your mode</h1>
-                <p className="text-body-grey mt-2">
-                  Your profile mode helps members understand how to approach you.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                {PROFILE_MODES.map(mode => (
-                  <button
-                    key={mode.value}
-                    type="button"
-                    onClick={() => update({ profileMode: mode.value })}
-                    className={`p-5 rounded-2xl border text-left transition-all ${
-                      form.profileMode === mode.value
-                        ? 'border-navy bg-navy text-warm-white'
-                        : 'border-border bg-white text-navy hover:border-navy'
-                    }`}
-                  >
-                    <p className="font-display text-xl font-bold mb-1">{mode.label}</p>
-                    <p className={`text-sm leading-snug ${
-                      form.profileMode === mode.value ? 'text-warm-white/70' : 'text-body-grey'
-                    }`}>
-                      {mode.description}
-                    </p>
-                  </button>
-                ))}
-              </div>
-
-              {error && (
-                <p className="text-sm text-red-500 bg-red-50 px-4 py-3 rounded-xl">{error}</p>
-              )}
-
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setStep(3)} size="lg" className="flex-1">Back</Button>
-                <Button onClick={saveStep4} loading={loading} size="lg" className="flex-1">Complete profile</Button>
+                <Button onClick={saveStep3} loading={loading} size="lg" className="flex-1">Complete profile</Button>
               </div>
             </div>
           )}

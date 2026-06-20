@@ -3,6 +3,7 @@ export const OPEN_TO_OPTIONS = [
   { value: 'collaboration', label: 'Collaboration' },
   { value: 'clients',      label: 'Clients' },
   { value: 'mentorship',   label: 'Mentorship' },
+  { value: 'speaking',     label: 'Speaking' },
   { value: 'hiring',       label: 'Hiring' },
   { value: 'being_hired',  label: 'Being hired' },
   { value: 'coffee',       label: 'Coffee' },
