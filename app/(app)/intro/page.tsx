@@ -20,6 +20,7 @@ type IntroRow = {
   responded_at: string | null
   dismissed_by_requester_at: string | null
   dismissed_by_recipient_at: string | null
+  resent_at: string | null
 }
 
 function currentPeriod() {
@@ -128,7 +129,7 @@ export default async function IntroInboxPage() {
   const [{ data: rows }, { data: creditsRow }, { data: rawCodes }, { data: userConvs }] = await Promise.all([
     admin
       .from('intro_requests')
-      .select('id, type, requester_id, target_id, facilitator_id, status, requester_note, expires_at, created_at, responded_at, dismissed_by_requester_at, dismissed_by_recipient_at')
+      .select('id, type, requester_id, target_id, facilitator_id, status, requester_note, expires_at, created_at, responded_at, dismissed_by_requester_at, dismissed_by_recipient_at, resent_at')
       .or(`requester_id.eq.${user.id},facilitator_id.eq.${user.id},target_id.eq.${user.id}`)
       .order('created_at', { ascending: false }),
     admin
@@ -337,6 +338,7 @@ export default async function IntroInboxPage() {
                   const subline = r.type === 'warm_intro' && r.facilitator_id
                     ? `via ${name(r.facilitator_id)}`
                     : null
+                  const isExpiredRow = r.status === 'pending' && new Date(r.expires_at) < new Date()
                   return (
                     <IntroCardDismissable
                       key={r.id}
@@ -346,6 +348,7 @@ export default async function IntroInboxPage() {
                       label={timeLabel(r.expires_at, r.status)}
                       status={r.status}
                       expiresAt={r.expires_at}
+                      canResend={isExpiredRow && !r.resent_at}
                     />
                   )
                 })}

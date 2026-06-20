@@ -13,13 +13,14 @@ export async function POST(
   const admin = createAdminClient()
   const { data: req } = await admin
     .from('intro_requests')
-    .select('requester_id, target_id, status')
+    .select('requester_id, target_id, status, expires_at')
     .eq('id', params.id)
     .single()
 
   if (!req) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  if (req.status === 'pending') {
+  const isExpired = req.status === 'pending' && new Date(req.expires_at) < new Date()
+  if (req.status === 'pending' && !isExpired) {
     return NextResponse.json({ error: 'Cannot dismiss a pending request' }, { status: 400 })
   }
 

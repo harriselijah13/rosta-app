@@ -29,13 +29,18 @@ type Props = {
   label?: string
   status: string
   expiresAt: string
+  canResend?: boolean
 }
 
-export function IntroCardDismissable({ id, headline, subline, label, status, expiresAt }: Props) {
-  const [dismissed, setDismissed] = useState(false)
+export function IntroCardDismissable({ id, headline, subline, label, status, expiresAt, canResend }: Props) {
+  const [dismissed, setDismissed]   = useState(false)
+  const [resending, setResending]   = useState(false)
+  const [toast, setToast]           = useState<string | null>(null)
+
   if (dismissed) return null
 
-  const canDismiss = status === 'accepted' || status === 'declined'
+  const isExpiredRow = status === 'pending' && new Date(expiresAt) < new Date()
+  const canDismiss   = status === 'accepted' || status === 'declined' || isExpiredRow
 
   async function handleDismiss(e: React.MouseEvent) {
     e.preventDefault()
@@ -49,30 +54,66 @@ export function IntroCardDismissable({ id, headline, subline, label, status, exp
     }
   }
 
+  async function handleResend(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (resending) return
+    setResending(true)
+    try {
+      const res = await fetch(`/api/intros/${id}/resend`, { method: 'POST' })
+      if (!res.ok) throw new Error('resend failed')
+      setToast('Request resent. They have 7 days to respond.')
+      setTimeout(() => setDismissed(true), 3000)
+    } catch {
+      setResending(false)
+    }
+  }
+
   return (
-    <div className="flex items-stretch rounded-xl border border-border hover:border-navy/30 hover:bg-surface/50 transition-all">
-      <Link
-        href={`/intro/${id}`}
-        className="flex flex-1 items-start justify-between gap-4 p-4 min-w-0"
-      >
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-navy">{headline}</p>
-          {subline && <p className="text-xs text-body-grey mt-0.5">{subline}</p>}
-          {label && <p className="text-xs text-body-grey mt-1">{label}</p>}
-        </div>
-        <StatusPill status={status} expiresAt={expiresAt} />
-      </Link>
-      {canDismiss && (
-        <button
-          onClick={handleDismiss}
-          aria-label="Dismiss"
-          className="self-start p-3 text-body-grey/40 hover:text-navy transition-colors"
+    <>
+      <div className="flex items-stretch rounded-xl border border-border hover:border-navy/30 hover:bg-surface/50 transition-all">
+        <Link
+          href={`/intro/${id}`}
+          className="flex flex-1 items-start justify-between gap-4 p-4 min-w-0"
         >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-navy">{headline}</p>
+            {subline && <p className="text-xs text-body-grey mt-0.5">{subline}</p>}
+            {label && <p className="text-xs text-body-grey mt-1">{label}</p>}
+          </div>
+          <StatusPill status={status} expiresAt={expiresAt} />
+        </Link>
+
+        <div className="flex items-start gap-1 px-2 pt-3 shrink-0">
+          {canResend && (
+            <button
+              onClick={handleResend}
+              disabled={resending}
+              aria-label="Resend request"
+              className="px-3 py-1 text-xs font-medium bg-navy text-warm-white rounded-full hover:bg-navy/80 transition-colors disabled:opacity-50"
+            >
+              {resending ? '…' : 'Resend'}
+            </button>
+          )}
+          {canDismiss && (
+            <button
+              onClick={handleDismiss}
+              aria-label="Dismiss"
+              className="p-1.5 text-body-grey/40 hover:text-navy transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-navy text-warm-white text-sm font-medium px-5 py-3 rounded-full shadow-lg whitespace-nowrap pointer-events-none">
+          {toast}
+        </div>
       )}
-    </div>
+    </>
   )
 }
