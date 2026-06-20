@@ -5,6 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { computeConnectorScore } from '@/lib/connector-score'
 import { OPEN_TO_OPTIONS } from '@/lib/constants'
 import FirstVisitGuide from './FirstVisitGuide'
+import BadgeEarnedModal from '@/components/badges/BadgeEarnedModal'
+import { BADGE_MAP } from '@/lib/badge-catalog'
 import NetworkBackground from './NetworkBackground'
 import HeroCanvas from './HeroCanvas'
 import FloatingAvatars from './FloatingAvatars'
@@ -116,6 +118,7 @@ export default async function DashboardPage() {
     { data: dismissalRows },
     { count: guideFacilitatedCount },
     { count: guideReceivedCount },
+    { data: unshownBadgeRows },
   ] = await Promise.all([
     supabase.from('profiles').select('first_name, username, onboarding_completed, created_at, first_visit_members_at, first_visit_guide_dismissed_at').eq('id', user.id).single(),
     admin.from('intro_requests')
@@ -128,6 +131,11 @@ export default async function DashboardPage() {
     admin.from('intro_credits').select('balance, period').eq('user_id', user.id).maybeSingle(),
     admin.from('member_badges').select('badge_slug').eq('user_id', user.id),
     admin.from('matchmaker_dismissals').select('member_a_id, member_b_id').eq('user_id', user.id),
+    admin.from('member_badges')
+      .select('badge_slug')
+      .eq('user_id', user.id)
+      .is('badge_earned_shown_at', null)
+      .order('created_at', { ascending: false }),
     admin.from('intro_requests').select('id', { count: 'exact', head: true }).eq('facilitator_id', user.id),
     admin.from('intro_requests').select('id', { count: 'exact', head: true }).eq('target_id', user.id),
   ])
@@ -300,6 +308,12 @@ export default async function DashboardPage() {
 
   const profileSlugSelf = profile?.username ?? user.id
 
+  // Unshown badge definitions — for the recognition modal queue
+  // badge_earned_shown_at not in TS types yet (pre-migration), cast to avoid inference issue
+  const unshownBadges = ((unshownBadgeRows ?? []) as unknown as Array<{ badge_slug: string }>)
+    .map(r => BADGE_MAP[r.badge_slug])
+    .filter((b): b is NonNullable<typeof b> => b != null)
+
   // ── Floating avatar data — up to 4 from recently active connections ───────
   const avatarProfiles = (activitySignals ?? [])
     .slice(0, 4)
@@ -316,6 +330,11 @@ export default async function DashboardPage() {
   // ── render ────────────────────────────────────────────────────────────────
   return (
     <>
+      {/* Badge recognition modal — shown once per badge, queued if multiple */}
+      {unshownBadges.length > 0 && (
+        <BadgeEarnedModal badges={unshownBadges} profileSlug={profileSlugSelf} />
+      )}
+
       {/* Animated background — fixed, behind everything */}
       <NetworkBackground />
 
