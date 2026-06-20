@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import MemberDirectory from './MemberDirectory'
+import TrackMembersVisit from './TrackMembersVisit'
 import type { Profile } from '@/lib/types'
 
 export default async function MembersPage() {
@@ -23,7 +24,8 @@ export default async function MembersPage() {
   // client — the same pattern as the app layout, which is known to work. Using .maybeSingle()
   // so a missing row returns null instead of an error.
   const SELF_SELECT = `id, first_name, last_name, avatar_url, what_i_do, building_now,
-                       where_i_operate, profile_mode, onboarding_completed, founding_member, is_verified, updated_at`
+                       where_i_operate, profile_mode, onboarding_completed, founding_member, is_verified, updated_at,
+                       first_visit_members_at`
 
   const [
     { data: members },
@@ -70,11 +72,14 @@ export default async function MembersPage() {
   )
 
   return (
-    <MemberDirectory
-      members={membersWithSignals as Profile[]}
-      currentUserId={user.id}
-      currentUserProfile={(currentProfile ?? null) as Profile | null}
-      connectedUserIds={connectedUserIds}
-    />
+    <>
+      <TrackMembersVisit alreadyTracked={!!(currentProfile as { first_visit_members_at?: string | null } | null)?.first_visit_members_at} />
+      <MemberDirectory
+        members={membersWithSignals as Profile[]}
+        currentUserId={user.id}
+        currentUserProfile={(currentProfile ?? null) as Profile | null}
+        connectedUserIds={connectedUserIds}
+      />
+    </>
   )
 }

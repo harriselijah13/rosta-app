@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { computeConnectorScore } from '@/lib/connector-score'
 import { OPEN_TO_OPTIONS } from '@/lib/constants'
-import WelcomeBanner from './WelcomeBanner'
+import FirstVisitGuide from './FirstVisitGuide'
 import ProgressBar from './ProgressBar'
 import NetworkBackground from './NetworkBackground'
 import HeroCanvas from './HeroCanvas'
@@ -115,8 +115,10 @@ export default async function DashboardPage() {
     { data: creditsRow },
     { data: earnedBadgeRows },
     { data: dismissalRows },
+    { count: guideFacilitatedCount },
+    { count: guideReceivedCount },
   ] = await Promise.all([
-    supabase.from('profiles').select('first_name, username, onboarding_completed').eq('id', user.id).single(),
+    supabase.from('profiles').select('first_name, username, onboarding_completed, created_at, first_visit_members_at, first_visit_guide_dismissed_at').eq('id', user.id).single(),
     admin.from('intro_requests')
       .select('id, type, requester_id, target_id, facilitator_id, expires_at')
       .or(`facilitator_id.eq.${user.id},target_id.eq.${user.id}`)
@@ -127,6 +129,8 @@ export default async function DashboardPage() {
     admin.from('intro_credits').select('balance, period').eq('user_id', user.id).maybeSingle(),
     admin.from('member_badges').select('badge_slug').eq('user_id', user.id),
     admin.from('matchmaker_dismissals').select('member_a_id, member_b_id').eq('user_id', user.id),
+    admin.from('intro_requests').select('id', { count: 'exact', head: true }).eq('facilitator_id', user.id),
+    admin.from('intro_requests').select('id', { count: 'exact', head: true }).eq('target_id', user.id),
   ])
 
   const connectionIds = (myConnections ?? []).map(c => c.user_a === user.id ? c.user_b : c.user_a)
@@ -222,6 +226,14 @@ export default async function DashboardPage() {
   const signalsStale    = !mySignals || new Date(mySignals.updated_at) < new Date(fourteenDaysAgo)
   const creditBalance   = !creditsRow || creditsRow.period !== period ? 3 : creditsRow.balance
   const hasConnections  = connectionIds.length > 0
+
+  // ── First-visit guide completion ─────────────────────────────────────────
+  const guideStep1 = !!(mySignals?.working_on)
+  const guideStep2 = !!(profile as { first_visit_members_at?: string | null } | null)?.first_visit_members_at
+  const guideStep3 = (guideFacilitatedCount ?? 0) > 0
+  const guideStep4 = (guideReceivedCount ?? 0) > 0 ||
+    (Date.now() - new Date((profile as { created_at?: string } | null)?.created_at ?? 0).getTime() > 7 * 24 * 60 * 60 * 1000)
+  const guideDismissed = !!(profile as { first_visit_guide_dismissed_at?: string | null } | null)?.first_visit_guide_dismissed_at
   const networkActivity = activitySignals ?? []
   const realOutcomes    = outcomesThisMonth ?? 0
 
@@ -387,9 +399,15 @@ export default async function DashboardPage() {
       {/* ── Card content ── */}
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-10 space-y-6">
 
-        {/* Welcome banner — new members only */}
+        {/* First-visit guide — new members only */}
         <div className="card-enter" style={{ animationDelay: '0.05s' }}>
-          <WelcomeBanner hasConnections={hasConnections} />
+          <FirstVisitGuide
+            step1Complete={guideStep1}
+            step2Complete={guideStep2}
+            step3Complete={guideStep3}
+            step4Complete={guideStep4}
+            dismissed={guideDismissed}
+          />
         </div>
 
         {/* ── Pending actions ── */}

@@ -6,6 +6,7 @@ const fraunces = Fraunces({
   subsets: ["latin"],
   variable: "--font-fraunces",
   display: "swap",
+  style: ['normal', 'italic'],
 });
 
 const plusJakarta = Plus_Jakarta_Sans({

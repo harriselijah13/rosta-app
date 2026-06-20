@@ -53,10 +53,13 @@ interface Props {
   userId: string
   initialFirstName: string
   initialLastName: string
+  skipStance?: boolean
 }
 
-export default function OnboardingFlow({ userId, initialFirstName, initialLastName }: Props) {
-  const [showWelcome, setShowWelcome] = useState(initialFirstName === '')
+export default function OnboardingFlow({ userId, initialFirstName, initialLastName, skipStance }: Props) {
+  const isFirstVisit = initialFirstName === ''
+  const [showStance, setShowStance]   = useState(isFirstVisit && !skipStance)
+  const [showWelcome, setShowWelcome] = useState(isFirstVisit)
   const [step, setStep]     = useState<Step>(1)
   const [loading, setLoading] = useState(false)
   const [error, setError]   = useState('')
@@ -238,6 +241,80 @@ export default function OnboardingFlow({ userId, initialFirstName, initialLastNa
     } finally {
       setLoading(false)
     }
+  }
+
+  // ── Stance screen — shown only on first onboarding entry ────────────────────
+
+  if (showStance) {
+    return (
+      <div className="min-h-screen bg-navy flex flex-col relative overflow-hidden">
+        {/* Nav */}
+        <nav className="px-8 py-5 relative z-10">
+          <span className="font-display text-2xl font-bold text-warm-white">
+            ROSTA<span className="text-lime">.</span>
+          </span>
+        </nav>
+
+        {/* Ambient drift dots */}
+        <div aria-hidden="true" className="absolute inset-0 pointer-events-none select-none">
+          <div className="absolute top-[10%]  left-[8%]   w-1.5 h-1.5 rounded-full bg-white/[0.06]" />
+          <div className="absolute top-[18%]  right-[13%] w-1   h-1   rounded-full bg-white/[0.05]" />
+          <div className="absolute top-[34%]  left-[5%]   w-1.5 h-1.5 rounded-full bg-white/[0.06]" />
+          <div className="absolute top-[50%]  right-[7%]  w-1   h-1   rounded-full bg-white/[0.05]" />
+          <div className="absolute top-[68%]  left-[60%]  w-1.5 h-1.5 rounded-full bg-white/[0.04]" />
+          <div className="absolute bottom-[28%] left-[22%] w-1 h-1   rounded-full bg-white/[0.05]" />
+          <div className="absolute bottom-[18%] right-[10%] w-1.5 h-1.5 rounded-full bg-white/[0.06]" />
+          <div className="absolute bottom-[10%] left-[42%] w-1 h-1   rounded-full bg-white/[0.05]" />
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 flex flex-col justify-center px-8 sm:px-12 relative z-10 py-12">
+          <div className="w-full max-w-lg">
+            <h1 className="font-display text-4xl sm:text-5xl font-black text-warm-white leading-tight mb-12">
+              Three things to know before you start.
+            </h1>
+
+            <div className="flex flex-col gap-10">
+              <div>
+                <p className="font-display text-base font-medium italic text-warm-white mb-2">
+                  You build your network through real introductions.
+                </p>
+                <p className="text-sm text-warm-white/60 leading-relaxed">
+                  Not cold connects. The people you meet here come through someone who already knows you both.
+                </p>
+              </div>
+
+              <div>
+                <p className="font-display text-base font-medium italic text-warm-white mb-2">
+                  Your profile is present-tense.
+                </p>
+                <p className="text-sm text-warm-white/60 leading-relaxed">
+                  What you&apos;re working on right now. What you need help with this month. It updates as things shift.
+                </p>
+              </div>
+
+              <div>
+                <p className="font-display text-base font-medium italic text-warm-white mb-2">
+                  There&apos;s no feed. There never will be.
+                </p>
+                <p className="text-sm text-warm-white/60 leading-relaxed">
+                  ROSTA isn&apos;t built for posting. It&apos;s built for the conversations that actually matter.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-14">
+              <button
+                onClick={() => { setShowStance(false); setShowWelcome(false) }}
+                className="px-8 py-3.5 bg-lime text-navy rounded-full font-semibold text-sm hover:bg-lime/90 transition-colors"
+              >
+                I get it — let&apos;s start
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // ── Welcome screen ──────────────────────────────────────────────────────────
