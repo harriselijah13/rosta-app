@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 type Props = {
   profileSlug: string
@@ -10,8 +12,25 @@ type Props = {
 }
 
 export default function MobileNav({ profileSlug, pendingIntros, unreadMessages }: Props) {
-  const [open, setOpen] = useState(false)
-  const close = () => setOpen(false)
+  const [open, setOpen]           = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const [toast, setToast]         = useState<string | null>(null)
+  const close  = () => setOpen(false)
+  const router  = useRouter()
+  const supabase = createClient()
+
+  async function handleSignOut() {
+    if (signingOut) return
+    setSigningOut(true)
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      setSigningOut(false)
+      setToast("Couldn't sign out. Try again.")
+      setTimeout(() => setToast(null), 4000)
+      return
+    }
+    router.push('/')
+  }
 
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-border">
@@ -64,11 +83,13 @@ export default function MobileNav({ profileSlug, pendingIntros, unreadMessages }
           >
             Settings
           </Link>
-          <form action="/auth/signout" method="post">
-            <button type="submit" className="text-sm text-body-grey hover:text-navy transition-colors">
-              Sign out
-            </button>
-          </form>
+          <button
+            onClick={handleSignOut}
+            disabled={signingOut}
+            className="text-sm text-body-grey hover:text-navy transition-colors disabled:opacity-50"
+          >
+            {signingOut ? 'Signing out…' : 'Sign out'}
+          </button>
         </div>
 
         {/* Mobile: hamburger + pending badge */}
@@ -93,6 +114,12 @@ export default function MobileNav({ profileSlug, pendingIntros, unreadMessages }
           )}
         </button>
       </div>
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-navy text-warm-white text-sm font-medium px-5 py-3 rounded-full shadow-lg whitespace-nowrap pointer-events-none">
+          {toast}
+        </div>
+      )}
 
       {/* Mobile dropdown */}
       {open && (
@@ -157,14 +184,13 @@ export default function MobileNav({ profileSlug, pendingIntros, unreadMessages }
             >
               Settings
             </Link>
-            <form action="/auth/signout" method="post">
-              <button
-                type="submit"
-                className="py-3 w-full text-left text-sm text-body-grey"
-              >
-                Sign out
-              </button>
-            </form>
+            <button
+              onClick={() => { close(); handleSignOut() }}
+              disabled={signingOut}
+              className="py-3 w-full text-left text-sm text-body-grey disabled:opacity-50"
+            >
+              {signingOut ? 'Signing out…' : 'Sign out'}
+            </button>
           </div>
         </div>
       )}
