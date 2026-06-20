@@ -590,3 +590,58 @@ export function inviteByEmailHtml(
     { preLineBody: true },
   )
 }
+
+// ── Admin: new member notification ───────────────────────────────────────────
+// Self-contained — constructs and sends. Call site should wrap in try/catch.
+// Deliberately temporary: remove once member volume makes this noisy.
+
+export async function notifyAdminOnSignup({
+  memberName,
+  memberEmail,
+  memberUsername,
+  profileMode,
+  location,
+}: {
+  memberName: string
+  memberEmail: string
+  memberUsername: string | null
+  profileMode: string | null
+  location: string | null
+}): Promise<void> {
+  const profileUrl = memberUsername ? `${BASE}/profile/${memberUsername}` : `${BASE}/admin/members`
+  const adminUrl   = `${BASE}/admin/members`
+  const modeLabel  = profileMode
+    ? profileMode.charAt(0).toUpperCase() + profileMode.slice(1)
+    : 'Not set'
+  const sans = "'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
+
+  const rows: [string, string][] = [
+    ['Name',  escapeHtml(memberName)],
+    ['Email', `<a href="mailto:${escapeHtml(memberEmail)}" style="color:#0F1B3C;text-decoration:none;">${escapeHtml(memberEmail)}</a>`],
+    ...(memberUsername ? [['Username', `@${escapeHtml(memberUsername)}`] as [string, string]] : []),
+    ['Mode',  escapeHtml(modeLabel)],
+    ...(location ? [['Location', escapeHtml(location)] as [string, string]] : []),
+  ]
+
+  const tableRows = rows.map(([label, value]) =>
+    `<tr>
+      <td style="font-size:13px;color:#6B7280;padding:3px 16px 3px 0;white-space:nowrap;vertical-align:top;font-family:${sans};">${label}</td>
+      <td style="font-size:13px;color:#0F1B3C;padding:3px 0;font-family:${sans};">${value}</td>
+    </tr>`
+  ).join('')
+
+  const body = `New member joined ROSTA.</p>
+    <table style="border-collapse:collapse;margin:0 0 24px;">
+      ${tableRows}
+    </table>
+    <p style="font-size:13px;color:#6B7280;margin:0 0 28px;font-family:${sans};">
+      <a href="${adminUrl}" style="color:#6B7280;text-decoration:underline;">View all members →</a>
+    </p>
+    <p style="display:none;">`
+
+  await sendEmail(
+    'harris@onrosta.com',
+    `New ROSTA member: ${memberName}`,
+    wrap('New member signup', body, 'View profile', profileUrl),
+  )
+}
