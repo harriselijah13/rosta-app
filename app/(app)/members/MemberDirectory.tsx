@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import Badge from '@/components/ui/Badge'
 import VerifiedBadge from '@/components/ui/VerifiedBadge'
 import { OPEN_TO_OPTIONS } from '@/lib/constants'
 import type { Profile } from '@/lib/types'
