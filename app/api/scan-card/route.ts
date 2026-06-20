@@ -24,6 +24,17 @@ export async function POST(req: NextRequest) {
 
   const safeMime: ImageMime = VALID_TYPES.includes(mimeType) ? mimeType : 'image/jpeg'
 
+  // ── DIAGNOSTIC LOGGING — remove once root cause is confirmed ─────────────
+  console.log('[scan-card] incoming', {
+    mimeType,
+    safeMime,
+    mimeTypeMatch: VALID_TYPES.includes(mimeType),
+    base64LengthChars: imageBase64.length,
+    approxFileSizeKB: Math.round(imageBase64.length * 0.75 / 1024),
+    base64Prefix: imageBase64.substring(0, 16),
+  })
+  // ─────────────────────────────────────────────────────────────────────────
+
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
   try {
@@ -55,7 +66,19 @@ export async function POST(req: NextRequest) {
       phone:   parsed.phone   ?? null,
     })
   } catch (err: unknown) {
-    console.error('[scan-card] Anthropic error', err)
+    // ── DIAGNOSTIC LOGGING — remove once root cause is confirmed ─────────────
+    const anthErr = err as Record<string, unknown>
+    console.error('[scan-card] Anthropic error', {
+      message:    anthErr?.message,
+      name:       anthErr?.name,
+      status:     anthErr?.status,
+      error:      anthErr?.error,
+      headers:    anthErr?.headers,
+      mimeType,
+      safeMime,
+      approxFileSizeKB: Math.round(imageBase64.length * 0.75 / 1024),
+    })
+    // ─────────────────────────────────────────────────────────────────────────
     return NextResponse.json({ error: 'Failed to process image' }, { status: 500 })
   }
 }

@@ -96,6 +96,9 @@ export default function ScanClient({ pastCards }: { pastCards: ScannedCard[] }) 
     })
 
     if (!res.ok) {
+      // DIAGNOSTIC — remove once root cause is confirmed
+      const errBody = await res.json().catch(() => null)
+      console.error('[scan-card client] failed', { status: res.status, body: errBody, mimeType, base64Length: base64.length })
       setScanError('Could not read the card. Try a clearer photo.')
       setPhase('idle')
       return
