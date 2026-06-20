@@ -7,9 +7,9 @@ export default function QRSection({ url }: { url: string }) {
   return (
     <section className="max-w-2xl mx-auto px-6 pb-10">
       <div className="bg-white border border-border rounded-2xl p-6">
-        <h2 className="font-display text-xl font-bold text-navy mb-1">Member QR code</h2>
+        <h2 className="font-display text-xl font-bold text-navy mb-1">Your QR code</h2>
         <p className="text-sm text-body-grey mb-6">
-          Let another member scan this in person to connect instantly.
+          Anyone can scan this. Members will connect. Guests will see your card.
         </p>
 
         <div className="flex flex-col sm:flex-row items-start gap-6">

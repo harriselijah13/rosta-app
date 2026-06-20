@@ -1,11 +1,10 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getOrCreateMemberQR, getOrCreateGuestQR, qrUrl } from '@/lib/qr'
+import { unifiedQrUrl } from '@/lib/qr'
 import { ensureInviteCodes } from '@/lib/invite'
 import SettingsClient from './SettingsClient'
 import QRSection from './QRSection'
-import GuestQRSection from './GuestQRSection'
 import InviteCodesSection from './InviteCodesSection'
 
 function currentMonthPeriod() {
@@ -21,19 +20,17 @@ export default async function SettingsPage() {
   const admin = createAdminClient()
   const period = currentMonthPeriod()
 
-  const [{ data: profile }, { data: signalRow }, memberToken, guestQR, { data: optinRow }] = await Promise.all([
+  const [{ data: profile }, { data: signalRow }, { data: optinRow }] = await Promise.all([
     supabase
       .from('profiles')
       .select(
         `username, first_name, last_name, avatar_url, what_i_do, building_now,
-         who_i_want_to_meet, where_i_operate, fun_fact, profile_mode, founding_member,
+         who_i_want_to_meet, where_i_operate, fun_fact, founding_member,
          signal_streak, signal_streak_last_week`
       )
       .eq('id', user.id)
       .single(),
     supabase.from('signals').select('open_to, working_on, need_right_now').eq('user_id', user.id).single(),
-    getOrCreateMemberQR(user.id),
-    getOrCreateGuestQR(user.id),
     admin.from('open_table_optins').select('id').eq('user_id', user.id).eq('period', period).maybeSingle(),
   ])
 
@@ -80,13 +77,7 @@ export default async function SettingsPage() {
         currentStreak={profile?.signal_streak ?? 0}
         currentStreakLastWeek={profile?.signal_streak_last_week ?? null}
       />
-      {memberToken && <QRSection url={qrUrl(memberToken)} />}
-      {guestQR && (
-        <GuestQRSection
-          initialToken={guestQR.token}
-          initialExpiresAt={guestQR.expiresAt}
-        />
-      )}
+      <QRSection url={unifiedQrUrl(profile?.username ?? user.id)} />
       {profile?.founding_member && inviteCodes.length > 0 && (
         <div className="max-w-2xl mx-auto px-4 sm:px-6 pb-10">
           <InviteCodesSection codes={inviteCodes} />

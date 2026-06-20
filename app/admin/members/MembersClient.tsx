@@ -14,7 +14,6 @@ export type AdminMember = {
   last_name: string | null
   username: string | null
   where_i_operate: string | null
-  profile_mode: string | null
   founding_member: boolean
   created_at: string
   last_active_at: string | null

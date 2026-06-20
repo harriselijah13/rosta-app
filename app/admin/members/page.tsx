@@ -14,7 +14,7 @@ export default async function MembersPage() {
   ] = await Promise.all([
     admin
       .from('profiles')
-      .select('id, first_name, last_name, username, where_i_operate, profile_mode, founding_member, created_at, last_active_at, building_now, is_verified, onboarding_completed')
+      .select('id, first_name, last_name, username, where_i_operate, founding_member, created_at, last_active_at, building_now, is_verified, onboarding_completed')
       .order('created_at', { ascending: false }),
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
     admin.from('signals').select('user_id, open_to'),
@@ -32,7 +32,6 @@ export default async function MembersPage() {
       last_name:       p.last_name,
       username:        p.username,
       where_i_operate: p.where_i_operate,
-      profile_mode:    p.profile_mode,
       founding_member: p.founding_member ?? false,
       created_at:      p.created_at,
       last_active_at:  p.last_active_at,
