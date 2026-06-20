@@ -10,6 +10,7 @@ import { computeConnectorScore } from '@/lib/connector-score'
 import { BADGE_CATALOG } from '@/lib/badge-catalog'
 import OpenDoorToggle from './OpenDoorToggle'
 import AvatarLightbox from './AvatarLightbox'
+import RemoveConnectionLink from '@/components/profile/RemoveConnectionLink'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
 const MODE_MAP = Object.fromEntries(PROFILE_MODES.map(m => [m.value, m.label]))
@@ -71,14 +72,17 @@ export default async function ProfilePage({
 
   // Connection status, pending requests, and mutual connections
   let isConnected = false
+  let connectionId: string | null = null
   let hasMutuals = false
   let hasPendingRequest = false
+  let pendingIntroCount = 0
 
   if (!isSelf) {
     const [ua, ub] = [user.id, profile.id].sort()
     const { data: conn } = await admin.from('connections')
-      .select('id').eq('user_a', ua).eq('user_b', ub).maybeSingle()
+      .select('id').eq('user_a', ua).eq('user_b', ub).is('removed_at', null).maybeSingle()
     isConnected = !!conn
+    connectionId = conn?.id ?? null
 
     if (!isConnected) {
       // Any pending request from viewer to this profile
@@ -93,13 +97,29 @@ export default async function ProfilePage({
       // Mutual connections — only needed when no open door and no pending request
       if (!hasOpenDoor && !hasPendingRequest) {
         const [{ data: viewerConns }, { data: targetConns }] = await Promise.all([
-          admin.from('connections').select('user_a, user_b').or(`user_a.eq.${user.id},user_b.eq.${user.id}`),
-          admin.from('connections').select('user_a, user_b').or(`user_a.eq.${profile.id},user_b.eq.${profile.id}`),
+          admin.from('connections').select('user_a, user_b').or(`user_a.eq.${user.id},user_b.eq.${user.id}`).is('removed_at', null),
+          admin.from('connections').select('user_a, user_b').or(`user_a.eq.${profile.id},user_b.eq.${profile.id}`).is('removed_at', null),
         ])
         const viewerIds = new Set((viewerConns ?? []).map(c => c.user_a === user.id ? c.user_b : c.user_a))
         const targetIds = new Set((targetConns ?? []).map(c => c.user_a === profile.id ? c.user_b : c.user_a))
         hasMutuals = Array.from(viewerIds).some(id => targetIds.has(id))
       }
+    } else if (connectionId) {
+      // Count pending intros involving both parties for the disconnect warning
+      const { count } = await admin.from('intro_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .or(
+          [
+            `and(requester_id.eq.${user.id},target_id.eq.${profile.id})`,
+            `and(requester_id.eq.${profile.id},target_id.eq.${user.id})`,
+            `and(facilitator_id.eq.${user.id},requester_id.eq.${profile.id})`,
+            `and(facilitator_id.eq.${user.id},target_id.eq.${profile.id})`,
+            `and(facilitator_id.eq.${profile.id},requester_id.eq.${user.id})`,
+            `and(facilitator_id.eq.${profile.id},target_id.eq.${user.id})`,
+          ].join(','),
+        )
+      pendingIntroCount = count ?? 0
     }
   }
 
@@ -242,12 +262,21 @@ export default async function ProfilePage({
               )}
             </>
           ) : isConnected ? (
-            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-body-grey px-5 py-2.5 rounded-full border border-border">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              Connected
-            </span>
+            <>
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-body-grey px-5 py-2.5 rounded-full border border-border">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                Connected
+              </span>
+              {connectionId && (
+                <RemoveConnectionLink
+                  connectionId={connectionId}
+                  otherName={profile.first_name ?? name}
+                  pendingIntroCount={pendingIntroCount}
+                />
+              )}
+            </>
           ) : hasPendingRequest ? (
             <Link
               href="/intro"

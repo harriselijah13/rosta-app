@@ -25,6 +25,11 @@ export function qrUrl(token: string) {
   return `https://app.onrosta.com/connect/qr/${token}`
 }
 
+/** Unified QR URL — encodes the member's username (or user ID as fallback). */
+export function unifiedQrUrl(handle: string) {
+  return `https://app.onrosta.com/qr/${handle}`
+}
+
 export async function getOrCreateGuestQR(
   userId: string,
 ): Promise<{ token: string; expiresAt: string } | null> {

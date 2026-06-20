@@ -126,7 +126,7 @@ export default async function DashboardPage() {
       .or(`facilitator_id.eq.${user.id},target_id.eq.${user.id}`)
       .eq('status', 'pending').gt('expires_at', now)
       .order('expires_at', { ascending: true }),
-    admin.from('connections').select('user_a, user_b').or(`user_a.eq.${user.id},user_b.eq.${user.id}`),
+    admin.from('connections').select('user_a, user_b').or(`user_a.eq.${user.id},user_b.eq.${user.id}`).is('removed_at', null),
     admin.from('signals').select('open_to, working_on, need_right_now, updated_at').eq('user_id', user.id).maybeSingle(),
     admin.from('intro_credits').select('balance, period').eq('user_id', user.id).maybeSingle(),
     admin.from('member_badges').select('badge_slug').eq('user_id', user.id),
@@ -177,7 +177,7 @@ export default async function DashboardPage() {
     admin.from('open_table_members').select('room_id, open_table_rooms(id, expires_at)').eq('user_id', user.id),
     // Cross-connections: pairs within the user's network already connected to each other
     connectionIds.length >= 2
-      ? admin.from('connections').select('user_a, user_b').in('user_a', connectionIds).in('user_b', connectionIds)
+      ? admin.from('connections').select('user_a, user_b').in('user_a', connectionIds).in('user_b', connectionIds).is('removed_at', null)
       : Promise.resolve({ data: [] as { user_a: string; user_b: string }[] }),
   ])
 

@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
   // Not already connected
   const [ua, ub] = [user.id, targetId].sort()
   const { data: existing } = await admin.from('connections')
-    .select('id').eq('user_a', ua).eq('user_b', ub).maybeSingle()
+    .select('id').eq('user_a', ua).eq('user_b', ub).is('removed_at', null).maybeSingle()
   if (existing) return NextResponse.json({ error: 'Already connected' }, { status: 400 })
 
   // No pending request already

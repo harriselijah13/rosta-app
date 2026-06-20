@@ -46,7 +46,8 @@ export default async function MembersPage() {
     admin
       .from('connections')
       .select('user_a, user_b')
-      .or(`user_a.eq.${user.id},user_b.eq.${user.id}`),
+      .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
+      .is('removed_at', null),
 
     supabase
       .from('profiles')

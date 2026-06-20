@@ -19,6 +19,7 @@ export default async function SuggestIntroPage({
     .from('connections')
     .select('user_a, user_b')
     .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
+    .is('removed_at', null)
 
   const connectionIds = (connRows ?? []).map(c =>
     c.user_a === user.id ? c.user_b : c.user_a
@@ -61,7 +62,8 @@ export default async function SuggestIntroPage({
       .from('connections')
       .select('user_a, user_b')
       .in('user_a', connectionIds)
-      .in('user_b', connectionIds),
+      .in('user_b', connectionIds)
+      .is('removed_at', null),
   ])
 
   const connections = (profiles ?? [])

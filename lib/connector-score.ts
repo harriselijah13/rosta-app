@@ -39,11 +39,12 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
       .eq('status', 'accepted')
       .eq('type', 'warm_intro'),
 
-    // +5 per QR connection
+    // +5 per QR connection (member or unified QR)
     admin.from('connections')
       .select('id', { count: 'exact', head: true })
-      .eq('origin', 'qr_member')
-      .or(`user_a.eq.${userId},user_b.eq.${userId}`),
+      .in('origin', ['qr_member', 'qr_scan'])
+      .or(`user_a.eq.${userId},user_b.eq.${userId}`)
+      .is('removed_at', null),
 
     // +2 per thank you received as facilitator
     admin.from('intro_requests')

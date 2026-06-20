@@ -30,19 +30,19 @@ export async function POST(request: NextRequest) {
   // Verify A↔B connection
   const [abA, abB] = [user.id, facilitatorId].sort()
   const { data: abConn } = await admin.from('connections')
-    .select('id').eq('user_a', abA).eq('user_b', abB).maybeSingle()
+    .select('id').eq('user_a', abA).eq('user_b', abB).is('removed_at', null).maybeSingle()
   if (!abConn) return NextResponse.json({ error: 'You are not connected to this facilitator' }, { status: 400 })
 
   // Verify B↔C connection
   const [bcA, bcB] = [facilitatorId, targetId].sort()
   const { data: bcConn } = await admin.from('connections')
-    .select('id').eq('user_a', bcA).eq('user_b', bcB).maybeSingle()
+    .select('id').eq('user_a', bcA).eq('user_b', bcB).is('removed_at', null).maybeSingle()
   if (!bcConn) return NextResponse.json({ error: 'Facilitator is not connected to the target' }, { status: 400 })
 
   // Verify A not already connected to C
   const [acA, acB] = [user.id, targetId].sort()
   const { data: acConn } = await admin.from('connections')
-    .select('id').eq('user_a', acA).eq('user_b', acB).maybeSingle()
+    .select('id').eq('user_a', acA).eq('user_b', acB).is('removed_at', null).maybeSingle()
   if (acConn) return NextResponse.json({ error: 'You are already connected to this person' }, { status: 400 })
 
   // No existing pending request

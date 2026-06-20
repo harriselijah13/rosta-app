@@ -22,7 +22,7 @@ export default async function ThreadPage({ params }: { params: { id: string } })
 
   const otherId = conv.user_a === user.id ? conv.user_b : conv.user_a
 
-  const [{ data: otherProfile }, { data: messages }, { data: outcome }, introRow] =
+  const [{ data: otherProfile }, { data: messages }, { data: outcome }, introRow, { data: connRow }] =
     await Promise.all([
       admin
         .from('profiles')
@@ -50,6 +50,12 @@ export default async function ThreadPage({ params }: { params: { id: string } })
           `and(requester_id.eq.${user.id},target_id.eq.${otherId}),and(requester_id.eq.${otherId},target_id.eq.${user.id})`,
         )
         .maybeSingle(),
+      // Check whether the underlying connection has been removed
+      admin
+        .from('connections')
+        .select('removed_at')
+        .or(`and(user_a.eq.${[user.id, otherId].sort()[0]},user_b.eq.${[user.id, otherId].sort()[1]})`)
+        .maybeSingle(),
     ])
 
   // Mark all unread messages in this thread as read
@@ -59,6 +65,8 @@ export default async function ThreadPage({ params }: { params: { id: string } })
     .eq('conversation_id', params.id)
     .neq('sender_id', user.id)
     .is('read_at', null)
+
+  const connectionRemoved = !!(connRow as { removed_at?: string | null } | null)?.removed_at
 
   return (
     <MessageThread
@@ -78,6 +86,7 @@ export default async function ThreadPage({ params }: { params: { id: string } })
       introRequestId={introRow.data?.id ?? null}
       facilitatorId={introRow.data?.facilitator_id ?? null}
       thankYouSent={!!introRow.data?.thank_you_at}
+      connectionRemoved={connectionRemoved}
     />
   )
 }

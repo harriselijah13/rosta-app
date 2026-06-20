@@ -31,6 +31,7 @@ type Props = {
   introRequestId: string | null
   facilitatorId: string | null
   thankYouSent: boolean
+  connectionRemoved?: boolean
 }
 
 function initials(p: OtherProfile) {
@@ -61,6 +62,7 @@ export default function MessageThread({
   introRequestId,
   facilitatorId,
   thankYouSent,
+  connectionRemoved = false,
 }: Props) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [input, setInput] = useState('')
@@ -220,39 +222,45 @@ export default function MessageThread({
         thankYouSent={thankYouSent}
       />
 
-      {/* Input */}
-      <form
-        onSubmit={send}
-        className="shrink-0 border-t border-border bg-white px-4 py-3 flex gap-3 items-end"
-      >
-        <textarea
-          ref={textareaRef}
-          className="flex-1 resize-none rounded-xl border border-border px-4 py-2.5 text-sm text-navy placeholder:text-body-grey focus:outline-none focus:border-navy bg-surface"
-          style={{ minHeight: '44px', maxHeight: '128px' }}
-          placeholder="Send a message…"
-          value={input}
-          rows={1}
-          onChange={e => {
-            setInput(e.target.value)
-            e.target.style.height = 'auto'
-            e.target.style.height = Math.min(e.target.scrollHeight, 128) + 'px'
-          }}
-          onKeyDown={e => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              send(e as unknown as React.FormEvent)
-            }
-          }}
-          maxLength={2000}
-        />
-        <button
-          type="submit"
-          disabled={!input.trim() || sending}
-          className="shrink-0 bg-lime text-navy font-semibold text-sm px-5 py-2.5 rounded-full disabled:opacity-40 hover:bg-lime/90 transition-colors"
+      {/* Composer — disabled when connection has been removed */}
+      {connectionRemoved ? (
+        <div className="shrink-0 border-t border-border bg-white px-4 py-3 text-center">
+          <p className="text-xs text-body-grey">This connection has ended.</p>
+        </div>
+      ) : (
+        <form
+          onSubmit={send}
+          className="shrink-0 border-t border-border bg-white px-4 py-3 flex gap-3 items-end"
         >
-          {sending ? '…' : 'Send'}
-        </button>
-      </form>
+          <textarea
+            ref={textareaRef}
+            className="flex-1 resize-none rounded-xl border border-border px-4 py-2.5 text-sm text-navy placeholder:text-body-grey focus:outline-none focus:border-navy bg-surface"
+            style={{ minHeight: '44px', maxHeight: '128px' }}
+            placeholder="Send a message…"
+            value={input}
+            rows={1}
+            onChange={e => {
+              setInput(e.target.value)
+              e.target.style.height = 'auto'
+              e.target.style.height = Math.min(e.target.scrollHeight, 128) + 'px'
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                send(e as unknown as React.FormEvent)
+              }
+            }}
+            maxLength={2000}
+          />
+          <button
+            type="submit"
+            disabled={!input.trim() || sending}
+            className="shrink-0 bg-lime text-navy font-semibold text-sm px-5 py-2.5 rounded-full disabled:opacity-40 hover:bg-lime/90 transition-colors"
+          >
+            {sending ? '…' : 'Send'}
+          </button>
+        </form>
+      )}
     </div>
   )
 }
