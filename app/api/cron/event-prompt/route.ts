@@ -15,7 +15,9 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient()
   const now = new Date()
-  const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
+  // Window: 12h–48h ago. Hobby plan allows only one cron per day (0 8 * * *),
+  // so the window is wider than the ideal 12-24h to ensure no tap-ins are missed.
+  const windowStart = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString()
   const windowEnd   = new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString()
 
   // Find attendances tapped in 12–24h ago that haven't been shown a prompt yet
