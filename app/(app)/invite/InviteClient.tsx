@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 type Code = {
   id: string
@@ -54,8 +54,18 @@ Your code: ${code}
 
 Join here: https://app.onrosta.com/join?code=${code}`
 
-  const [message, setMessage] = useState(defaultMessage)
-  const [toast, setToast]     = useState<string | null>(null)
+  const [message, setMessage]     = useState(defaultMessage)
+  const [toast, setToast]         = useState<string | null>(null)
+  const [showMessages, setShowMessages] = useState(false)
+
+  // Detect platforms that support sms: deep-links (iOS, macOS, Android).
+  // Hide the Messages button on Windows/Linux desktops where sms: does nothing.
+  useEffect(() => {
+    const ua = navigator.userAgent || ''
+    const isApple   = /iP(hone|od|ad)/i.test(ua) || /Mac OS X/i.test(ua)
+    const isAndroid = /Android/i.test(ua)
+    setShowMessages(isApple || isAndroid)
+  }, [])
 
   function showToast(msg: string) {
     setToast(msg)
@@ -108,8 +118,42 @@ Join here: https://app.onrosta.com/join?code=${code}`
           value={message}
           onChange={e => setMessage(e.target.value)}
           rows={7}
-          className="w-full border border-border rounded-xl px-4 py-3 text-sm text-navy bg-surface focus:outline-none focus:border-navy resize-none mb-5 leading-relaxed"
+          className="w-full border border-border rounded-xl px-4 py-3 text-sm text-navy bg-surface focus:outline-none focus:border-navy resize-none mb-4 leading-relaxed"
         />
+
+        {/* ── Channel deep-link buttons ── */}
+        <div className="mb-4">
+          <p
+            className="text-xs font-normal mb-2"
+            style={{ fontSize: 13, color: 'rgba(15,27,60,0.55)' }}
+          >
+            Send via
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(message)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-4 py-1.5 bg-navy text-warm-white text-sm font-medium rounded-full hover:bg-navy/85 transition-colors whitespace-nowrap"
+            >
+              WhatsApp
+            </a>
+            {showMessages && (
+              <a
+                href={`sms:?body=${encodeURIComponent(message)}`}
+                className="inline-flex items-center px-4 py-1.5 bg-navy text-warm-white text-sm font-medium rounded-full hover:bg-navy/85 transition-colors whitespace-nowrap"
+              >
+                Messages
+              </a>
+            )}
+            <a
+              href={`mailto:?subject=${encodeURIComponent("You're invited to ROSTA")}&body=${encodeURIComponent(message)}`}
+              className="inline-flex items-center px-4 py-1.5 bg-navy text-warm-white text-sm font-medium rounded-full hover:bg-navy/85 transition-colors whitespace-nowrap"
+            >
+              Email
+            </a>
+          </div>
+        </div>
 
         <div className="flex flex-col gap-3">
           <button
