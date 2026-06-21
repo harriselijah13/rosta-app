@@ -9,9 +9,10 @@ type Props = {
   profileSlug: string
   pendingIntros: number
   unreadMessages: number
+  availableInvites: number
 }
 
-export default function MobileNav({ profileSlug, pendingIntros, unreadMessages }: Props) {
+export default function MobileNav({ profileSlug, pendingIntros, unreadMessages, availableInvites }: Props) {
   const [open, setOpen]           = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [toast, setToast]         = useState<string | null>(null)
@@ -58,6 +59,12 @@ export default function MobileNav({ profileSlug, pendingIntros, unreadMessages }
               <span className="absolute -top-1.5 -right-3 w-4 h-4 rounded-full bg-lime text-navy text-[10px] font-bold flex items-center justify-center">
                 {pendingIntros}
               </span>
+            )}
+          </Link>
+          <Link href="/invite" className="relative text-sm text-body-grey hover:text-navy transition-colors">
+            Invite
+            {availableInvites > 0 && (
+              <span className="absolute -top-1 -right-2 w-1.5 h-1.5 rounded-full bg-navy/30" />
             )}
           </Link>
           <Link href="/messages" className="relative text-sm text-body-grey hover:text-navy transition-colors">
@@ -149,6 +156,16 @@ export default function MobileNav({ profileSlug, pendingIntros, unreadMessages }
                 <span className="w-5 h-5 rounded-full bg-lime text-navy text-[10px] font-bold flex items-center justify-center">
                   {pendingIntros}
                 </span>
+              )}
+            </Link>
+            <Link
+              href="/invite"
+              onClick={close}
+              className="py-3 text-sm font-medium text-navy border-b border-border flex items-center justify-between"
+            >
+              Invite
+              {availableInvites > 0 && (
+                <span className="w-1.5 h-1.5 rounded-full bg-navy/30 shrink-0" />
               )}
             </Link>
             <Link

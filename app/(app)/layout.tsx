@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const admin = createAdminClient()
   const now = new Date().toISOString()
 
-  const [{ count: pendingFacilitator }, { count: pendingOpenDoor }, { data: userConvs }] =
+  const [{ count: pendingFacilitator }, { count: pendingOpenDoor }, { data: userConvs }, { count: availableInvites }] =
     await Promise.all([
       admin.from('intro_requests')
         .select('id', { count: 'exact', head: true })
@@ -32,6 +32,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         .select('id', { count: 'exact', head: true })
         .eq('target_id', user.id).eq('type', 'open_door').eq('status', 'pending').gt('expires_at', now),
       admin.from('conversations').select('id').or(`user_a.eq.${user.id},user_b.eq.${user.id}`),
+      admin.from('invite_codes')
+        .select('id', { count: 'exact', head: true })
+        .eq('owner_id', user.id).eq('type', 'founding_invite').is('used_at', null),
     ])
 
   const pendingIntros = (pendingFacilitator ?? 0) + (pendingOpenDoor ?? 0)
@@ -59,6 +62,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         profileSlug={profile.username ?? user.id}
         pendingIntros={pendingIntros}
         unreadMessages={unreadMessages}
+        availableInvites={availableInvites ?? 0}
       />
       <div className="flex-1">{children}</div>
       <footer className="py-8 px-6 border-t border-border mt-12 text-center">
