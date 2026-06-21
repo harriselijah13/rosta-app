@@ -15,6 +15,8 @@ import NetworkPulseStats from './NetworkPulseStats'
 import SuggestIntroBlock from './SuggestIntroBlock'
 import MatchmakerCard, { type MatchPair } from './MatchmakerCard'
 import NetworkActivityList, { type ActivityItem } from './NetworkActivityList'
+import EventTapIn from './EventTapIn'
+import PostEventPrompt from './PostEventPrompt'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
 const TOTAL_BADGES = 14
@@ -141,6 +143,47 @@ export default async function DashboardPage() {
   ])
 
   const connectionIds = (myConnections ?? []).map(c => c.user_a === user.id ? c.user_b : c.user_a)
+
+  // ── Event attendance state ────────────────────────────────────────────────
+  const tapInCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+
+  const [
+    { data: activeEventPromptRow },
+    { data: recentTapInRow },
+  ] = await Promise.all([
+    // Active prompt: cron has set prompt_shown_at, member hasn't dismissed or completed yet
+    admin.from('event_attendances')
+      .select('id')
+      .eq('user_id', user.id)
+      .not('prompt_shown_at', 'is', null)
+      .is('completed_at', null)
+      .is('dismissed_at', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    // Recent tap-in: tapped in within 48h, prompt not yet shown
+    admin.from('event_attendances')
+      .select('id')
+      .eq('user_id', user.id)
+      .is('prompt_shown_at', null)
+      .is('dismissed_at', null)
+      .is('completed_at', null)
+      .gt('tapped_in_at', tapInCutoff)
+      .order('tapped_in_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
+
+  // Fetch available invite codes only when there's an active prompt
+  const { data: eventInviteCodes } = activeEventPromptRow
+    ? await admin.from('invite_codes')
+        .select('id, token')
+        .eq('owner_id', user.id)
+        .eq('type', 'founding_invite')
+        .is('used_at', null)
+        .order('created_at')
+        .limit(5)
+    : { data: [] as { id: string; token: string }[] }
 
   // A facilitated intro (created via "Suggest an intro") has facilitator_note set at creation.
   // A regular pending warm_intro has facilitator_note = null until the facilitator responds.
@@ -411,6 +454,14 @@ export default async function DashboardPage() {
       {/* ── Card content ── */}
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-10 space-y-6">
 
+        {/* ── Post-event capture prompt — sits above everything when active ── */}
+        {activeEventPromptRow && (
+          <PostEventPrompt
+            attendanceId={activeEventPromptRow.id}
+            availableCodes={eventInviteCodes ?? []}
+          />
+        )}
+
         {/* First-visit guide — new members only */}
         <div className="card-enter" style={{ animationDelay: '0.05s' }}>
           <FirstVisitGuide
@@ -656,6 +707,13 @@ export default async function DashboardPage() {
           <StatCard label="Connector Score"   value={connectorScore.total} href={`/profile/${profileSlugSelf}`} />
           <StatCard label="Outcomes this month" value={realOutcomes}       lime={realOutcomes > 0} />
         </div>
+
+        {/* ── At an event today? — quiet utility card, only when no active prompt ── */}
+        {!activeEventPromptRow && (
+          <div className="card-enter" style={{ animationDelay: '0.8s' }}>
+            <EventTapIn isTappedIn={!!recentTapInRow} />
+          </div>
+        )}
 
         {/* ── Empty state ── */}
         {!hasConnections && pendingActions.length === 0 && (
