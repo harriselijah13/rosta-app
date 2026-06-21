@@ -575,6 +575,13 @@ export default async function DashboardPage() {
           </section>
         )}
 
+        {/* ── At a networking event today? — action zone, only when no active prompt ── */}
+        {!activeEventPromptRow && (
+          <div className="card-enter" style={{ animationDelay: '0.25s' }}>
+            <EventTapIn isTappedIn={!!recentTapInRow} />
+          </div>
+        )}
+
         {/* ── Signals (merged with nudge) ── */}
         {mySignals ? (
           <div
@@ -707,13 +714,6 @@ export default async function DashboardPage() {
           <StatCard label="Connector Score"   value={connectorScore.total} href={`/profile/${profileSlugSelf}`} />
           <StatCard label="Outcomes this month" value={realOutcomes}       lime={realOutcomes > 0} />
         </div>
-
-        {/* ── At an event today? — quiet utility card, only when no active prompt ── */}
-        {!activeEventPromptRow && (
-          <div className="card-enter" style={{ animationDelay: '0.8s' }}>
-            <EventTapIn isTappedIn={!!recentTapInRow} />
-          </div>
-        )}
 
         {/* ── Empty state ── */}
         {!hasConnections && pendingActions.length === 0 && (

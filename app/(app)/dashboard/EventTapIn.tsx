@@ -26,12 +26,12 @@ export default function EventTapIn({ isTappedIn: initialTappedIn }: Props) {
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
           <p className="text-sm font-medium text-navy">
-            {tappedIn ? 'You\'re tapped in.' : 'At an event today?'}
+            {tappedIn ? 'You\'re tapped in.' : 'At a networking event today?'}
           </p>
           <p className="text-xs mt-0.5" style={{ color: 'rgba(107,114,128,0.65)' }}>
             {tappedIn
-              ? 'We\'ll surface a capture prompt tomorrow.'
-              : 'Capture people you meet — we\'ll help you invite them tomorrow.'}
+              ? 'We\'ll prompt you to capture names tomorrow.'
+              : 'Tap in to remember who you met. We\'ll help you turn the right conversations into connections.'}
           </p>
         </div>
         {!tappedIn && (
