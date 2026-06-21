@@ -17,7 +17,6 @@ export default async function InvitePage() {
     .eq('id', user.id)
     .single()
 
-  // Auto-generate codes for founding members
   if (profile?.founding_member) {
     await ensureInviteCodes(user.id)
   }
@@ -52,18 +51,11 @@ export default async function InvitePage() {
   const redeemedCount  = codes.filter(c => c.used_at).length
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
-      <h1 className="font-display text-4xl font-black text-navy mb-2">Invite</h1>
-      <p className="text-sm mb-8" style={{ color: 'rgba(15,27,60,0.65)' }}>
-        Bring people you trust into your network. Each invite uses one of your codes.
-      </p>
-
-      <InviteClient
-        codes={codes}
-        availableCount={availableCount}
-        redeemedCount={redeemedCount}
-        memberFirstName={profile?.first_name ?? 'A ROSTA member'}
-      />
-    </div>
+    <InviteClient
+      codes={codes}
+      availableCount={availableCount}
+      redeemedCount={redeemedCount}
+      memberFirstName={profile?.first_name ?? 'A ROSTA member'}
+    />
   )
 }

@@ -16,6 +16,29 @@ type Props = {
   memberFirstName: string
 }
 
+// ── Drift dot config ──────────────────────────────────────────────────────────
+
+type DotConfig = {
+  style: React.CSSProperties
+  dur: string
+  delay: string
+  desktopOnly?: boolean
+}
+
+const DRIFT_DOTS: DotConfig[] = [
+  { style: { top: '12%',  left: '6%'   }, dur: '5.2s', delay: '0s'   },
+  { style: { top: '18%',  right: '10%' }, dur: '6.1s', delay: '1.3s' },
+  { style: { top: '55%',  left: '4%'   }, dur: '4.8s', delay: '2.7s' },
+  { style: { top: '40%',  right: '6%'  }, dur: '5.5s', delay: '0.6s' },
+  { style: { top: '70%',  left: '18%'  }, dur: '7.0s', delay: '3.4s', desktopOnly: true },
+  { style: { bottom: '15%', right: '14%' }, dur: '5.8s', delay: '1.8s', desktopOnly: true },
+  { style: { top: '70%',  left: '55%'  }, dur: '5.0s', delay: '2.2s', desktopOnly: true },
+  { style: { top: '25%',  left: '42%'  }, dur: '6.3s', delay: '1.0s', desktopOnly: true },
+  { style: { bottom: '35%', right: '30%' }, dur: '4.7s', delay: '3.8s', desktopOnly: true },
+]
+
+// ── Share modal (unchanged) ───────────────────────────────────────────────────
+
 function ShareModal({
   code,
   memberFirstName,
@@ -32,7 +55,7 @@ Your code: ${code}
 Join here: https://app.onrosta.com/join?code=${code}`
 
   const [message, setMessage] = useState(defaultMessage)
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast]     = useState<string | null>(null)
 
   function showToast(msg: string) {
     setToast(msg)
@@ -46,7 +69,7 @@ Join here: https://app.onrosta.com/join?code=${code}`
         showToast('Shared.')
         setTimeout(onClose, 400)
       } catch {
-        // user cancelled — no toast needed
+        // user cancelled
       }
     } else {
       await handleCopy()
@@ -58,7 +81,6 @@ Join here: https://app.onrosta.com/join?code=${code}`
       await navigator.clipboard.writeText(message)
       showToast('Copied.')
     } catch {
-      // fallback: select the textarea
       const el = document.getElementById('invite-message-textarea') as HTMLTextAreaElement | null
       el?.select()
     }
@@ -120,18 +142,73 @@ Join here: https://app.onrosta.com/join?code=${code}`
   )
 }
 
+// ── How it works expandable ───────────────────────────────────────────────────
+
+function HowItWorks() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-2 text-sm font-medium transition-colors"
+        style={{ color: 'rgba(15,27,60,0.70)' }}
+      >
+        <span>How invite codes work</span>
+        <svg
+          className="w-4 h-4 transition-transform duration-200"
+          style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="mt-4 space-y-3">
+          <p className="text-sm leading-relaxed" style={{ color: 'rgba(15,27,60,0.70)' }}>
+            Each code can be used once. When someone joins with your code, you&apos;re
+            credited as their inviter.
+          </p>
+          <p className="text-sm leading-relaxed" style={{ color: 'rgba(15,27,60,0.70)' }}>
+            New codes are awarded as you contribute to the network — make a warm intro,
+            reach a Connector milestone, or help an Open Table conversation along.
+          </p>
+          <p className="text-sm leading-relaxed" style={{ color: 'rgba(15,27,60,0.70)' }}>
+            Codes don&apos;t expire.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
 export default function InviteClient({ codes, availableCount, redeemedCount, memberFirstName }: Props) {
-  const [shareCode, setShareCode] = useState<string | null>(null)
+  const [shareCode,  setShareCode]  = useState<string | null>(null)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
   const available = codes.filter(c => !c.used_at)
   const used      = codes.filter(c => c.used_at)
+  const hasAny    = codes.length > 0
 
   async function copyCode(token: string) {
     await navigator.clipboard.writeText(token)
     setCopiedCode(token)
     setTimeout(() => setCopiedCode(null), 2000)
   }
+
+  const heroHeadline = availableCount > 0
+    ? `You have ${availableCount} invite ${availableCount === 1 ? 'code' : 'codes'}.`
+    : 'No invite codes right now.'
+
+  const heroSubhead = availableCount > 0
+    ? 'Bring people you trust into your network.'
+    : 'New codes are awarded as you contribute to the network.'
 
   return (
     <>
@@ -143,61 +220,127 @@ export default function InviteClient({ codes, availableCount, redeemedCount, mem
         />
       )}
 
-      {availableCount > 0 ? (
-        <p className="text-sm text-body-grey mb-6">
-          You have {availableCount} invite {availableCount === 1 ? 'code' : 'codes'} available.
-        </p>
-      ) : (
-        <p className="text-sm text-body-grey mb-6">You have no invite codes available right now.</p>
-      )}
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6 pb-16">
 
-      {codes.length === 0 ? (
-        <div className="bg-white border border-border rounded-2xl p-8">
-          <p className="text-sm text-navy leading-relaxed">
-            You don&apos;t have any invite codes right now. New codes are awarded as you contribute to the network — make a warm intro, reach a new Connector milestone, or help an Open Table conversation along.
-          </p>
+        {/* ── Section 1: Navy hero block ── */}
+        <div className="relative bg-navy rounded-[20px] overflow-hidden mb-12">
+
+          {/* Ambient drift dots */}
+          <div aria-hidden="true" className="absolute inset-0 pointer-events-none select-none">
+            {DRIFT_DOTS.map((dot, i) => (
+              <div
+                key={i}
+                aria-hidden="true"
+                className={`absolute rounded-full network-node${dot.desktopOnly ? ' hidden sm:block' : ''}`}
+                style={{
+                  ...dot.style,
+                  width: 3,
+                  height: 3,
+                  backgroundColor: 'rgba(245,242,238,0.06)',
+                  '--node-duration': dot.dur,
+                  '--node-delay':    dot.delay,
+                } as React.CSSProperties}
+              />
+            ))}
+          </div>
+
+          <div className="relative z-10 px-8 sm:px-12 py-14 sm:py-16 text-center">
+            <p
+              className="font-display font-medium italic mb-4"
+              style={{ fontSize: 14, color: 'rgba(245,242,238,0.65)' }}
+            >
+              Invite
+            </p>
+            <h1
+              className="font-display font-black text-warm-white leading-tight mb-3"
+              style={{ fontSize: 'clamp(1.75rem, 5vw, 2.5rem)' }}
+            >
+              {heroHeadline}
+            </h1>
+            <p style={{ fontSize: 16, color: 'rgba(245,242,238,0.55)' }}>
+              {heroSubhead}
+            </p>
+          </div>
         </div>
-      ) : (
-        <div className="bg-white border border-border rounded-2xl divide-y divide-border overflow-hidden">
-          {available.map(code => (
-            <div key={code.id} className="flex items-center justify-between gap-4 px-5 py-4">
-              <span className="font-mono text-sm font-semibold tracking-widest text-navy">
-                {code.token}
-              </span>
-              <div className="flex items-center gap-4 shrink-0">
-                <button
-                  onClick={() => setShareCode(code.token)}
-                  className="text-sm font-medium bg-navy text-warm-white px-4 py-1.5 rounded-full hover:bg-navy/90 transition-colors"
-                >
-                  Share invite
-                </button>
-                <button
-                  onClick={() => copyCode(code.token)}
-                  className="text-xs text-body-grey/60 hover:text-body-grey transition-colors"
-                >
-                  {copiedCode === code.token ? 'Copied' : 'Copy code only'}
-                </button>
+
+        {/* ── Section 2: Codes card ── */}
+        {hasAny ? (
+          <div className="bg-white border border-border rounded-2xl shadow-[0_4px_16px_rgba(15,27,60,0.06)] overflow-hidden">
+
+            {available.map((code, i) => (
+              <div
+                key={code.id}
+                className={`flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4 hover:bg-[#F7F5F2] transition-colors${
+                  i < available.length - 1 || used.length > 0 ? ' border-b border-[#E5E1DB]' : ''
+                }`}
+              >
+                <span className="font-mono text-base font-semibold tracking-widest text-navy">
+                  {code.token}
+                </span>
+                <div className="flex items-center gap-4 sm:ml-auto shrink-0">
+                  <button
+                    onClick={() => setShareCode(code.token)}
+                    className="text-sm font-medium bg-navy text-warm-white px-4 py-1.5 rounded-full hover:bg-navy/90 transition-colors whitespace-nowrap"
+                  >
+                    Share invite
+                  </button>
+                  <button
+                    onClick={() => copyCode(code.token)}
+                    className="text-xs font-medium whitespace-nowrap transition-colors"
+                    style={{
+                      color: copiedCode === code.token
+                        ? 'rgba(15,27,60,0.85)'
+                        : 'rgba(15,27,60,0.45)',
+                    }}
+                  >
+                    {copiedCode === code.token ? 'Copied' : 'Copy code only'}
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-          {used.map(code => (
-            <div key={code.id} className="flex items-center justify-between gap-4 px-5 py-4 bg-surface">
-              <span className="font-mono text-sm font-semibold tracking-widest text-body-grey line-through">
-                {code.token}
-              </span>
-              <span className="text-xs text-body-grey shrink-0">
-                Used{code.usedByName ? ` by ${code.usedByName}` : ''}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
 
-      {redeemedCount > 0 && (
-        <p className="text-xs mt-6" style={{ color: 'rgba(15,27,60,0.50)' }}>
-          Your invites have led to {redeemedCount} {redeemedCount === 1 ? 'member' : 'members'} joining ROSTA.
-        </p>
-      )}
+            {used.map((code, i) => (
+              <div
+                key={code.id}
+                className={`flex items-center justify-between gap-4 px-5 py-4 bg-surface${
+                  i < used.length - 1 ? ' border-b border-[#E5E1DB]' : ''
+                }`}
+              >
+                <span className="font-mono text-base font-semibold tracking-widest text-body-grey line-through">
+                  {code.token}
+                </span>
+                <span className="text-xs text-body-grey shrink-0">
+                  Used{code.usedByName ? ` by ${code.usedByName}` : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Empty state — no card, plain centred text */
+          <p
+            className="text-center leading-relaxed px-4"
+            style={{ fontSize: 16, color: 'rgba(15,27,60,0.55)' }}
+          >
+            Make a warm intro, reach a Connector milestone, or help an Open Table
+            conversation along, and a new code will be ready for you here.
+          </p>
+        )}
+
+        {/* ── Section 3: Impact line + how it works ── */}
+        <div className="mt-8 space-y-6">
+          {redeemedCount > 0 && (
+            <p
+              className="text-sm text-center"
+              style={{ color: 'rgba(15,27,60,0.45)' }}
+            >
+              Your invites have led to {redeemedCount} {redeemedCount === 1 ? 'member' : 'members'} joining ROSTA.
+            </p>
+          )}
+
+          <HowItWorks />
+        </div>
+
+      </div>
     </>
   )
 }
