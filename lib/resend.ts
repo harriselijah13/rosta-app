@@ -441,6 +441,27 @@ export function eventReportEmail(
   )
 }
 
+// ── Post-event capture reminder ───────────────────────────────────────────────
+
+export function eventCaptureReminderEmail(memberName: string): string {
+  const body = [
+    `Hi ${memberName},`,
+    '',
+    'You tapped in yesterday at an event. The conversations are still fresh — but won\'t be by next week.',
+    '',
+    'Open ROSTA and capture the names of anyone you\'d want on the platform. We\'ll help you send each one a tailored invite.',
+    '',
+    'No rush, no quota. Just the ones worth following up with.',
+  ].join('\n')
+  return wrap(
+    'Yesterday at the event',
+    body,
+    'Capture names',
+    `${BASE}/dashboard`,
+    { preLineBody: true },
+  )
+}
+
 // ── Admin email blast (free-text body — HTML-escaped) ─────────────────────────
 
 export function adminEmailHtml(subject: string, body: string): string {

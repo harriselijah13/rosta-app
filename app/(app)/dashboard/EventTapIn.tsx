@@ -25,14 +25,25 @@ export default function EventTapIn({ isTappedIn: initialTappedIn }: Props) {
     <div className="bg-white border border-border rounded-2xl px-5 py-4">
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-navy">
-            {tappedIn ? 'You\'re tapped in.' : 'At a networking event today?'}
-          </p>
-          <p className="text-xs mt-0.5" style={{ color: 'rgba(107,114,128,0.65)' }}>
-            {tappedIn
-              ? 'We\'ll prompt you to capture names tomorrow.'
-              : 'Tap in to remember who you met. We\'ll help you turn the right conversations into connections.'}
-          </p>
+          {tappedIn ? (
+            <>
+              <p className="text-base font-semibold text-navy">
+                You&apos;re tapped in.
+              </p>
+              <p className="text-sm mt-1" style={{ color: 'rgba(15,27,60,0.70)' }}>
+                Tomorrow morning we&apos;ll nudge you with the names worth following up on.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-navy">
+                At a networking event today?
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: 'rgba(107,114,128,0.65)' }}>
+                Tap in to remember who you met. We&apos;ll help you turn the right conversations into connections.
+              </p>
+            </>
+          )}
         </div>
         {!tappedIn && (
           <button
