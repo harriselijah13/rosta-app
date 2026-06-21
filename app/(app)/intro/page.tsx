@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
+import type { CSSProperties } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import InvitePanel from './InvitePanel'
 import MarkVisited from './MarkVisited'
 import { IntroCardDismissable } from './IntroCardDismissable'
 
@@ -47,9 +47,9 @@ function StatusPill({ status, expiresAt }: { status: string; expiresAt: string }
   const isExpired = status === 'pending' && new Date(expiresAt) < new Date()
   const effective = isExpired ? 'expired' : status
   const map: Record<string, string> = {
-    pending:  'bg-amber-50 text-amber-700 border-amber-200',
-    accepted: 'bg-green-50 text-green-700 border-green-200',
-    declined: 'bg-red-50 text-red-600 border-red-200',
+    pending:  'bg-surface text-body-grey border-border',
+    accepted: 'bg-lime/10 border-lime/40 text-navy',
+    declined: 'bg-surface text-body-grey border-border',
     expired:  'bg-surface text-body-grey border-border',
   }
   const labels: Record<string, string> = {
@@ -62,58 +62,23 @@ function StatusPill({ status, expiresAt }: { status: string; expiresAt: string }
   )
 }
 
-function CreditsCard({ balance, lifetimeEarned }: { balance: number; lifetimeEarned: number }) {
-  const pillColor =
-    balance === 0 ? 'bg-red-50 text-red-600 border-red-200'
-    : balance === 1 ? 'bg-amber-50 text-amber-700 border-amber-200'
-    : 'bg-green-50 text-green-700 border-green-200'
+// ── Ambient drift dots ────────────────────────────────────────────────────────
 
-  const barFilled = Math.min(balance, 3)
+type DotConfig = { style: CSSProperties; dur: string; delay: string }
 
-  return (
-    <div className="bg-white border border-border rounded-2xl p-5 mb-8">
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div>
-          <h2 className="font-display text-base font-bold text-navy">Intro Credits</h2>
-          <p className="text-xs text-body-grey mt-0.5">
-            Resets {nextResetDate()}
-            {lifetimeEarned > 0 && (
-              <span className="ml-2 text-body-grey">
-                · {lifetimeEarned} earned lifetime
-              </span>
-            )}
-          </p>
-        </div>
-        <span className={`shrink-0 text-sm font-bold px-3 py-1 rounded-full border ${pillColor}`}>
-          {balance} {balance === 1 ? 'credit' : 'credits'}
-        </span>
-      </div>
+const DRIFT_DOTS: DotConfig[] = [
+  { style: { top: '12%',    left:  '6%'   }, dur: '5.2s', delay: '0s'   },
+  { style: { top: '18%',    right: '10%'  }, dur: '6.1s', delay: '1.3s' },
+  { style: { top: '55%',    left:  '4%'   }, dur: '4.8s', delay: '2.7s' },
+  { style: { top: '40%',    right: '6%'   }, dur: '5.5s', delay: '0.6s' },
+  { style: { top: '70%',    left:  '18%'  }, dur: '7.0s', delay: '3.4s' },
+  { style: { bottom: '15%', right: '14%'  }, dur: '5.8s', delay: '1.8s' },
+  { style: { top: '70%',    left:  '55%'  }, dur: '5.0s', delay: '2.2s' },
+  { style: { top: '25%',    left:  '42%'  }, dur: '6.3s', delay: '1.0s' },
+  { style: { bottom: '35%', right: '30%'  }, dur: '4.7s', delay: '3.8s' },
+]
 
-      {/* Bar visualisation — 3 segments for monthly allocation */}
-      <div className="flex gap-1.5 mb-3">
-        {[0, 1, 2].map(i => (
-          <div
-            key={i}
-            className={`h-1.5 flex-1 rounded-full transition-colors ${
-              i < barFilled ? 'bg-navy' : 'bg-border'
-            }`}
-          />
-        ))}
-      </div>
-      {balance > 3 && (
-        <p className="text-xs text-body-grey mb-2">
-          +{balance - 3} bonus from facilitations
-        </p>
-      )}
-
-      <p className="text-xs text-body-grey">
-        {balance === 0
-          ? 'Out of credits — facilitate an intro for someone to earn one back.'
-          : 'Each warm intro request costs 1 credit. Earn one back by facilitating an intro.'}
-      </p>
-    </div>
-  )
-}
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function IntroInboxPage() {
   const supabase = createClient()
@@ -125,7 +90,6 @@ export default async function IntroInboxPage() {
 
   const lastIntroVisit = cookies().get('intro-last-visited')?.value ?? new Date(0).toISOString()
 
-  // Fetch intro requests, credits, invite codes, and conversations in parallel
   const [{ data: rows }, { data: creditsRow }, { data: rawCodes }, { data: userConvs }] = await Promise.all([
     admin
       .from('intro_requests')
@@ -150,25 +114,23 @@ export default async function IntroInboxPage() {
   ])
 
   const inviteCodes = (rawCodes ?? []).map(c => ({
-    id: c.id as string,
-    token: c.token as string,
-    used_at: c.used_at as string | null,
+    id:                 c.id as string,
+    token:              c.token as string,
+    used_at:            c.used_at as string | null,
     reserved_for_email: (c as Record<string, unknown>).reserved_for_email as string | null ?? null,
   }))
 
-  // Lazy monthly reset: if no row or period changed, balance is 3
-  const isNewPeriod = !creditsRow || creditsRow.period !== period
-  const balance = isNewPeriod ? 3 : creditsRow.balance
-  const lifetimeEarned = creditsRow?.lifetime_earned ?? 0
+  const isNewPeriod         = !creditsRow || creditsRow.period !== period
+  const balance             = isNewPeriod ? 3 : creditsRow.balance
+  const lifetimeEarned      = creditsRow?.lifetime_earned ?? 0
+  const availableInviteCount = inviteCodes.filter(c => !c.used_at).length
 
   const allRows = (rows ?? []) as IntroRow[]
 
-  // Conversations keyed by the other participant's ID
   const convByPartner = Object.fromEntries(
     (userConvs ?? []).map(c => [c.user_a === user.id ? c.user_b : c.user_a, c.id])
   )
 
-  // Accepted requests the viewer initiated, not yet seen (responded after last /intro visit)
   const acceptedUnseen = allRows.filter(r =>
     r.requester_id === user.id &&
     r.status === 'accepted' &&
@@ -189,7 +151,7 @@ export default async function IntroInboxPage() {
 
   const pending = allRows.filter(r =>
     r.status === 'pending' && new Date(r.expires_at) > new Date() && (
-      (r.type === 'open_door' && r.target_id === user.id) ||
+      (r.type === 'open_door'  && r.target_id     === user.id) ||
       (r.type === 'warm_intro' && r.facilitator_id === user.id)
     )
   )
@@ -200,42 +162,24 @@ export default async function IntroInboxPage() {
     r.target_id === user.id && r.type !== 'warm_intro' && !r.dismissed_by_recipient_at
   )
 
-  function IntroCard({ row, outgoing = false }: { row: IntroRow; outgoing?: boolean }) {
-    const label = timeLabel(row.expires_at, row.status)
-
-    let headline: string
-    let subline: string | null = null
-
-    if (outgoing) {
-      // Current user is the requester — name the recipient
-      headline = row.type === 'open_door'
-        ? `Request to connect with ${name(row.target_id)}`
-        : `Intro request to ${name(row.target_id)}`
-      if (row.type === 'warm_intro' && row.facilitator_id) {
-        subline = `via ${name(row.facilitator_id)}`
-      }
-    } else {
-      // Current user is responding (facilitator/target) or viewing intros directed at them
-      headline = row.type === 'open_door'
-        ? `${name(row.requester_id)} wants to connect`
-        : `${name(row.requester_id)} → ${name(row.target_id)}`
-      if (row.type === 'warm_intro' && row.facilitator_id) {
-        subline = `via ${name(row.facilitator_id)}`
-      }
-      if (row.type === 'open_door') {
-        subline = 'Open Door'
-      }
-    }
+  function IntroCard({ row }: { row: IntroRow }) {
+    const label   = timeLabel(row.expires_at, row.status)
+    const headline = row.type === 'open_door'
+      ? `${name(row.requester_id)} wants to connect`
+      : `${name(row.requester_id)} → ${name(row.target_id)}`
+    const subline = row.type === 'warm_intro' && row.facilitator_id
+      ? `via ${name(row.facilitator_id)}`
+      : row.type === 'open_door' ? 'Open Door' : null
 
     return (
       <Link
         href={`/intro/${row.id}`}
-        className="flex items-start justify-between gap-4 p-4 rounded-xl border border-border hover:border-navy/30 hover:bg-surface/50 transition-all"
+        className="flex items-start justify-between gap-4 px-5 py-4 hover:bg-surface/50 transition-colors"
       >
         <div className="min-w-0">
           <p className="text-sm font-medium text-navy">{headline}</p>
           {subline && <p className="text-xs text-body-grey mt-0.5">{subline}</p>}
-          {label && <p className="text-xs text-body-grey mt-1">{label}</p>}
+          {label   && <p className="text-xs text-body-grey mt-1">{label}</p>}
         </div>
         <StatusPill status={row.status} expiresAt={row.expires_at} />
       </Link>
@@ -243,23 +187,113 @@ export default async function IntroInboxPage() {
   }
 
   const isEmpty = allRows.length === 0
+  const barFilled = Math.min(balance, 3)
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-10">
-      <h1 className="font-display text-4xl font-bold text-navy mb-8">Intros</h1>
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6 pb-16">
 
-      <CreditsCard balance={balance} lifetimeEarned={lifetimeEarned} />
+      {/* ── Section 1: Navy hero block ── */}
+      <div className="relative bg-navy rounded-[20px] overflow-hidden mb-4">
+        <div aria-hidden="true" className="absolute inset-0 pointer-events-none select-none">
+          {DRIFT_DOTS.map((dot, i) => (
+            <div
+              key={i}
+              aria-hidden="true"
+              className="absolute rounded-full network-node"
+              style={{
+                ...dot.style,
+                width:             3,
+                height:            3,
+                backgroundColor:   'rgba(245,242,238,0.06)',
+                '--node-duration': dot.dur,
+                '--node-delay':    dot.delay,
+              } as CSSProperties}
+            />
+          ))}
+        </div>
 
-      <InvitePanel codes={inviteCodes} />
+        <div className="relative z-10 px-8 sm:px-12 py-12 sm:py-14 text-center">
+          <p
+            className="font-display font-medium italic mb-4"
+            style={{ fontSize: 14, color: 'rgba(245,242,238,0.65)' }}
+          >
+            Intro Credits
+          </p>
+          <h1
+            className="font-display font-black text-warm-white leading-tight mb-2"
+            style={{ fontSize: 'clamp(1.75rem, 5vw, 2.5rem)' }}
+          >
+            {balance} {balance === 1 ? 'credit' : 'credits'}
+          </h1>
+          <p style={{ fontSize: 15, color: 'rgba(245,242,238,0.55)' }}>
+            Resets {nextResetDate()}
+            {lifetimeEarned > 0 && (
+              <> · {lifetimeEarned} earned lifetime</>
+            )}
+          </p>
 
-      {/* Accepted-unseen banners — clears on next visit via MarkVisited cookie action */}
+          {/* Progress bars */}
+          <div className="flex gap-1.5 mt-6 mx-auto" style={{ maxWidth: 160 }}>
+            {[0, 1, 2].map(i => (
+              <div
+                key={i}
+                className="h-1.5 flex-1 rounded-full transition-colors"
+                style={{ backgroundColor: i < barFilled ? '#C8F53C' : 'rgba(245,242,238,0.18)' }}
+              />
+            ))}
+          </div>
+
+          {balance > 3 && (
+            <p className="mt-2" style={{ fontSize: 13, color: 'rgba(245,242,238,0.60)' }}>
+              +{balance - 3} bonus from facilitations
+            </p>
+          )}
+
+          <p className="mt-3" style={{ fontSize: 14, color: 'rgba(245,242,238,0.50)' }}>
+            {balance === 0
+              ? 'Out of credits — facilitate an intro to earn one back.'
+              : 'Each warm intro request costs 1 credit. Earn one back by facilitating an intro.'}
+          </p>
+        </div>
+      </div>
+
+      {/* ── Section 2: Contextual invite shortcut ── */}
+      <div
+        className="rounded-xl px-5 py-4 mb-10 flex items-center justify-between gap-4"
+        style={{ backgroundColor: '#0F1B3C' }}
+      >
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-warm-white">
+            {availableInviteCount > 0 ? 'Need to bring someone new in?' : 'Want to invite someone?'}
+          </p>
+          <p className="mt-0.5" style={{ fontSize: 13, color: 'rgba(245,242,238,0.55)' }}>
+            {availableInviteCount > 0
+              ? `You have ${availableInviteCount} invite ${availableInviteCount === 1 ? 'code' : 'codes'} ready.`
+              : 'New codes are awarded as you contribute to the network.'}
+          </p>
+        </div>
+        <Link
+          href="/invite"
+          className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold text-navy bg-lime px-4 py-1.5 rounded-full hover:bg-lime/90 transition-colors whitespace-nowrap"
+        >
+          Invite
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
+      </div>
+
+      {/* ── Accepted-unseen banners ── */}
       {acceptedUnseen.length > 0 && (
         <div className="mb-6 space-y-2">
           {acceptedUnseen.map(r => {
             const connectedName = name(r.target_id)
-            const convId = convByPartner[r.target_id]
+            const convId        = convByPartner[r.target_id]
             return (
-              <div key={r.id} className="flex items-center justify-between gap-4 bg-lime/10 border border-lime/40 rounded-xl px-5 py-3.5">
+              <div
+                key={r.id}
+                className="flex items-center justify-between gap-4 bg-lime/10 border border-lime/40 rounded-xl px-5 py-3.5"
+              >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="w-2 h-2 rounded-full bg-lime shrink-0" />
                   <p className="text-sm font-medium text-navy truncate">
@@ -285,27 +319,53 @@ export default async function IntroInboxPage() {
 
       <MarkVisited />
 
-      {/* Suggest an intro CTA */}
-      <div className="mb-8 bg-white border border-border rounded-2xl p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="font-display text-base font-bold text-navy">Suggest an intro</h2>
-            <p className="text-sm text-body-grey mt-0.5">Know two people who should meet? Introduce them.</p>
+      {/* ── Needs your response ── */}
+      {pending.length > 0 && (
+        <section className="mb-8">
+          <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-[0_4px_16px_rgba(15,27,60,0.06)]">
+            <div className="px-6 pt-5 pb-4 border-b border-border">
+              <h2 className="font-display text-lg font-bold text-navy">
+                Needs your response
+              </h2>
+              <p className="text-sm text-body-grey mt-0.5">
+                {pending.length === 1 ? '1 request' : `${pending.length} requests`} waiting.
+              </p>
+            </div>
+            <div className="divide-y divide-border">
+              {pending.map(r => <IntroCard key={r.id} row={r} />)}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Section 3: Suggest an intro ── */}
+      <div className="bg-white border border-border rounded-2xl p-6 mb-8 shadow-[0_4px_16px_rgba(15,27,60,0.06)] hover:shadow-[0_6px_20px_rgba(15,27,60,0.09)] transition-shadow">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="font-display text-xl font-bold text-navy mb-1">Suggest an intro</h2>
+            <p className="text-sm text-body-grey">
+              Know two people who should meet? Introduce them.
+            </p>
           </div>
           <Link
             href="/intro/suggest"
-            className="shrink-0 text-sm font-medium bg-navy text-warm-white px-4 py-2 rounded-full hover:bg-navy/90 transition-colors"
+            className="shrink-0 text-sm font-medium bg-navy text-warm-white px-4 py-2 rounded-full hover:bg-navy/90 transition-colors mt-0.5"
           >
             Suggest
           </Link>
         </div>
       </div>
 
+      {/* ── Sections 4 & 5, or empty state ── */}
       {isEmpty ? (
-        <div className="bg-white border border-border rounded-2xl p-8">
+        <div className="bg-white border border-border rounded-2xl p-6 shadow-[0_4px_16px_rgba(15,27,60,0.06)]">
           <h2 className="font-display text-xl font-bold text-navy mb-3">How introductions work</h2>
           <p className="text-sm text-body-grey leading-relaxed mb-5">
-            You can request a warm introduction to any member you share a mutual connection with. Your mutual connection gets asked if they&apos;re willing to facilitate — they write a short note putting you both in context, and the introduction is made. You have 3 intro credits per month. You earn one back each time you facilitate an intro for someone else. Cold connect buttons don&apos;t exist here.
+            You can request a warm introduction to any member you share a mutual connection with.
+            Your mutual connection gets asked if they&apos;re willing to facilitate — they write a short
+            note putting you both in context, and the introduction is made. You have 3 intro credits
+            per month. You earn one back each time you facilitate an intro for someone else. Cold
+            connect buttons don&apos;t exist here.
           </p>
           <Link
             href="/members"
@@ -316,70 +376,77 @@ export default async function IntroInboxPage() {
         </div>
       ) : (
         <div className="space-y-8">
-          {pending.length > 0 && (
-            <section>
-              <h2 className="font-display text-lg font-bold text-navy mb-3">
-                Needs your response <span className="text-navy">({pending.length})</span>
-              </h2>
-              <div className="bg-white border border-border rounded-2xl divide-y divide-border overflow-hidden">
-                {pending.map(r => <IntroCard key={r.id} row={r} />)}
-              </div>
-            </section>
-          )}
 
+          {/* Section 4: Your requests */}
           {mine.length > 0 && (
             <section>
-              <h2 className="font-display text-lg font-bold text-navy mb-3">Your requests</h2>
-              <div className="bg-white border border-border rounded-2xl divide-y divide-border overflow-hidden">
-                {mine.map(r => {
-                  const headline = r.type === 'open_door'
-                    ? `Request to connect with ${name(r.target_id)}`
-                    : `Intro request to ${name(r.target_id)}`
-                  const subline = r.type === 'warm_intro' && r.facilitator_id
-                    ? `via ${name(r.facilitator_id)}`
-                    : null
-                  const isExpiredRow = r.status === 'pending' && new Date(r.expires_at) < new Date()
-                  return (
-                    <IntroCardDismissable
-                      key={r.id}
-                      id={r.id}
-                      headline={headline}
-                      subline={subline}
-                      label={timeLabel(r.expires_at, r.status)}
-                      status={r.status}
-                      expiresAt={r.expires_at}
-                      canResend={isExpiredRow && !r.resent_at}
-                    />
-                  )
-                })}
+              <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-[0_4px_16px_rgba(15,27,60,0.06)]">
+                <div className="px-6 pt-5 pb-4 border-b border-border">
+                  <h2 className="font-display text-lg font-bold text-navy">Your requests</h2>
+                  <p className="text-sm text-body-grey mt-0.5">
+                    Intros you&apos;ve requested or set up.
+                  </p>
+                </div>
+                <div className="divide-y divide-border">
+                  {mine.map(r => {
+                    const headline    = r.type === 'open_door'
+                      ? `Request to connect with ${name(r.target_id)}`
+                      : `Intro request to ${name(r.target_id)}`
+                    const subline     = r.type === 'warm_intro' && r.facilitator_id
+                      ? `via ${name(r.facilitator_id)}`
+                      : null
+                    const isExpiredRow = r.status === 'pending' && new Date(r.expires_at) < new Date()
+                    return (
+                      <IntroCardDismissable
+                        key={r.id}
+                        id={r.id}
+                        headline={headline}
+                        subline={subline}
+                        label={timeLabel(r.expires_at, r.status)}
+                        status={r.status}
+                        expiresAt={r.expires_at}
+                        canResend={isExpiredRow && !r.resent_at}
+                      />
+                    )
+                  })}
+                </div>
               </div>
             </section>
           )}
 
+          {/* Section 5: Intros to you */}
           {asTarget.length > 0 && (
             <section>
-              <h2 className="font-display text-lg font-bold text-navy mb-3">Intros to you</h2>
-              <div className="bg-white border border-border rounded-2xl divide-y divide-border overflow-hidden">
-                {asTarget.map(r => {
-                  const headline = r.type === 'open_door'
-                    ? `${name(r.requester_id)} wants to connect`
-                    : `${name(r.requester_id)} → ${name(r.target_id)}`
-                  const subline = r.type === 'open_door' ? 'Open Door' : null
-                  return (
-                    <IntroCardDismissable
-                      key={r.id}
-                      id={r.id}
-                      headline={headline}
-                      subline={subline}
-                      label={timeLabel(r.expires_at, r.status)}
-                      status={r.status}
-                      expiresAt={r.expires_at}
-                    />
-                  )
-                })}
+              <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-[0_4px_16px_rgba(15,27,60,0.06)]">
+                <div className="px-6 pt-5 pb-4 border-b border-border">
+                  <h2 className="font-display text-lg font-bold text-navy">Intros to you</h2>
+                  <p className="text-sm text-body-grey mt-0.5">
+                    Connections others want to make with you.
+                  </p>
+                </div>
+                <div className="divide-y divide-border">
+                  {asTarget.map(r => {
+                    const headline = r.type === 'open_door'
+                      ? `${name(r.requester_id)} wants to connect`
+                      : `${name(r.requester_id)} → ${name(r.target_id)}`
+                    const subline  = r.type === 'open_door' ? 'Open Door' : null
+                    return (
+                      <IntroCardDismissable
+                        key={r.id}
+                        id={r.id}
+                        headline={headline}
+                        subline={subline}
+                        label={timeLabel(r.expires_at, r.status)}
+                        status={r.status}
+                        expiresAt={r.expires_at}
+                      />
+                    )
+                  })}
+                </div>
               </div>
             </section>
           )}
+
         </div>
       )}
     </div>

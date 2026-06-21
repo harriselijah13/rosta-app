@@ -7,9 +7,9 @@ function StatusPill({ status, expiresAt }: { status: string; expiresAt: string }
   const isExpired = status === 'pending' && new Date(expiresAt) < new Date()
   const effective = isExpired ? 'expired' : status
   const map: Record<string, string> = {
-    pending:  'bg-amber-50 text-amber-700 border-amber-200',
-    accepted: 'bg-green-50 text-green-700 border-green-200',
-    declined: 'bg-red-50 text-red-600 border-red-200',
+    pending:  'bg-surface text-body-grey border-border',
+    accepted: 'bg-lime/10 border-lime/40 text-navy',
+    declined: 'bg-surface text-body-grey border-border',
     expired:  'bg-surface text-body-grey border-border',
   }
   const labels: Record<string, string> = {
