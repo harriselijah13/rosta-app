@@ -122,8 +122,8 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     supabase.from('profiles').select('first_name, username, onboarding_completed, created_at, first_visit_members_at, first_visit_guide_dismissed_at').eq('id', user.id).single(),
     admin.from('intro_requests')
-      .select('id, type, requester_id, target_id, facilitator_id, expires_at')
-      .or(`facilitator_id.eq.${user.id},target_id.eq.${user.id}`)
+      .select('id, type, requester_id, target_id, facilitator_id, facilitator_note, expires_at')
+      .or(`requester_id.eq.${user.id},facilitator_id.eq.${user.id},target_id.eq.${user.id}`)
       .eq('status', 'pending').gt('expires_at', now)
       .order('expires_at', { ascending: true }),
     admin.from('connections').select('user_a, user_b').or(`user_a.eq.${user.id},user_b.eq.${user.id}`).is('removed_at', null),
@@ -141,9 +141,31 @@ export default async function DashboardPage() {
   ])
 
   const connectionIds = (myConnections ?? []).map(c => c.user_a === user.id ? c.user_b : c.user_a)
-  const pendingActions = (pendingRows ?? []).filter(r =>
-    (r.type === 'warm_intro' && r.facilitator_id === user.id) ||
-    (r.type === 'open_door' && r.target_id === user.id),
+
+  // A facilitated intro (created via "Suggest an intro") has facilitator_note set at creation.
+  // A regular pending warm_intro has facilitator_note = null until the facilitator responds.
+  // This distinction only applies to pending rows (after acceptance, facilitator_note may be set in both flows).
+  const isFacilitatedRow = (r: { type: string; facilitator_note: string | null }) =>
+    r.type === 'warm_intro' && r.facilitator_note !== null
+
+  // "Needs your response" — items requiring the viewer's immediate decision
+  const pendingActions = (pendingRows ?? []).filter(r => {
+    if (r.type === 'open_door')   return r.target_id === user.id
+    if (r.type === 'warm_intro') {
+      if (isFacilitatedRow(r)) {
+        // Facilitated intro: only the target (Diane) must respond here.
+        // The requester (Jp) and facilitator (Harris) see it in "Tracked intros" below.
+        return r.target_id === user.id
+      }
+      // Regular warm_intro: the facilitator (mutual connection) must write the intro note.
+      return r.facilitator_id === user.id
+    }
+    return false
+  })
+
+  // "Tracked intros" — facilitated intros the viewer is watching (no immediate action required)
+  const trackedIntros = (pendingRows ?? []).filter(r =>
+    isFacilitatedRow(r) && (r.facilitator_id === user.id || r.requester_id === user.id)
   )
 
   // ── Round 2 ──────────────────────────────────────────────────────────────
@@ -198,7 +220,10 @@ export default async function DashboardPage() {
 
   // ── Round 3: profiles + activity conversations in parallel ────────────────
   const activityIds = (activitySignals ?? []).map(s => s.user_id)
-  const pendingPartyIds = pendingActions.flatMap(r => [r.requester_id, r.target_id].filter(Boolean))
+  const pendingPartyIds = [
+    ...pendingActions.flatMap(r => [r.requester_id, r.target_id, r.facilitator_id]),
+    ...trackedIntros.flatMap(r => [r.requester_id, r.target_id, r.facilitator_id]),
+  ].filter((id): id is string => typeof id === 'string')
   const allProfileIds = Array.from(new Set([...activityIds, ...pendingPartyIds, ...matchmakerProfileIds]))
 
   type ProfileRow = { id: string; first_name: string | null; last_name: string | null; avatar_url: string | null; username: string | null; is_verified: boolean }
@@ -403,12 +428,17 @@ export default async function DashboardPage() {
             <Eyebrow label="Needs your response" />
             <div className="space-y-2">
               {pendingActions.map(r => {
-                const isOpenDoor   = r.type === 'open_door'
-                const requesterName = displayName(byId[r.requester_id])
-                const targetName    = displayName(byId[r.target_id])
-                const description   = isOpenDoor
+                const isOpenDoor      = r.type === 'open_door'
+                const requesterName   = displayName(byId[r.requester_id])
+                const targetName      = displayName(byId[r.target_id])
+                const facilitatorName = r.facilitator_id ? displayName(byId[r.facilitator_id]) : ''
+                // Facilitated intros: "[Facilitator] suggested you should meet [requester]"
+                // Regular warm_intro: "[requester] wants an intro to [target]"
+                const description = isOpenDoor
                   ? `${requesterName} wants to connect with you`
-                  : `${requesterName} wants an intro to ${targetName}`
+                  : isFacilitatedRow(r)
+                    ? `${facilitatorName} suggested you should meet ${requesterName}`
+                    : `${requesterName} wants an intro to ${targetName}`
                 const remaining = timeLeft(r.expires_at)
                 const isUrgent  = new Date(r.expires_at).getTime() - Date.now() < 24 * 60 * 60 * 1000
                 return (
@@ -423,18 +453,58 @@ export default async function DashboardPage() {
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
                         <span className="text-[11px] font-medium text-body-grey uppercase tracking-wide">
                           {isOpenDoor ? 'Connection request' : 'Intro request'}
                         </span>
                       </div>
                       <p className="text-sm font-semibold text-navy">{description}</p>
-                      <p className={`text-xs mt-1 ${isUrgent ? 'text-amber-500 font-medium' : 'text-body-grey'}`}>
+                      <p className={`text-xs mt-1 ${isUrgent ? 'text-navy font-medium' : 'text-body-grey'}`}>
                         {remaining}
                       </p>
                     </div>
                     <span className="text-xs font-medium text-navy shrink-0 group-hover:underline mt-0.5 hover:scale-[1.02] transition-transform duration-150">
                       Respond →
+                    </span>
+                  </Link>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* ── Tracked intros (facilitated intros the viewer is watching) ── */}
+        {trackedIntros.length > 0 && (
+          <section className="card-enter" style={{ animationDelay: '0.12s' }}>
+            <Eyebrow label="Intros you've set up" />
+            <div className="space-y-2">
+              {trackedIntros.map(r => {
+                const isFacilitator = r.facilitator_id === user.id
+                const requesterName = displayName(byId[r.requester_id])
+                const targetName    = displayName(byId[r.target_id])
+                const facName       = r.facilitator_id ? displayName(byId[r.facilitator_id]) : ''
+                const description   = isFacilitator
+                  ? `You suggested ${requesterName} meet ${targetName}`
+                  : `${facName} suggested you meet ${targetName}`
+                const remaining = timeLeft(r.expires_at)
+                return (
+                  <Link
+                    key={r.id}
+                    href={`/intro/${r.id}`}
+                    className={`${cardCls} flex items-start justify-between gap-4 px-6 py-5 group block`}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-body-grey/40 shrink-0" />
+                        <span className="text-[11px] font-medium text-body-grey uppercase tracking-wide">
+                          Intro suggested
+                        </span>
+                      </div>
+                      <p className="text-sm font-semibold text-navy">{description}</p>
+                      <p className="text-xs mt-1 text-body-grey">{remaining}</p>
+                    </div>
+                    <span className="text-xs font-medium text-navy shrink-0 group-hover:underline mt-0.5">
+                      View →
                     </span>
                   </Link>
                 )

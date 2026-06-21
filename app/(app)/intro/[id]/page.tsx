@@ -24,14 +24,14 @@ export default async function IntroRequestPage({
   const admin = createAdminClient()
 
   const { data: req } = await admin.from('intro_requests')
-    .select('id, type, requester_id, target_id, facilitator_id, status, requester_note, facilitator_note, expires_at, responded_at, created_at')
+    .select('id, type, requester_id, target_id, facilitator_id, status, requester_note, facilitator_note, expires_at, responded_at, created_at, member_a_accepted_at, member_b_accepted_at')
     .eq('id', params.id).single()
 
   if (!req) notFound()
 
   const isOpenDoor = req.type === 'open_door'
 
-  // Access: requester, target, or facilitator (warm_intro only)
+  // Access: requester, target, or facilitator
   const partyIds = [req.requester_id, req.target_id, req.facilitator_id].filter(Boolean) as string[]
   if (!partyIds.includes(user.id)) notFound()
 
@@ -44,25 +44,45 @@ export default async function IntroRequestPage({
     [byId[id]?.first_name, byId[id]?.last_name].filter(Boolean).join(' ') || 'A member'
   const profileLink = (id: string) => `/profile/${byId[id]?.username ?? id}`
 
-  const requesterName = name(req.requester_id)
-  const targetName = name(req.target_id)
+  const requesterName  = name(req.requester_id)
+  const targetName     = name(req.target_id)
   const facilitatorName = req.facilitator_id ? name(req.facilitator_id) : ''
 
-  // Who can respond?
-  const canRespond = isOpenDoor
-    ? user.id === req.target_id
-    : user.id === req.facilitator_id
-
-  // Responder's display name for the note label
-  const responderName = isOpenDoor ? targetName : facilitatorName
-
-  const isExpired = new Date(req.expires_at) < new Date()
+  const isExpired       = new Date(req.expires_at) < new Date()
   const effectiveStatus = isExpired && req.status === 'pending' ? 'expired' : req.status
 
+  // A facilitated intro (created via "Suggest an intro") has facilitator_note set at creation.
+  // For pending rows this is a reliable distinguisher; completed intros show a unified status view.
+  const isFacilitatedIntro = !isOpenDoor && effectiveStatus === 'pending' && req.facilitator_note !== null
+
+  // Role of the current viewer
+  const viewerIsTarget      = user.id === req.target_id
+  const viewerIsRequester   = user.id === req.requester_id
+  const viewerIsFacilitator = user.id === req.facilitator_id
+
+  // Who can respond (click accept/decline)?
+  // - Open door: target
+  // - Regular warm_intro (facilitator_note=null at creation): facilitator writes intro note
+  // - Facilitated warm_intro: BOTH requester and target respond separately
+  const viewerAlreadyResponded = isFacilitatedIntro && (
+    (viewerIsRequester && req.member_a_accepted_at !== null) ||
+    (viewerIsTarget    && req.member_b_accepted_at !== null)
+  )
+  const canRespond = effectiveStatus === 'pending' && !viewerAlreadyResponded && (
+    isOpenDoor
+      ? viewerIsTarget
+      : isFacilitatedIntro
+        ? (viewerIsRequester || viewerIsTarget)
+        : viewerIsFacilitator
+  )
+
+  // Responder label for the note section on already-responded rows
+  const responderName = isOpenDoor ? targetName : facilitatorName
+
   const statusBadge: Record<string, { label: string; className: string }> = {
-    pending:  { label: 'Awaiting response', className: 'bg-amber-50 text-amber-700 border-amber-200' },
-    accepted: { label: 'Accepted',          className: 'bg-green-50 text-green-700 border-green-200' },
-    declined: { label: 'Declined',          className: 'bg-red-50 text-red-600 border-red-200' },
+    pending:  { label: 'Awaiting response', className: 'bg-surface text-body-grey border-border' },
+    accepted: { label: 'Accepted',          className: 'bg-lime/10 border-lime/40 text-navy'     },
+    declined: { label: 'Declined',          className: 'bg-surface text-body-grey border-border' },
     expired:  { label: 'Expired',           className: 'bg-surface text-body-grey border-border' },
   }
   const badge = statusBadge[effectiveStatus] ?? statusBadge.expired
@@ -94,13 +114,24 @@ export default async function IntroRequestPage({
               </>
             ) : (
               <>
-                <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-1 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />Intro request</p>
+                <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
+                  {isFacilitatedIntro ? 'Suggested intro' : 'Intro request'}
+                </p>
                 <h1 className="font-display text-2xl font-bold text-navy">
                   <Link href={profileLink(req.requester_id)} className="hover:underline">{requesterName}</Link>
                   {' → '}
                   <Link href={profileLink(req.target_id)} className="hover:underline">{targetName}</Link>
                 </h1>
-                <p className="text-sm text-body-grey mt-1">via {facilitatorName}</p>
+                <p className="text-sm text-body-grey mt-1">
+                  {isFacilitatedIntro
+                    ? viewerIsFacilitator
+                      ? 'You suggested this intro'
+                      : viewerIsRequester
+                        ? `${facilitatorName} suggested this intro for you`
+                        : `${facilitatorName} suggested you should meet ${requesterName}`
+                    : `via ${facilitatorName}`}
+                </p>
               </>
             )}
           </div>
@@ -135,13 +166,30 @@ export default async function IntroRequestPage({
       </div>
 
       {/* Action panel */}
-      {canRespond && effectiveStatus === 'pending' && (
+      {canRespond && (
         <RespondForm
           requestId={req.id}
           requesterName={requesterName}
           targetName={targetName}
           isOpenDoor={isOpenDoor}
+          isFacilitated={isFacilitatedIntro}
         />
+      )}
+
+      {/* Facilitator status view for pending facilitated intros — no action needed */}
+      {isFacilitatedIntro && viewerIsFacilitator && effectiveStatus === 'pending' && (
+        <div className="bg-white border border-border rounded-2xl p-6">
+          <p className="text-sm font-medium text-navy mb-1">Waiting for both parties to respond</p>
+          <p className="text-xs text-body-grey">{timeRemaining(req.expires_at)}</p>
+        </div>
+      )}
+
+      {/* Already-responded status for facilitated intros */}
+      {isFacilitatedIntro && viewerAlreadyResponded && effectiveStatus === 'pending' && (
+        <div className="bg-white border border-border rounded-2xl p-6">
+          <p className="text-sm font-medium text-navy mb-1">You&apos;ve responded</p>
+          <p className="text-xs text-body-grey">Waiting for the other party to respond. {timeRemaining(req.expires_at)}</p>
+        </div>
       )}
 
       {effectiveStatus === 'accepted' && (
@@ -152,9 +200,9 @@ export default async function IntroRequestPage({
         </div>
       )}
 
-      {effectiveStatus === 'expired' && canRespond && (
+      {effectiveStatus === 'expired' && (
         <div className="bg-surface border border-border rounded-2xl p-6 text-center">
-          <p className="text-sm text-body-grey">This request expired before you responded.</p>
+          <p className="text-sm text-body-grey">This request expired before both parties responded.</p>
         </div>
       )}
     </div>
