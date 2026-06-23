@@ -250,12 +250,23 @@ export default async function DashboardPage() {
   const dismissedSet = new Set((dismissalRows ?? []).map(d => `${d.member_a_id}:${d.member_b_id}`))
   const crossConnSet = new Set((crossConns ?? []).map(c => `${c.user_a}:${c.user_b}`))
 
+  // Pairs the viewer already has a live facilitated intro for — don't surface these again
+  const facilitatedPairSet = new Set(
+    (pendingRows ?? [])
+      .filter(r => r.facilitator_id === user.id)
+      .map(r => {
+        const [a, b] = [r.requester_id, r.target_id].sort() as [string, string]
+        return `${a}:${b}`
+      })
+  )
+
   const candidatePairIds: Array<[string, string]> = []
   for (let i = 0; i < connectionIds.length && candidatePairIds.length < 5; i++) {
     for (let j = i + 1; j < connectionIds.length && candidatePairIds.length < 5; j++) {
       const [a, b] = [connectionIds[i], connectionIds[j]].sort() as [string, string]
-      if (crossConnSet.has(`${a}:${b}`)) continue  // already connected to each other
-      if (dismissedSet.has(`${a}:${b}`)) continue  // dismissed by current user
+      if (crossConnSet.has(`${a}:${b}`)) continue       // already connected to each other
+      if (dismissedSet.has(`${a}:${b}`)) continue       // dismissed by current user
+      if (facilitatedPairSet.has(`${a}:${b}`)) continue // viewer already has a pending intro for this pair
       candidatePairIds.push([a, b])
     }
   }
