@@ -23,6 +23,7 @@ function ChevronRight() {
 }
 
 const HOW_IT_WORKS = [
+  { pts: '+5', event: 'Invite redeemed',                note: 'A member you invited joined ROSTA.' },
   { pts: '+1', event: 'Accepted intro request',         note: 'Your warm intro request was accepted by the recipient.' },
   { pts: '+3', event: 'Deep conversation from intro',   note: 'Two members you introduced exchanged 3 or more messages each — a real conversation.' },
   { pts: '+8', event: 'Outcome from facilitated intro', note: 'A connection you facilitated marked an outcome — something real came from it.' },
@@ -61,6 +62,11 @@ export default async function ScorePage() {
   // Section B — breakdown rows, only non-zero components
   type BreakdownItem = { label: string; detail: string; points: number }
   const breakdown: BreakdownItem[] = []
+  if (score.invitesRedeemed > 0) breakdown.push({
+    label: 'Invites redeemed',
+    detail: `${score.invitesRedeemed} × 5 pts`,
+    points: score.invitesRedeemed * 5,
+  })
   if (score.introRequests > 0) breakdown.push({
     label: 'Warm intro requests accepted',
     detail: `${score.introRequests} × 1 pt`,

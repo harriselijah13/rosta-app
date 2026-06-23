@@ -1,6 +1,7 @@
 import { createAdminClient } from './supabase/admin'
 
 export type ScoreBreakdown = {
+  invitesRedeemed:  number   // +5 each (invite code used_at IS NOT NULL)
   introRequests:    number   // +1 each (as requester, accepted)
   deepConvos:       number   // +3 each (3+ msgs both sides, from facilitated intros)
   qrConnections:    number   // +5 each
@@ -18,6 +19,7 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
   const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
   const [
+    { count: invitesRedeemed },
     { count: introRequests },
     { data: facilitatedIntros },
     { count: qrConnections },
@@ -25,6 +27,12 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
     { count: openTables },
     { data: profile },
   ] = await Promise.all([
+    // +5 per redeemed invite code owned by this user
+    admin.from('invite_codes')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', userId)
+      .not('used_at', 'is', null),
+
     // +1 per accepted intro request made as requester
     admin.from('intro_requests')
       .select('id', { count: 'exact', head: true })
@@ -110,22 +118,24 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
   const signalBonus = lastAwarded && new Date(lastAwarded) >= new Date(weekAgo) ? 2 : 0
 
   const total =
-    (introRequests ?? 0) * 1 +
-    deepConvos            * 3 +
-    (qrConnections ?? 0) * 5 +
-    outcomes              * 8 +
-    (thankYous ?? 0)      * 2 +
+    (invitesRedeemed ?? 0) * 5 +
+    (introRequests ?? 0)   * 1 +
+    deepConvos             * 3 +
+    (qrConnections ?? 0)   * 5 +
+    outcomes               * 8 +
+    (thankYous ?? 0)       * 2 +
     // weekly challenge: placeholder 0
-    (openTables ?? 0)    * 1 +
+    (openTables ?? 0)      * 1 +
     signalBonus
 
   return {
-    introRequests: introRequests ?? 0,
+    invitesRedeemed: invitesRedeemed ?? 0,
+    introRequests:   introRequests ?? 0,
     deepConvos,
-    qrConnections: qrConnections ?? 0,
+    qrConnections:   qrConnections ?? 0,
     outcomes,
-    thankYous:     thankYous ?? 0,
-    openTables:    openTables ?? 0,
+    thankYous:       thankYous ?? 0,
+    openTables:      openTables ?? 0,
     signalBonus,
     total,
   }

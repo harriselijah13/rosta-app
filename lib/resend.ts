@@ -313,7 +313,7 @@ export function inviteUsedEmail(
 ) {
   return wrap(
     `${newMemberName} joined ROSTA`,
-    `Hi ${inviterName}, your invite just brought ${newMemberName} into the network. You earned +1 Connector Score.`,
+    `Hi ${inviterName}, your invite just brought ${newMemberName} into the network. Your Connector Score has gone up.`,
     `View ${newMemberName}'s profile`,
     `${BASE}/profile/${newMemberSlug}`,
   )
