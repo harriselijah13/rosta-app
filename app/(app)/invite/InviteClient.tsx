@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 type Code = {
   id: string
   token: string
   used_at: string | null
+  shared_at: string | null
   usedByName: string | null
 }
 
@@ -43,10 +45,12 @@ function ShareModal({
   code,
   memberFirstName,
   onClose,
+  onShared,
 }: {
   code: string
   memberFirstName: string
   onClose: () => void
+  onShared: () => void
 }) {
   const defaultMessage = `${memberFirstName} thinks you'd fit in on ROSTA — a professional network built around real introductions and real conversations. No feed. No cold connects. Invite-only.
 
@@ -58,8 +62,6 @@ Join here: https://app.onrosta.com/join?code=${code}`
   const [toast, setToast]         = useState<string | null>(null)
   const [showMessages, setShowMessages] = useState(false)
 
-  // Detect platforms that support sms: deep-links (iOS, macOS, Android).
-  // Hide the Messages button on Windows/Linux desktops where sms: does nothing.
   useEffect(() => {
     const ua = navigator.userAgent || ''
     const isApple   = /iP(hone|od|ad)/i.test(ua) || /Mac OS X/i.test(ua)
@@ -72,14 +74,27 @@ Join here: https://app.onrosta.com/join?code=${code}`
     setTimeout(() => setToast(null), 3000)
   }
 
+  // Fire-and-forget: mark the code as shared then notify parent to refresh.
+  // Wrapped in try/catch so a network failure never blocks the share action.
+  async function markShared() {
+    try {
+      await fetch(`/api/invite/codes/${encodeURIComponent(code)}/mark-shared`, {
+        method: 'POST',
+      })
+    } catch {
+      // silent — the user still sent the invite
+    }
+    onShared()
+  }
+
   async function handleShare() {
     if (navigator.share) {
       try {
         await navigator.share({ text: message })
         showToast('Shared.')
-        setTimeout(onClose, 400)
+        await markShared()
       } catch {
-        // user cancelled
+        // user cancelled — do NOT mark as shared
       }
     } else {
       await handleCopy()
@@ -94,6 +109,16 @@ Join here: https://app.onrosta.com/join?code=${code}`
       const el = document.getElementById('invite-message-textarea') as HTMLTextAreaElement | null
       el?.select()
     }
+    await markShared()
+  }
+
+  // Channel link onClick: fire mark-shared immediately and close modal.
+  // The href navigation (to WhatsApp/sms/mailto) happens independently.
+  function handleChannelClick() {
+    void fetch(`/api/invite/codes/${encodeURIComponent(code)}/mark-shared`, {
+      method: 'POST',
+    }).catch(() => {})
+    onShared()
   }
 
   return (
@@ -134,6 +159,7 @@ Join here: https://app.onrosta.com/join?code=${code}`
               href={`https://wa.me/?text=${encodeURIComponent(message)}`}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={handleChannelClick}
               className="inline-flex items-center px-4 py-1.5 bg-navy text-warm-white text-sm font-medium rounded-full hover:bg-navy/85 transition-colors whitespace-nowrap"
             >
               WhatsApp
@@ -141,6 +167,7 @@ Join here: https://app.onrosta.com/join?code=${code}`
             {showMessages && (
               <a
                 href={`sms:?body=${encodeURIComponent(message)}`}
+                onClick={handleChannelClick}
                 className="inline-flex items-center px-4 py-1.5 bg-navy text-warm-white text-sm font-medium rounded-full hover:bg-navy/85 transition-colors whitespace-nowrap"
               >
                 Messages
@@ -148,6 +175,7 @@ Join here: https://app.onrosta.com/join?code=${code}`
             )}
             <a
               href={`mailto:?subject=${encodeURIComponent("You're invited to ROSTA")}&body=${encodeURIComponent(message)}`}
+              onClick={handleChannelClick}
               className="inline-flex items-center px-4 py-1.5 bg-navy text-warm-white text-sm font-medium rounded-full hover:bg-navy/85 transition-colors whitespace-nowrap"
             >
               Email
@@ -233,12 +261,19 @@ function HowItWorks() {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function InviteClient({ codes, availableCount, redeemedCount, memberFirstName }: Props) {
+  const router = useRouter()
   const [shareCode,  setShareCode]  = useState<string | null>(null)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
-  const available = codes.filter(c => !c.used_at)
+  // Exclude codes that have already been shared or redeemed from the available list
+  const available = codes.filter(c => !c.used_at && !c.shared_at)
   const used      = codes.filter(c => c.used_at)
   const hasAny    = codes.length > 0
+
+  function handleShared() {
+    setShareCode(null)
+    router.refresh()
+  }
 
   async function copyCode(token: string) {
     await navigator.clipboard.writeText(token)
@@ -261,6 +296,7 @@ export default function InviteClient({ codes, availableCount, redeemedCount, mem
           code={shareCode}
           memberFirstName={memberFirstName}
           onClose={() => setShareCode(null)}
+          onShared={handleShared}
         />
       )}
 

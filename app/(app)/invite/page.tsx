@@ -23,7 +23,7 @@ export default async function InvitePage() {
 
   const { data: rawCodes } = await admin
     .from('invite_codes')
-    .select('id, token, used_by, used_at')
+    .select('id, token, used_by, used_at, shared_at')
     .eq('owner_id', user.id)
     .eq('type', 'founding_invite')
     .order('created_at')
@@ -44,10 +44,12 @@ export default async function InvitePage() {
     id:         c.id as string,
     token:      c.token as string,
     used_at:    c.used_at as string | null,
+    shared_at:  c.shared_at as string | null,
     usedByName: c.used_by ? (nameById[c.used_by as string] ?? null) : null,
   }))
 
-  const availableCount = codes.filter(c => !c.used_at).length
+  // availableCount excludes shared and redeemed codes
+  const availableCount = codes.filter(c => !c.used_at && !c.shared_at).length
   const redeemedCount  = codes.filter(c => c.used_at).length
 
   return (
