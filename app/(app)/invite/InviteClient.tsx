@@ -279,6 +279,14 @@ export default function InviteClient({ codes, availableCount, redeemedCount, mem
     await navigator.clipboard.writeText(token)
     setCopiedCode(token)
     setTimeout(() => setCopiedCode(null), 2000)
+    try {
+      await fetch(`/api/invite/codes/${encodeURIComponent(token)}/mark-shared`, {
+        method: 'POST',
+      })
+    } catch {
+      // silent — the user still copied the code
+    }
+    router.refresh()
   }
 
   const heroHeadline = availableCount > 0
