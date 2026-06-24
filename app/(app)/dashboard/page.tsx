@@ -8,6 +8,8 @@ import FirstVisitGuide from './FirstVisitGuide'
 import BadgeEarnedModal from '@/components/badges/BadgeEarnedModal'
 import { BADGE_MAP } from '@/lib/badge-catalog'
 import NetworkBackground from './NetworkBackground'
+import HeroCanvas from './HeroCanvas'
+import FloatingAvatars from './FloatingAvatars'
 import ScoreCounter from './ScoreCounter'
 import SuggestIntroBlock from './SuggestIntroBlock'
 import MatchmakerCard, { type MatchPair } from './MatchmakerCard'
@@ -360,6 +362,19 @@ export default async function DashboardPage() {
     .map(r => BADGE_MAP[r.badge_slug])
     .filter((b): b is NonNullable<typeof b> => b != null)
 
+  // Floating avatar data — up to 4 from recently active connections
+  const avatarProfiles = (activitySignals ?? [])
+    .slice(0, 4)
+    .map(s => {
+      const p = byId[s.user_id]
+      if (!p) return null
+      return {
+        initials:   [p.first_name?.[0], p.last_name?.[0]].filter(Boolean).join('').toUpperCase() || '?',
+        avatar_url: p.avatar_url,
+      }
+    })
+    .filter((x): x is { initials: string; avatar_url: string | null } => x !== null)
+
   // Network Pulse — built server-side as a plain text line (no client animation needed)
   const pulseParts = [
     rostaIndex.intros   > 0 ? `${rostaIndex.intros} intro${rostaIndex.intros === 1 ? '' : 's'} made this week` : null,
@@ -379,22 +394,38 @@ export default async function DashboardPage() {
       {/* Ambient page background */}
       <NetworkBackground />
 
-      {/* ── Compact navy hero — greeting + score, ~80px tall ── */}
-      <div className="bg-navy">
-        <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-5 flex items-center justify-between gap-4">
-          <h1 className="text-[22px] font-medium text-warm-white leading-none">
-            {firstName ? `Good to see you, ${firstName}.` : 'Good to see you.'}
-          </h1>
-          <Link
-            href="/score"
-            className="flex items-baseline gap-2 shrink-0 hover:opacity-75 transition-opacity"
-            aria-label="View your Connector Score breakdown"
-          >
-            <span className="text-xs font-medium" style={{ color: 'rgba(200,245,60,0.55)' }}>Connector Score</span>
-            <span className="text-xl font-bold text-lime">
-              <ScoreCounter value={connectorScore.total} />
-            </span>
-          </Link>
+      {/* ── Navy hero — ambient motion + Fraunces greeting, compact height ── */}
+      <div className="relative bg-navy overflow-hidden">
+        <HeroCanvas />
+        <FloatingAvatars profiles={avatarProfiles} />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse at 80% 50%, rgba(200,245,60,0.06) 0%, transparent 60%)' }}
+        />
+        <div className="relative z-10 max-w-[1100px] mx-auto px-4 sm:px-6 py-8">
+          <div className="flex justify-end mb-6">
+            <Link
+              href="/score"
+              className="flex items-baseline gap-1.5 hover:opacity-75 transition-opacity"
+              aria-label="View your Connector Score breakdown"
+            >
+              <span className="text-xs font-medium" style={{ color: 'rgba(200,245,60,0.6)' }}>Score</span>
+              <span className="text-2xl font-bold text-lime">
+                <ScoreCounter value={connectorScore.total} />
+              </span>
+            </Link>
+          </div>
+          <div className="flex items-start gap-3">
+            <span
+              className="w-2.5 h-2.5 rounded-full bg-lime animate-live-pulse shrink-0"
+              style={{ marginTop: 12 }}
+              aria-hidden="true"
+            />
+            <h1 className="font-display text-3xl font-bold text-white">
+              {firstName ? `Good to see you, ${firstName}.` : 'Good to see you.'}
+            </h1>
+          </div>
         </div>
       </div>
 
@@ -641,16 +672,9 @@ export default async function DashboardPage() {
               <StatCard label="Invite codes available" value={availableInviteCount ?? 0}  href="/invite" />
             </div>
 
-            {/* Your Open Table */}
-            {myOpenTableRoom && (
-              <div className="card-enter" style={{ animationDelay: '0.25s' }}>
-                <OpenTableCard roomId={myOpenTableRoom.id} expiresAt={myOpenTableRoom.expires_at} />
-              </div>
-            )}
-
             {/* Your badges */}
             {showBadgeTeaser && (
-              <section className="card-enter" style={{ animationDelay: '0.3s' }}>
+              <section className="card-enter" style={{ animationDelay: '0.25s' }}>
                 <Eyebrow label="Your badges" />
                 <Link
                   href={`/profile/${profileSlugSelf}`}
@@ -668,24 +692,30 @@ export default async function DashboardPage() {
               </section>
             )}
 
-            {/* Network Pulse — compressed to a single footer line */}
-            {pulseParts.length > 0 && (
-              <p className="card-enter text-xs text-body-grey leading-relaxed px-1" style={{ animationDelay: '0.35s' }}>
-                <span
-                  className="inline-block w-1.5 h-1.5 rounded-full bg-lime animate-live-pulse mr-1.5"
-                  style={{ verticalAlign: 'middle' }}
-                  aria-hidden="true"
-                />
-                {pulseParts.join(' · ')}
-              </p>
+            {/* Your Open Table */}
+            {myOpenTableRoom && (
+              <div className="card-enter" style={{ animationDelay: '0.3s' }}>
+                <OpenTableCard roomId={myOpenTableRoom.id} expiresAt={myOpenTableRoom.expires_at} />
+              </div>
             )}
 
           </div>
         </div>
 
-        {/* ── Full-width below both columns: Network activity ── */}
+        {/* ── Full-width below both columns ── */}
+        {pulseParts.length > 0 && (
+          <p className="card-enter text-xs text-body-grey leading-relaxed px-1 mt-6" style={{ animationDelay: '0.35s' }}>
+            <span
+              className="inline-block w-1.5 h-1.5 rounded-full bg-lime animate-live-pulse mr-1.5"
+              style={{ verticalAlign: 'middle' }}
+              aria-hidden="true"
+            />
+            {pulseParts.join(' · ')}
+          </p>
+        )}
+
         {hasConnections && (
-          <section className="card-enter mt-8" style={{ animationDelay: '0.4s' }}>
+          <section className="card-enter mt-6" style={{ animationDelay: '0.4s' }}>
             <Eyebrow label="Network activity" />
             <NetworkActivityList items={activityItems.slice(0, 5)} hasMore={networkActivity.length > 5} />
           </section>
