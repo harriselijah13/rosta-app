@@ -429,277 +429,272 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Two-column layout: lg = side by side, <lg = single column ── */}
+      {/* ── Masonry: cards fill columns automatically, balancing heights ── */}
       <main className="max-w-[1100px] mx-auto px-4 sm:px-6 py-8">
-        <div className="grid lg:grid-cols-2 gap-10 items-start">
+        <div className="columns-1 lg:columns-2 gap-x-10">
 
-          {/* ── LEFT COLUMN — action-oriented, priority ── */}
-          <div className="space-y-6">
-
-            {/* Post-event capture prompt — priority card when active */}
-            {activeEventPromptRow && (
+          {/* Post-event capture prompt — priority when active */}
+          {activeEventPromptRow && (
+            <div className="break-inside-avoid mb-6">
               <PostEventPrompt
                 attendanceId={activeEventPromptRow.id}
                 availableCodes={eventInviteCodes ?? []}
               />
-            )}
-
-            {/* First-visit guide — new members only */}
-            <div className="card-enter" style={{ animationDelay: '0.05s' }}>
-              <FirstVisitGuide
-                step1Complete={guideStep1}
-                step2Complete={guideStep2}
-                step3Complete={guideStep3}
-                step4Complete={guideStep4}
-                dismissed={guideDismissed}
-              />
             </div>
+          )}
 
-            {/* Needs your response */}
-            {pendingActions.length > 0 && (
-              <section className="card-enter" style={{ animationDelay: '0.1s' }}>
-                <Eyebrow label="Needs your response" />
-                <div className="space-y-2">
-                  {pendingActions.map(r => {
-                    const isOpenDoor      = r.type === 'open_door'
-                    const requesterName   = displayName(byId[r.requester_id])
-                    const targetName      = displayName(byId[r.target_id])
-                    const facilitatorName = r.facilitator_id ? displayName(byId[r.facilitator_id]) : ''
-                    const description = isOpenDoor
-                      ? `${requesterName} wants to connect with you`
-                      : isFacilitatedRow(r)
-                        ? `${facilitatorName} suggested you should meet ${requesterName}`
-                        : `${requesterName} wants an intro to ${targetName}`
-                    const remaining = timeLeft(r.expires_at)
-                    const isUrgent  = new Date(r.expires_at).getTime() - Date.now() < 24 * 60 * 60 * 1000
-                    return (
-                      <Link
-                        key={r.id}
-                        href={`/intro/${r.id}`}
-                        className="flex items-start justify-between gap-4 rounded-2xl px-6 py-5
-                          border border-border border-l-[3px] border-l-[#C8F53C]
-                          shadow-[0_4px_16px_rgba(15,27,60,0.08)] hover:shadow-[0_8px_24px_rgba(15,27,60,0.13)]
-                          hover:-translate-y-0.5 transition-[transform,box-shadow] duration-200 group"
-                        style={{ backgroundColor: 'rgba(200,245,60,0.04)' }}
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
-                            <span className="text-[11px] font-medium text-body-grey uppercase tracking-wide">
-                              {isOpenDoor ? 'Connection request' : 'Intro request'}
-                            </span>
-                          </div>
-                          <p className="text-sm font-semibold text-navy">{description}</p>
-                          <p className={`text-xs mt-1 ${isUrgent ? 'text-navy font-medium' : 'text-body-grey'}`}>
-                            {remaining}
-                          </p>
-                        </div>
-                        <span className="text-xs font-medium text-navy shrink-0 group-hover:underline mt-0.5 hover:scale-[1.02] transition-transform duration-150">
-                          Respond →
-                        </span>
-                      </Link>
-                    )
-                  })}
-                </div>
-              </section>
-            )}
-
-            {/* Tracked intros */}
-            {trackedIntros.length > 0 && (
-              <section className="card-enter" style={{ animationDelay: '0.12s' }}>
-                <Eyebrow label="Intros you've set up" />
-                <div className="space-y-2">
-                  {trackedIntros.map(r => {
-                    const isFacilitator = r.facilitator_id === user.id
-                    const requesterName = displayName(byId[r.requester_id])
-                    const targetName    = displayName(byId[r.target_id])
-                    const facName       = r.facilitator_id ? displayName(byId[r.facilitator_id]) : ''
-                    const description   = isFacilitator
-                      ? `You suggested ${requesterName} meet ${targetName}`
-                      : `${facName} suggested you meet ${targetName}`
-                    const remaining = timeLeft(r.expires_at)
-                    return (
-                      <Link
-                        key={r.id}
-                        href={`/intro/${r.id}`}
-                        className={`${cardCls} flex items-start justify-between gap-4 px-6 py-5 group block`}
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-body-grey/40 shrink-0" />
-                            <span className="text-[11px] font-medium text-body-grey uppercase tracking-wide">
-                              Intro suggested
-                            </span>
-                          </div>
-                          <p className="text-sm font-semibold text-navy">{description}</p>
-                          <p className="text-xs mt-1 text-body-grey">{remaining}</p>
-                        </div>
-                        <span className="text-xs font-medium text-navy shrink-0 group-hover:underline mt-0.5">
-                          View →
-                        </span>
-                      </Link>
-                    )
-                  })}
-                </div>
-              </section>
-            )}
-
-            {/* Matchmaker when a specific pair exists; generic Suggest as fallback */}
-            {matchPairs.length > 0 ? (
-              <section className="card-enter" style={{ animationDelay: '0.2s' }}>
-                <Eyebrow label="Matchmaker" />
-                <MatchmakerCard pairs={matchPairs} />
-              </section>
-            ) : (
-              <SuggestIntroBlock />
-            )}
-
-            {/* At a networking event today? — only when no active post-event prompt */}
-            {!activeEventPromptRow && (
-              <div className="card-enter" style={{ animationDelay: '0.25s' }}>
-                <EventTapIn isTappedIn={!!recentTapInRow} />
-              </div>
-            )}
-
-            {/* Empty state — no connections and nothing pending */}
-            {!hasConnections && pendingActions.length === 0 && (
-              <div className={`card-enter ${cardCls} p-8 text-center`} style={{ animationDelay: '0.15s' }}>
-                <p className="font-display text-xl font-bold text-navy mb-2">Start building your network</p>
-                <p className="text-sm text-body-grey mb-6">
-                  Browse members, make connections, and start facilitating intros.
-                </p>
-                <Link
-                  href="/members"
-                  className="inline-block bg-navy text-warm-white px-6 py-3 rounded-full text-sm font-medium
-                    hover:bg-navy/90 hover:scale-[1.02] transition-all duration-150"
-                >
-                  Browse members
-                </Link>
-              </div>
-            )}
-
+          {/* First-visit guide — new members only */}
+          <div className="card-enter break-inside-avoid mb-6" style={{ animationDelay: '0.05s' }}>
+            <FirstVisitGuide
+              step1Complete={guideStep1}
+              step2Complete={guideStep2}
+              step3Complete={guideStep3}
+              step4Complete={guideStep4}
+              dismissed={guideDismissed}
+            />
           </div>
 
-          {/* ── RIGHT COLUMN — contextual, passive ── */}
-          <div className="space-y-6">
-
-            {/* Your signals */}
-            {mySignals ? (
-              <div
-                className="card-enter rounded-2xl p-6 shadow-[0_4px_16px_rgba(15,27,60,0.08)] hover:shadow-[0_8px_24px_rgba(15,27,60,0.13)] hover:-translate-y-0.5 transition-[transform,box-shadow] duration-200 bg-white border"
-                style={{ borderColor: signalsStale ? 'var(--border)' : 'rgba(200,245,60,0.25)', animationDelay: '0.1s' }}
-              >
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <h2 className="font-display text-lg font-bold text-navy">Your signals</h2>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${signalsStale ? 'bg-body-grey/30' : 'bg-green-500'}`} />
-                    <span className="text-xs text-body-grey">{signalsStale ? 'Inactive' : 'Active on ROSTA'}</span>
-                    <Link href="/settings" className="text-xs font-medium text-navy hover:underline ml-2">
-                      {signalsStale ? 'Update →' : 'Edit →'}
-                    </Link>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {mySignals.working_on && (
-                    <div>
-                      <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-0.5">Working on</p>
-                      <p className="text-sm text-navy">{mySignals.working_on}</p>
-                    </div>
-                  )}
-                  {mySignals.need_right_now && (
-                    <div>
-                      <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-0.5">Need right now</p>
-                      <p className="text-sm text-navy">{mySignals.need_right_now}</p>
-                    </div>
-                  )}
-                  {myOpenTo.length > 0 && (
-                    <div>
-                      <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-1.5">Open to</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {myOpenTo.map((v: string) => (
-                          <span key={v} className="text-xs px-2.5 py-1 rounded-full bg-surface border border-border text-body-grey">
-                            {OPEN_TO_MAP[v] ?? v}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                {signalsStale && (
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <p className="text-xs text-body-grey">
-                      Last updated over 14 days ago — keep your signals fresh so your network knows what you need.
-                    </p>
-                  </div>
-                )}
-                {!signalsStale && hasConnections && (introsMadeCount ?? 0) === 0 && (
-                  <div className="mt-4 pt-4 border-t border-border flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                    <p className="text-sm text-navy flex-1">
-                      Making introductions is how ROSTA works. Who in your network should meet someone?
-                    </p>
+          {/* Needs your response */}
+          {pendingActions.length > 0 && (
+            <section className="card-enter break-inside-avoid mb-6" style={{ animationDelay: '0.1s' }}>
+              <Eyebrow label="Needs your response" />
+              <div className="space-y-2">
+                {pendingActions.map(r => {
+                  const isOpenDoor      = r.type === 'open_door'
+                  const requesterName   = displayName(byId[r.requester_id])
+                  const targetName      = displayName(byId[r.target_id])
+                  const facilitatorName = r.facilitator_id ? displayName(byId[r.facilitator_id]) : ''
+                  const description = isOpenDoor
+                    ? `${requesterName} wants to connect with you`
+                    : isFacilitatedRow(r)
+                      ? `${facilitatorName} suggested you should meet ${requesterName}`
+                      : `${requesterName} wants an intro to ${targetName}`
+                  const remaining = timeLeft(r.expires_at)
+                  const isUrgent  = new Date(r.expires_at).getTime() - Date.now() < 24 * 60 * 60 * 1000
+                  return (
                     <Link
-                      href="/members"
-                      className="shrink-0 text-xs font-medium bg-navy text-warm-white px-4 py-2 rounded-full
-                        hover:bg-navy/90 hover:scale-[1.02] transition-all duration-150 whitespace-nowrap"
+                      key={r.id}
+                      href={`/intro/${r.id}`}
+                      className="flex items-start justify-between gap-4 rounded-2xl px-6 py-5
+                        border border-border border-l-[3px] border-l-[#C8F53C]
+                        shadow-[0_4px_16px_rgba(15,27,60,0.08)] hover:shadow-[0_8px_24px_rgba(15,27,60,0.13)]
+                        hover:-translate-y-0.5 transition-[transform,box-shadow] duration-200 group"
+                      style={{ backgroundColor: 'rgba(200,245,60,0.04)' }}
                     >
-                      Browse members
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
+                          <span className="text-[11px] font-medium text-body-grey uppercase tracking-wide">
+                            {isOpenDoor ? 'Connection request' : 'Intro request'}
+                          </span>
+                        </div>
+                        <p className="text-sm font-semibold text-navy">{description}</p>
+                        <p className={`text-xs mt-1 ${isUrgent ? 'text-navy font-medium' : 'text-body-grey'}`}>
+                          {remaining}
+                        </p>
+                      </div>
+                      <span className="text-xs font-medium text-navy shrink-0 group-hover:underline mt-0.5 hover:scale-[1.02] transition-transform duration-150">
+                        Respond →
+                      </span>
                     </Link>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Intros you've set up */}
+          {trackedIntros.length > 0 && (
+            <section className="card-enter break-inside-avoid mb-6" style={{ animationDelay: '0.12s' }}>
+              <Eyebrow label="Intros you've set up" />
+              <div className="space-y-2">
+                {trackedIntros.map(r => {
+                  const isFacilitator = r.facilitator_id === user.id
+                  const requesterName = displayName(byId[r.requester_id])
+                  const targetName    = displayName(byId[r.target_id])
+                  const facName       = r.facilitator_id ? displayName(byId[r.facilitator_id]) : ''
+                  const description   = isFacilitator
+                    ? `You suggested ${requesterName} meet ${targetName}`
+                    : `${facName} suggested you meet ${targetName}`
+                  const remaining = timeLeft(r.expires_at)
+                  return (
+                    <Link
+                      key={r.id}
+                      href={`/intro/${r.id}`}
+                      className={`${cardCls} flex items-start justify-between gap-4 px-6 py-5 group block`}
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-body-grey/40 shrink-0" />
+                          <span className="text-[11px] font-medium text-body-grey uppercase tracking-wide">
+                            Intro suggested
+                          </span>
+                        </div>
+                        <p className="text-sm font-semibold text-navy">{description}</p>
+                        <p className="text-xs mt-1 text-body-grey">{remaining}</p>
+                      </div>
+                      <span className="text-xs font-medium text-navy shrink-0 group-hover:underline mt-0.5">
+                        View →
+                      </span>
+                    </Link>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Your signals */}
+          {mySignals ? (
+            <div
+              className="card-enter break-inside-avoid mb-6 rounded-2xl p-6 shadow-[0_4px_16px_rgba(15,27,60,0.08)] hover:shadow-[0_8px_24px_rgba(15,27,60,0.13)] hover:-translate-y-0.5 transition-[transform,box-shadow] duration-200 bg-white border"
+              style={{ borderColor: signalsStale ? 'var(--border)' : 'rgba(200,245,60,0.25)', animationDelay: '0.15s' }}
+            >
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <h2 className="font-display text-lg font-bold text-navy">Your signals</h2>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${signalsStale ? 'bg-body-grey/30' : 'bg-green-500'}`} />
+                  <span className="text-xs text-body-grey">{signalsStale ? 'Inactive' : 'Active on ROSTA'}</span>
+                  <Link href="/settings" className="text-xs font-medium text-navy hover:underline ml-2">
+                    {signalsStale ? 'Update →' : 'Edit →'}
+                  </Link>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {mySignals.working_on && (
+                  <div>
+                    <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-0.5">Working on</p>
+                    <p className="text-sm text-navy">{mySignals.working_on}</p>
+                  </div>
+                )}
+                {mySignals.need_right_now && (
+                  <div>
+                    <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-0.5">Need right now</p>
+                    <p className="text-sm text-navy">{mySignals.need_right_now}</p>
+                  </div>
+                )}
+                {myOpenTo.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-body-grey uppercase tracking-wide mb-1.5">Open to</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {myOpenTo.map((v: string) => (
+                        <span key={v} className="text-xs px-2.5 py-1 rounded-full bg-surface border border-border text-body-grey">
+                          {OPEN_TO_MAP[v] ?? v}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
-            ) : (
-              <div className={`card-enter ${cardCls} bg-surface p-6`} style={{ animationDelay: '0.1s' }}>
-                <p className="text-sm font-medium text-navy mb-1">Set your signals</p>
-                <p className="text-sm text-body-grey mb-4">
-                  Tell your network what you&apos;re building and what you need.
-                </p>
-                <Link
-                  href="/settings"
-                  className="text-sm font-medium bg-navy text-warm-white px-5 py-2.5 rounded-full
-                    hover:bg-navy/90 hover:scale-[1.02] transition-all duration-150 inline-block"
-                >
-                  Add signals
-                </Link>
-              </div>
-            )}
-
-            {/* Stats grid — 5 tiles in 2 columns */}
-            <div className="card-enter grid grid-cols-2 gap-3" style={{ animationDelay: '0.2s' }}>
-              <StatCard label="Connections"            value={connectionIds.length}        href="/members" />
-              <StatCard label="Intro credits"          value={creditBalance}               href="/intro" />
-              <StatCard label="Connector Score"        value={connectorScore.total}        href={`/profile/${profileSlugSelf}`} />
-              <StatCard label="Outcomes this month"    value={realOutcomes}                lime={realOutcomes > 0} />
-              <StatCard label="Invite codes available" value={availableInviteCount ?? 0}  href="/invite" />
+              {signalsStale && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <p className="text-xs text-body-grey">
+                    Last updated over 14 days ago — keep your signals fresh so your network knows what you need.
+                  </p>
+                </div>
+              )}
+              {!signalsStale && hasConnections && (introsMadeCount ?? 0) === 0 && (
+                <div className="mt-4 pt-4 border-t border-border flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  <p className="text-sm text-navy flex-1">
+                    Making introductions is how ROSTA works. Who in your network should meet someone?
+                  </p>
+                  <Link
+                    href="/members"
+                    className="shrink-0 text-xs font-medium bg-navy text-warm-white px-4 py-2 rounded-full
+                      hover:bg-navy/90 hover:scale-[1.02] transition-all duration-150 whitespace-nowrap"
+                  >
+                    Browse members
+                  </Link>
+                </div>
+              )}
             </div>
+          ) : (
+            <div className={`card-enter break-inside-avoid mb-6 ${cardCls} bg-surface p-6`} style={{ animationDelay: '0.15s' }}>
+              <p className="text-sm font-medium text-navy mb-1">Set your signals</p>
+              <p className="text-sm text-body-grey mb-4">
+                Tell your network what you&apos;re building and what you need.
+              </p>
+              <Link
+                href="/settings"
+                className="text-sm font-medium bg-navy text-warm-white px-5 py-2.5 rounded-full
+                  hover:bg-navy/90 hover:scale-[1.02] transition-all duration-150 inline-block"
+              >
+                Add signals
+              </Link>
+            </div>
+          )}
 
-            {/* Your badges */}
-            {showBadgeTeaser && (
-              <section className="card-enter" style={{ animationDelay: '0.25s' }}>
-                <Eyebrow label="Your badges" />
-                <Link
-                  href={`/profile/${profileSlugSelf}`}
-                  className={`${cardCls} p-5 block group`}
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-navy">
-                      {earnedCount === TOTAL_BADGES
-                        ? 'All badges awarded.'
-                        : `${earnedCount} badge${earnedCount === 1 ? '' : 's'} awarded`}
-                    </p>
-                    <span className="text-xs text-body-grey group-hover:text-navy transition-colors">View →</span>
-                  </div>
-                </Link>
-              </section>
-            )}
+          {/* Matchmaker when a specific pair exists; generic Suggest as fallback */}
+          {matchPairs.length > 0 ? (
+            <section className="card-enter break-inside-avoid mb-6" style={{ animationDelay: '0.2s' }}>
+              <Eyebrow label="Matchmaker" />
+              <MatchmakerCard pairs={matchPairs} />
+            </section>
+          ) : (
+            <div className="break-inside-avoid mb-6">
+              <SuggestIntroBlock />
+            </div>
+          )}
 
-            {/* Your Open Table */}
-            {myOpenTableRoom && (
-              <div className="card-enter" style={{ animationDelay: '0.3s' }}>
-                <OpenTableCard roomId={myOpenTableRoom.id} expiresAt={myOpenTableRoom.expires_at} />
-              </div>
-            )}
-
+          {/* Stats grid — 5 tiles */}
+          <div className="card-enter break-inside-avoid mb-6 grid grid-cols-2 gap-3" style={{ animationDelay: '0.2s' }}>
+            <StatCard label="Connections"            value={connectionIds.length}        href="/members" />
+            <StatCard label="Intro credits"          value={creditBalance}               href="/intro" />
+            <StatCard label="Connector Score"        value={connectorScore.total}        href={`/profile/${profileSlugSelf}`} />
+            <StatCard label="Outcomes this month"    value={realOutcomes}                lime={realOutcomes > 0} />
+            <StatCard label="Invite codes available" value={availableInviteCount ?? 0}  href="/invite" />
           </div>
+
+          {/* At a networking event today? */}
+          {!activeEventPromptRow && (
+            <div className="card-enter break-inside-avoid mb-6" style={{ animationDelay: '0.25s' }}>
+              <EventTapIn isTappedIn={!!recentTapInRow} />
+            </div>
+          )}
+
+          {/* Your badges */}
+          {showBadgeTeaser && (
+            <section className="card-enter break-inside-avoid mb-6" style={{ animationDelay: '0.25s' }}>
+              <Eyebrow label="Your badges" />
+              <Link
+                href={`/profile/${profileSlugSelf}`}
+                className={`${cardCls} p-5 block group`}
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-navy">
+                    {earnedCount === TOTAL_BADGES
+                      ? 'All badges awarded.'
+                      : `${earnedCount} badge${earnedCount === 1 ? '' : 's'} awarded`}
+                  </p>
+                  <span className="text-xs text-body-grey group-hover:text-navy transition-colors">View →</span>
+                </div>
+              </Link>
+            </section>
+          )}
+
+          {/* Your Open Table */}
+          {myOpenTableRoom && (
+            <div className="card-enter break-inside-avoid mb-6" style={{ animationDelay: '0.3s' }}>
+              <OpenTableCard roomId={myOpenTableRoom.id} expiresAt={myOpenTableRoom.expires_at} />
+            </div>
+          )}
+
+          {/* Empty state — no connections and nothing pending */}
+          {!hasConnections && pendingActions.length === 0 && (
+            <div className={`card-enter break-inside-avoid mb-6 ${cardCls} p-8 text-center`} style={{ animationDelay: '0.15s' }}>
+              <p className="font-display text-xl font-bold text-navy mb-2">Start building your network</p>
+              <p className="text-sm text-body-grey mb-6">
+                Browse members, make connections, and start facilitating intros.
+              </p>
+              <Link
+                href="/members"
+                className="inline-block bg-navy text-warm-white px-6 py-3 rounded-full text-sm font-medium
+                  hover:bg-navy/90 hover:scale-[1.02] transition-all duration-150"
+              >
+                Browse members
+              </Link>
+            </div>
+          )}
+
         </div>
 
         {/* ── Full-width below both columns ── */}
