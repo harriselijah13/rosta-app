@@ -18,7 +18,6 @@ import EventTapIn from './EventTapIn'
 import PostEventPrompt from './PostEventPrompt'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
-const TOTAL_BADGES = 14
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -112,7 +111,6 @@ export default async function DashboardPage() {
     { data: myConnections },
     { data: mySignals },
     { data: creditsRow },
-    { data: earnedBadgeRows },
     { data: dismissalRows },
     { count: guideFacilitatedCount },
     { count: guideReceivedCount },
@@ -127,7 +125,6 @@ export default async function DashboardPage() {
     admin.from('connections').select('user_a, user_b').or(`user_a.eq.${user.id},user_b.eq.${user.id}`).is('removed_at', null),
     admin.from('signals').select('open_to, working_on, need_right_now, updated_at').eq('user_id', user.id).maybeSingle(),
     admin.from('intro_credits').select('balance, period').eq('user_id', user.id).maybeSingle(),
-    admin.from('member_badges').select('badge_slug').eq('user_id', user.id),
     admin.from('matchmaker_dismissals').select('member_a_id, member_b_id').eq('user_id', user.id),
     admin.from('member_badges')
       .select('badge_slug')
@@ -195,16 +192,10 @@ export default async function DashboardPage() {
   )
 
   // ── Round 2 ──────────────────────────────────────────────────────────────
-  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
-
   const [
     { data: activitySignals },
     { count: introsMadeCount },
-    { count: outcomesThisMonth },
     connectorScore,
-    { count: indexIntrosThisWeek },
-    { count: indexSignalsThisWeek },
-    { count: indexOpenTables },
     { data: myMemberships },
     { data: crossConns },
     { count: availableInviteCount },
@@ -218,11 +209,7 @@ export default async function DashboardPage() {
     connectionIds.length > 0
       ? admin.from('intro_requests').select('id', { count: 'exact', head: true }).eq('requester_id', user.id)
       : Promise.resolve({ count: 0 }),
-    admin.from('outcomes').select('id', { count: 'exact', head: true }).gte('created_at', monthStart),
     computeConnectorScore(user.id),
-    admin.from('intro_requests').select('id', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo),
-    admin.from('signals').select('id', { count: 'exact', head: true }).gte('updated_at', sevenDaysAgo),
-    admin.from('open_table_rooms').select('id', { count: 'exact', head: true }).gt('expires_at', now),
     admin.from('open_table_members').select('room_id, open_table_rooms(id, expires_at)').eq('user_id', user.id),
     connectionIds.length >= 2
       ? admin.from('connections').select('user_a, user_b').in('user_a', connectionIds).in('user_b', connectionIds).is('removed_at', null)
@@ -306,7 +293,6 @@ export default async function DashboardPage() {
     (Date.now() - new Date((profile as { created_at?: string } | null)?.created_at ?? 0).getTime() > 7 * 24 * 60 * 60 * 1000)
   const guideDismissed = !!(profile as { first_visit_guide_dismissed_at?: string | null } | null)?.first_visit_guide_dismissed_at
   const networkActivity = activitySignals ?? []
-  const realOutcomes    = outcomesThisMonth ?? 0
 
   const activityItems: ActivityItem[] = networkActivity.flatMap(signal => {
     const p = byId[signal.user_id]
@@ -346,16 +332,6 @@ export default async function DashboardPage() {
     })
     .find((r): r is RoomRef => r != null && r.expires_at > now) ?? null
 
-  const rostaIndex = {
-    intros:   indexIntrosThisWeek  ?? 0,
-    outcomes: outcomesThisMonth    ?? 0,
-    signals:  indexSignalsThisWeek ?? 0,
-    tables:   indexOpenTables      ?? 0,
-  }
-
-  const earnedSlugs     = new Set((earnedBadgeRows ?? []).map(r => r.badge_slug))
-  const earnedCount     = earnedSlugs.size
-  const showBadgeTeaser = !!profile?.onboarding_completed
   const profileSlugSelf = profile?.username ?? user.id
 
   const unshownBadges = ((unshownBadgeRows ?? []) as unknown as Array<{ badge_slug: string }>)
@@ -375,13 +351,6 @@ export default async function DashboardPage() {
     })
     .filter((x): x is { initials: string; avatar_url: string | null } => x !== null)
 
-  // Network Pulse — built server-side as a plain text line (no client animation needed)
-  const pulseParts = [
-    rostaIndex.intros   > 0 ? `${rostaIndex.intros} intro${rostaIndex.intros === 1 ? '' : 's'} made this week` : null,
-    rostaIndex.outcomes > 0 ? `${rostaIndex.outcomes} collaboration${rostaIndex.outcomes === 1 ? '' : 's'} started this month` : null,
-    rostaIndex.signals  > 0 ? `${rostaIndex.signals} member${rostaIndex.signals === 1 ? '' : 's'} updated their signals this week` : null,
-    rostaIndex.tables   > 0 ? `${rostaIndex.tables} Open Table${rostaIndex.tables === 1 ? '' : 's'} running` : null,
-  ].filter((s): s is string => s !== null)
 
   // ── render ────────────────────────────────────────────────────────────────
   return (
@@ -635,13 +604,12 @@ export default async function DashboardPage() {
             </div>
           )}
 
-          {/* Stats grid — 5 tiles */}
+          {/* Stats grid — 4 tiles, 2×2 */}
           <div className="card-enter break-inside-avoid mb-6 grid grid-cols-2 gap-3" style={{ animationDelay: '0.2s' }}>
             <StatCard label="Connections"            value={connectionIds.length}        href="/members" />
+            <StatCard label="Invite codes"           value={availableInviteCount ?? 0}  href="/invite" />
             <StatCard label="Intro credits"          value={creditBalance}               href="/intro" />
             <StatCard label="Connector Score"        value={connectorScore.total}        href={`/profile/${profileSlugSelf}`} />
-            <StatCard label="Outcomes this month"    value={realOutcomes}                lime={realOutcomes > 0} />
-            <StatCard label="Invite codes available" value={availableInviteCount ?? 0}  href="/invite" />
           </div>
 
           {/* At a networking event today? */}
@@ -649,26 +617,6 @@ export default async function DashboardPage() {
             <div className="card-enter break-inside-avoid mb-6" style={{ animationDelay: '0.25s' }}>
               <EventTapIn isTappedIn={!!recentTapInRow} />
             </div>
-          )}
-
-          {/* Your badges */}
-          {showBadgeTeaser && (
-            <section className="card-enter break-inside-avoid mb-6" style={{ animationDelay: '0.25s' }}>
-              <Eyebrow label="Your badges" />
-              <Link
-                href={`/profile/${profileSlugSelf}`}
-                className={`${cardCls} p-5 block group`}
-              >
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-navy">
-                    {earnedCount === TOTAL_BADGES
-                      ? 'All badges awarded.'
-                      : `${earnedCount} badge${earnedCount === 1 ? '' : 's'} awarded`}
-                  </p>
-                  <span className="text-xs text-body-grey group-hover:text-navy transition-colors">View →</span>
-                </div>
-              </Link>
-            </section>
           )}
 
           {/* Your Open Table */}
@@ -696,18 +644,6 @@ export default async function DashboardPage() {
           )}
 
         </div>
-
-        {/* ── Full-width below both columns ── */}
-        {pulseParts.length > 0 && (
-          <p className="card-enter text-xs text-body-grey leading-relaxed px-1 mt-6" style={{ animationDelay: '0.35s' }}>
-            <span
-              className="inline-block w-1.5 h-1.5 rounded-full bg-lime animate-live-pulse mr-1.5"
-              style={{ verticalAlign: 'middle' }}
-              aria-hidden="true"
-            />
-            {pulseParts.join(' · ')}
-          </p>
-        )}
 
         {hasConnections && (
           <section className="card-enter mt-6" style={{ animationDelay: '0.4s' }}>
