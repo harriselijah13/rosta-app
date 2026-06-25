@@ -1,9 +1,10 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { setFoundingMember, generateInviteCode, removeMember, grantVerification } from './actions'
+import { setFoundingMember, generateInviteCode, removeMember, grantVerification, removeVerification } from './actions'
+import MemberActionsMenu from './MemberActionsMenu'
 
 export type OpenDoorStatus = 'on' | 'off' | 'no_signals'
 
@@ -105,11 +106,21 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
   const [actionTarget,    setActionTarget]    = useState<string | null>(null)
   // Track admin-granted verifications this session so the row updates immediately
   const [grantedIds, setGrantedIds] = useState<Set<string>>(new Set())
+  // Track admin-removed verifications this session so the row updates immediately
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set())
   // Optimistic open-door overrides (populated on per-member toggles, cleared on bulk refresh)
   const [openDoorOverrides, setOpenDoorOverrides] = useState<Record<string, 'on' | 'off'>>({})
   // Bulk open-door modal state
   const [bulkModal, setBulkModal] = useState<{ enabled: boolean; affectedCount: number } | null>(null)
   const [bulkPending, setBulkPending] = useState(false)
+  // Toast message
+  const [toastMsg, setToastMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!toastMsg) return
+    const t = setTimeout(() => setToastMsg(null), 4000)
+    return () => clearTimeout(t)
+  }, [toastMsg])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -125,14 +136,14 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
       if (filterActive === 'inactive' &&  active) return false
       if (filterComplete === 'yes' && !m.is_complete) return false
       if (filterComplete === 'no'  &&  m.is_complete) return false
-      const isVerified = m.is_verified || grantedIds.has(m.id)
+      const isVerified = (m.is_verified && !removedIds.has(m.id)) || grantedIds.has(m.id)
       if (filterVerified === 'verified'   && !isVerified) return false
       if (filterVerified === 'unverified' &&  isVerified) return false
       if (filterOnboarded === 'complete'   && !m.onboarding_completed) return false
       if (filterOnboarded === 'incomplete' &&  m.onboarding_completed) return false
       return true
     })
-  }, [members, search, filterFounding, filterActive, filterComplete, filterVerified, filterOnboarded, grantedIds])
+  }, [members, search, filterFounding, filterActive, filterComplete, filterVerified, filterOnboarded, grantedIds, removedIds])
 
   const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
@@ -234,8 +245,24 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
     })
   }
 
+  async function handleRemoveVerification(m: AdminMember) {
+    setActionTarget(m.id)
+    startTransition(async () => {
+      await removeVerification(m.id)
+      setRemovedIds(prev => { const next = new Set(prev); next.add(m.id); return next })
+      setToastMsg(`Verification removed from ${fullName(m)}.`)
+      setActionTarget(null)
+    })
+  }
+
   return (
     <div>
+      {/* Toast */}
+      {toastMsg && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-navy text-warm-white text-sm font-medium px-5 py-3 rounded-full shadow-lg pointer-events-none">
+          {toastMsg}
+        </div>
+      )}
       <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
         <h1 className="font-display text-3xl font-bold text-navy">
           Members
@@ -334,7 +361,7 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
               {currentPage.map(m => {
                 const active      = isActiveNow(m.last_active_at)
                 const loading     = actionTarget === m.id && isPending
-                const isVerified  = m.is_verified || grantedIds.has(m.id)
+                const isVerified  = (m.is_verified && !removedIds.has(m.id)) || grantedIds.has(m.id)
                 const profileHref = `/profile/${m.username ?? m.id}`
 
                 return (
@@ -414,43 +441,16 @@ export default function MembersClient({ members }: { members: AdminMember[] }) {
                     </td>
                     {/* Actions */}
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <button
-                          disabled={loading}
-                          onClick={() => handleFoundingToggle(m)}
-                          className="text-xs text-body-grey hover:text-navy transition-colors disabled:opacity-40"
-                        >
-                          {m.founding_member ? 'Revoke founding' : 'Grant founding'}
-                        </button>
-                        <span className="text-border">·</span>
-                        {isVerified ? (
-                          <span className="text-xs text-lime font-medium">Verified</span>
-                        ) : (
-                          <button
-                            disabled={loading}
-                            onClick={() => handleGrantVerification(m)}
-                            className="text-xs text-body-grey hover:text-navy transition-colors disabled:opacity-40"
-                          >
-                            Grant verification
-                          </button>
-                        )}
-                        <span className="text-border">·</span>
-                        <button
-                          disabled={loading}
-                          onClick={() => handleGenerateCode(m)}
-                          className="text-xs text-body-grey hover:text-navy transition-colors disabled:opacity-40"
-                        >
-                          Add code
-                        </button>
-                        <span className="text-border">·</span>
-                        <button
-                          disabled={loading}
-                          onClick={() => handleRemove(m)}
-                          className="text-xs text-red-500 hover:text-red-700 transition-colors disabled:opacity-40"
-                        >
-                          Remove
-                        </button>
-                      </div>
+                      <MemberActionsMenu
+                        member={m}
+                        isVerified={isVerified}
+                        isLoading={loading}
+                        onFoundingToggle={() => handleFoundingToggle(m)}
+                        onGrantVerification={() => handleGrantVerification(m)}
+                        onRemoveVerification={() => handleRemoveVerification(m)}
+                        onGenerateCode={() => handleGenerateCode(m)}
+                        onRemove={() => handleRemove(m)}
+                      />
                     </td>
                   </tr>
                 )

@@ -13,17 +13,17 @@ async function requireAdmin() {
   const admin = createAdminClient()
   const { data: profile } = await admin.from('profiles').select('is_admin').eq('id', user.id).single()
   if (!profile?.is_admin) throw new Error('Forbidden')
-  return admin
+  return { admin, adminId: user.id }
 }
 
 export async function setFoundingMember(userId: string, value: boolean) {
-  const admin = await requireAdmin()
+  const { admin } = await requireAdmin()
   await admin.from('profiles').update({ founding_member: value }).eq('id', userId)
   revalidatePath('/admin/members')
 }
 
 export async function generateInviteCode(userId: string): Promise<string> {
-  const admin = await requireAdmin()
+  const { admin } = await requireAdmin()
   const token = generateInviteToken()
   await admin.from('invite_codes').insert({ owner_id: userId, token, type: 'founding_invite' })
   revalidatePath('/admin/members')
@@ -31,15 +31,13 @@ export async function generateInviteCode(userId: string): Promise<string> {
 }
 
 export async function grantVerification(userId: string) {
-  const admin = await requireAdmin()
+  const { admin } = await requireAdmin()
 
-  // Update profile
   await admin.from('profiles').update({
     is_verified:         true,
     verification_status: 'approved',
   }).eq('id', userId)
 
-  // Upsert verification_requests — update existing pending row if present, else insert
   const { data: existing } = await admin
     .from('verification_requests')
     .select('id')
@@ -59,7 +57,6 @@ export async function grantVerification(userId: string) {
     })
   }
 
-  // Send email
   const [{ data: profile }, authResult] = await Promise.all([
     admin.from('profiles').select('first_name').eq('id', userId).single(),
     admin.auth.admin.getUserById(userId),
@@ -74,11 +71,24 @@ export async function grantVerification(userId: string) {
   revalidatePath('/admin/verification')
 }
 
+export async function removeVerification(userId: string) {
+  const { admin, adminId } = await requireAdmin()
+
+  // Cast through unknown to include new audit columns not yet in Supabase-generated types
+  type ProfileUpdate = { is_verified: boolean; verification_status: string }
+  await admin.from('profiles').update({
+    is_verified:               false,
+    verification_status:       'none',
+    verification_removed_at:   new Date().toISOString(),
+    verification_removed_by:   adminId,
+  } as unknown as ProfileUpdate).eq('id', userId)
+
+  revalidatePath('/admin/members')
+}
+
 export async function removeMember(userId: string) {
-  const admin = await requireAdmin()
-  // Delete profile first (other tables cascade from profiles)
+  const { admin } = await requireAdmin()
   await admin.from('profiles').delete().eq('id', userId)
-  // Delete auth user
   await admin.auth.admin.deleteUser(userId)
   revalidatePath('/admin/members')
 }
