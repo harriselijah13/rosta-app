@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { AdminMember } from './MembersClient'
 
 type Props = {
@@ -156,8 +157,8 @@ export default function MemberActionsMenu({
         </svg>
       </button>
 
-      {/* ── Dropdown menu (fixed-positioned to escape table overflow) ── */}
-      {isOpen && menuPos && (
+      {/* ── Dropdown menu — portalled to document.body to escape table overflow/clip context ── */}
+      {isOpen && menuPos && createPortal(
         <div
           ref={menuRef}
           role="menu"
@@ -190,20 +191,21 @@ export default function MemberActionsMenu({
               </button>
             )
           })}
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* ── Remove verification confirmation modal ── */}
-      {showConfirm && (
+      {/* ── Remove verification confirmation modal — portalled to escape whitespace-nowrap inheritance ── */}
+      {showConfirm && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 whitespace-normal"
           onClick={e => { if (e.target === e.currentTarget) setShowConfirm(false) }}
         >
-          <div className="bg-white rounded-2xl p-6 shadow-xl max-w-sm w-full">
+          <div className="bg-white rounded-2xl p-6 shadow-xl max-w-[480px] w-full">
             <h2 className="font-display text-2xl font-bold text-navy mb-3">
               Remove verification from {memberName}?
             </h2>
-            <p className="text-sm leading-relaxed mb-6" style={{ color: 'rgba(15,27,60,0.70)' }}>
+            <p className="text-sm leading-relaxed mb-6 whitespace-normal" style={{ color: 'rgba(15,27,60,0.70)' }}>
               They will lose their verified status and badge on their profile. This does not refund any payment — that is a separate action in Stripe if needed.
             </p>
             <div className="flex flex-col gap-3">
@@ -222,7 +224,8 @@ export default function MemberActionsMenu({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
