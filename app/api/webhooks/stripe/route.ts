@@ -27,75 +27,144 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
-  if (event.type !== 'payment_intent.succeeded') {
+  // ── checkout.session.completed — primary handler for Checkout Sessions ────
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as Stripe.Checkout.Session
+    await handleCheckoutComplete(session)
     return NextResponse.json({ received: true })
   }
 
-  const pi = event.data.object as Stripe.PaymentIntent
+  // ── payment_intent.succeeded — legacy handler kept for backwards compat ──
+  if (event.type === 'payment_intent.succeeded') {
+    const pi = event.data.object as Stripe.PaymentIntent
+    // If this PI was created via a Checkout Session, the session webhook
+    // already handled everything. Only process standalone PIs.
+    if (!pi.metadata?.verification_request_id) {
+      return NextResponse.json({ received: true })
+    }
+    await handlePaymentIntentSucceeded(pi)
+    return NextResponse.json({ received: true })
+  }
+
+  return NextResponse.json({ received: true })
+}
+
+// ── Checkout Session handler ──────────────────────────────────────────────────
+
+async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
+  if (session.payment_status !== 'paid') return
+
+  const requestId = session.metadata?.verification_request_id
+  const userId    = session.metadata?.member_id
+
+  if (!requestId || !userId) {
+    console.error('[stripe-webhook] checkout.session.completed missing metadata', session.id)
+    return
+  }
+
   const admin = createAdminClient()
 
-  // Find the verification request for this payment intent
   const { data: verRequest } = await admin
     .from('verification_requests')
     .select('id, user_id, stripe_payment_status')
-    .eq('stripe_payment_intent_id', pi.id)
+    .eq('id', requestId)
     .maybeSingle()
 
   if (!verRequest) {
-    // Try metadata fallback
-    const requestId = pi.metadata?.verification_request_id
-    if (!requestId) {
-      console.error('[stripe-webhook] no verification_request found for PI', pi.id)
-      return NextResponse.json({ received: true })
-    }
-    const { data: byId } = await admin
-      .from('verification_requests')
-      .select('id, user_id, stripe_payment_status')
-      .eq('id', requestId)
-      .maybeSingle()
-    if (!byId) {
-      console.error('[stripe-webhook] request not found by metadata id', requestId)
-      return NextResponse.json({ received: true })
-    }
-    Object.assign(verRequest ?? {}, byId)
+    console.error('[stripe-webhook] checkout: no verification_request found for', requestId)
+    return
   }
 
   // Idempotency — skip if already processed
-  if (verRequest?.stripe_payment_status === 'paid') {
-    return NextResponse.json({ received: true, skipped: 'already_paid' })
+  if (verRequest.stripe_payment_status === 'paid') {
+    return
   }
 
-  const userId = verRequest?.user_id ?? pi.metadata?.user_id
-  if (!userId) {
-    console.error('[stripe-webhook] cannot determine user_id for PI', pi.id)
-    return NextResponse.json({ received: true })
-  }
+  const now = new Date().toISOString()
 
-  // Mark request as paid
+  // Cast through unknown to handle new columns not yet in the generated Supabase types
+  type VerificationUpdate = { stripe_payment_status: string }
   await admin
     .from('verification_requests')
-    .update({ stripe_payment_status: 'paid' })
-    .eq('stripe_payment_intent_id', pi.id)
+    .update({
+      stripe_payment_status:      'paid',
+      stripe_checkout_session_id: session.id,
+      payment_currency:           session.currency ?? null,
+      payment_amount:             session.amount_total != null ? session.amount_total / 100 : null,
+      paid_at:                    now,
+    } as unknown as VerificationUpdate)
+    .eq('id', requestId)
 
-  // Set profile as verified
   await admin
     .from('profiles')
     .update({ is_verified: true, verification_status: 'approved' })
     .eq('id', userId)
 
-  // Send confirmation email
+  await sendConfirmationEmail(admin, userId)
+  console.log('[stripe-webhook] checkout complete — verified user', userId, 'session', session.id)
+}
+
+// ── Legacy PaymentIntent handler ──────────────────────────────────────────────
+
+async function handlePaymentIntentSucceeded(pi: Stripe.PaymentIntent) {
+  const requestId = pi.metadata?.verification_request_id
+  const userId    = pi.metadata?.user_id ?? pi.metadata?.member_id
+
+  if (!requestId || !userId) {
+    console.error('[stripe-webhook] PI succeeded: missing metadata', pi.id)
+    return
+  }
+
+  const admin = createAdminClient()
+
+  const { data: verRequest } = await admin
+    .from('verification_requests')
+    .select('id, stripe_payment_status')
+    .eq('stripe_payment_intent_id', pi.id)
+    .maybeSingle()
+
+  if (!verRequest) {
+    const { data: byMetadata } = await admin
+      .from('verification_requests')
+      .select('id, stripe_payment_status')
+      .eq('id', requestId)
+      .maybeSingle()
+    if (!byMetadata) {
+      console.error('[stripe-webhook] PI: no verification_request found for PI', pi.id)
+      return
+    }
+    Object.assign(verRequest ?? {}, byMetadata)
+  }
+
+  if (verRequest?.stripe_payment_status === 'paid') return
+
+  await admin
+    .from('verification_requests')
+    .update({ stripe_payment_status: 'paid' })
+    .eq('stripe_payment_intent_id', pi.id)
+
+  await admin
+    .from('profiles')
+    .update({ is_verified: true, verification_status: 'approved' })
+    .eq('id', userId)
+
+  await sendConfirmationEmail(admin, userId)
+  console.log('[stripe-webhook] PI succeeded — verified user', userId, 'PI', pi.id)
+}
+
+// ── Shared helper ─────────────────────────────────────────────────────────────
+
+async function sendConfirmationEmail(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+) {
   const [{ data: profile }, authResult] = await Promise.all([
     admin.from('profiles').select('first_name').eq('id', userId).single(),
     admin.auth.admin.getUserById(userId),
   ])
-
   const email = authResult.data.user?.email
   const name  = profile?.first_name ?? 'there'
-
   if (email) {
     await sendEmail(email, 'You are now a Verified ROSTA member', verificationPaidEmail(name))
   }
-
-  console.log('[stripe-webhook] verified user', userId, 'via PI', pi.id)
-  return NextResponse.json({ received: true })
 }
