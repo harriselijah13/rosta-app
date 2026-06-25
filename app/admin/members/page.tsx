@@ -14,7 +14,7 @@ export default async function MembersPage() {
   ] = await Promise.all([
     admin
       .from('profiles')
-      .select('id, first_name, last_name, username, where_i_operate, founding_member, created_at, last_active_at, building_now, is_verified, onboarding_completed')
+      .select('id, first_name, last_name, username, where_i_operate, founding_member, created_at, last_active_at, building_now, is_verified, verification_status, onboarding_completed')
       .order('created_at', { ascending: false }),
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
     admin.from('signals').select('user_id, open_to'),
@@ -36,7 +36,7 @@ export default async function MembersPage() {
       created_at:      p.created_at,
       last_active_at:  p.last_active_at,
       is_complete:          !!(p.first_name && p.building_now),
-      is_verified:          p.is_verified ?? false,
+      is_verified:          (p.is_verified ?? false) || p.verification_status === 'approved',
       onboarding_completed: p.onboarding_completed ?? false,
       open_door: hasSignals
         ? (signalById[p.id]?.includes('open_door') ? 'on' : 'off')

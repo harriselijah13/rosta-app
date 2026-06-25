@@ -14,7 +14,7 @@ type Props = {
   onRemove:             () => void
 }
 
-type MenuPos = { top: number; left: number; openUp: boolean }
+type MenuPos = { top: number; right: number; openUp: boolean }
 
 export default function MemberActionsMenu({
   member, isVerified, isLoading,
@@ -63,14 +63,13 @@ export default function MemberActionsMenu({
     const rect = triggerRef.current?.getBoundingClientRect()
     if (!rect) return
 
-    const menuWidth = 208
     const estimatedMenuH = items.length * 36 + 16
     const viewportH = window.innerHeight
     const openUp = rect.bottom + estimatedMenuH > viewportH - 16
 
     setMenuPos({
-      top:    openUp ? rect.top - estimatedMenuH - 4 : rect.bottom + 4,
-      left:   Math.max(8, rect.right - menuWidth),
+      top:   openUp ? rect.top - estimatedMenuH - 4 : rect.bottom + 4,
+      right: Math.max(8, window.innerWidth - rect.right),
       openUp,
     })
     setIsOpen(true)
@@ -163,7 +162,7 @@ export default function MemberActionsMenu({
           ref={menuRef}
           role="menu"
           aria-label="Member actions"
-          style={{ top: menuPos.top, left: menuPos.left, width: 208 }}
+          style={{ top: menuPos.top, right: menuPos.right, width: 208 }}
           className="fixed z-50 bg-white border border-border rounded-lg shadow-[0_8px_24px_rgba(15,27,60,0.12)] py-1"
         >
           {items.map((item, i) => {
