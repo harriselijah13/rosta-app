@@ -587,18 +587,6 @@ export default async function DashboardPage() {
             </div>
           )}
 
-          {/* Matchmaker when a specific pair exists; generic Suggest as fallback */}
-          {matchPairs.length > 0 ? (
-            <section className="card-enter break-inside-avoid mb-6" style={{ animationDelay: '0.2s' }}>
-              <Eyebrow label="Matchmaker" />
-              <MatchmakerCard pairs={matchPairs} />
-            </section>
-          ) : (
-            <div className="break-inside-avoid mb-6">
-              <SuggestIntroBlock />
-            </div>
-          )}
-
           {/* Stats grid — 4 tiles, 2×2 */}
           <div className="card-enter break-inside-avoid mb-6 grid grid-cols-2 gap-3" style={{ animationDelay: '0.2s' }}>
             <StatCard label="Connections"            value={connectionIds.length}        href="/members" />
@@ -611,6 +599,18 @@ export default async function DashboardPage() {
           {!activeEventPromptRow && (
             <div className="card-enter break-inside-avoid mb-6" style={{ animationDelay: '0.25s' }}>
               <EventTapIn isTappedIn={!!recentTapInRow} />
+            </div>
+          )}
+
+          {/* Matchmaker when a specific pair exists; generic Suggest as fallback */}
+          {matchPairs.length > 0 ? (
+            <section className="card-enter break-inside-avoid mb-6" style={{ animationDelay: '0.3s' }}>
+              <Eyebrow label="Matchmaker" />
+              <MatchmakerCard pairs={matchPairs} />
+            </section>
+          ) : (
+            <div className="break-inside-avoid mb-6">
+              <SuggestIntroBlock />
             </div>
           )}
 
