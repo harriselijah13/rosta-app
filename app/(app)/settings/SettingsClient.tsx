@@ -238,6 +238,29 @@ export default function SettingsClient({ userId, profile, signals, openTableOpte
         )
       if (se) throw se
 
+      // Track signal changes for the Network view (best-effort, never blocks save)
+      void (async () => {
+        const changes: Array<{ member_id: string; signal_type: string; new_value: string }> = []
+        const prevWorking  = signals?.working_on ?? ''
+        const prevNeed     = signals?.need_right_now ?? ''
+        const prevOpenTo   = (signals?.open_to ?? []).filter(s => s !== 'open_door').sort()
+        const newOpenTo    = openTo.filter(s => s !== 'open_door').sort()
+
+        if (workingOn.trim() && workingOn.trim() !== prevWorking) {
+          changes.push({ member_id: userId, signal_type: 'working_on', new_value: workingOn.trim() })
+        }
+        if (needRightNow.trim() && needRightNow.trim() !== prevNeed) {
+          changes.push({ member_id: userId, signal_type: 'need_right_now', new_value: needRightNow.trim() })
+        }
+        if (newOpenTo.length > 0 && JSON.stringify(newOpenTo) !== JSON.stringify(prevOpenTo)) {
+          changes.push({ member_id: userId, signal_type: 'open_to', new_value: newOpenTo.join(', ') })
+        }
+        if (changes.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any).from('signal_updates').insert(changes)
+        }
+      })().catch(() => undefined)
+
       setSaved(true)
       router.refresh()
       // Fire badge check after profile + signals saved (don't block UI)

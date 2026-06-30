@@ -662,3 +662,24 @@ export async function notifyAdminOnSignup({
     wrap('New member signup', body, 'View profile', profileUrl),
   )
 }
+
+// ── Network digest email ──────────────────────────────────────────────────────
+export function networkDigestEmail(
+  firstName: string,
+  askCount: number,
+  offerCount: number,
+  signalCount: number,
+): string {
+  const parts: string[] = []
+  if (askCount > 0)    parts.push(`${askCount} ${askCount === 1 ? 'ask' : 'asks'}`)
+  if (offerCount > 0)  parts.push(`${offerCount} ${offerCount === 1 ? 'offer' : 'offers'}`)
+  if (signalCount > 0) parts.push(`${signalCount} signal ${signalCount === 1 ? 'update' : 'updates'}`)
+  const summary = parts.join(' and ')
+
+  return wrap(
+    `New in your network, ${firstName}.`,
+    `${summary} from your connections since yesterday. Open your Network view to see what's happening.`,
+    'Open Network',
+    `${BASE}/network`,
+  )
+}
