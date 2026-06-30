@@ -308,11 +308,14 @@ export default async function DashboardPage() {
     .map(r => BADGE_MAP[r.badge_slug])
     .filter((b): b is NonNullable<typeof b> => b != null)
 
-  // Floating avatar data — up to 4 from recently active connections
-  const avatarProfiles = (activitySignals ?? [])
-    .slice(0, 4)
-    .map(s => {
-      const p = byId[s.user_id]
+  // Floating avatar data — up to 4 connections, recently active first
+  const activityUserIds = (activitySignals ?? []).map(s => s.user_id)
+  const fillIds = connectionIds.filter(id => !activityUserIds.includes(id))
+  const avatarSourceIds = [...activityUserIds, ...fillIds].slice(0, 4)
+
+  const avatarProfiles = avatarSourceIds
+    .map(id => {
+      const p = byId[id]
       if (!p) return null
       return {
         initials:   [p.first_name?.[0], p.last_name?.[0]].filter(Boolean).join('').toUpperCase() || '?',
