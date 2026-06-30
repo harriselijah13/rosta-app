@@ -61,9 +61,6 @@ export default function MobileNav({ profileSlug, pendingIntros, unreadMessages, 
               </span>
             )}
           </Link>
-          <Link href="/network" className="text-sm text-body-grey hover:text-navy transition-colors">
-            Network
-          </Link>
           <Link href="/invite" className="relative text-sm text-body-grey hover:text-navy transition-colors">
             Invite
             {availableInvites > 0 && (
@@ -160,13 +157,6 @@ export default function MobileNav({ profileSlug, pendingIntros, unreadMessages, 
                   {pendingIntros}
                 </span>
               )}
-            </Link>
-            <Link
-              href="/network"
-              onClick={close}
-              className="py-3 text-sm font-medium text-navy border-b border-border"
-            >
-              Network
             </Link>
             <Link
               href="/invite"

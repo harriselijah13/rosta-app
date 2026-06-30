@@ -13,9 +13,11 @@ import FloatingAvatars from './FloatingAvatars'
 import ScoreCounter from './ScoreCounter'
 import SuggestIntroBlock from './SuggestIntroBlock'
 import MatchmakerCard, { type MatchPair } from './MatchmakerCard'
-import NetworkActivityList, { type ActivityItem } from './NetworkActivityList'
 import EventTapIn from './EventTapIn'
 import PostEventPrompt from './PostEventPrompt'
+import DashboardNetworkFeed from '../network/DashboardNetworkFeed'
+import { buildFeedItems, type FeedItem } from '../network/feedUtils'
+import { buildPlatformActivity, type PlatformActivityItem } from '../network/platformActivity'
 
 const OPEN_TO_MAP = Object.fromEntries(OPEN_TO_OPTIONS.map(o => [o.value, o.label]))
 
@@ -116,7 +118,7 @@ export default async function DashboardPage() {
     { count: guideReceivedCount },
     { data: unshownBadgeRows },
   ] = await Promise.all([
-    supabase.from('profiles').select('first_name, username, onboarding_completed, created_at, first_visit_members_at, first_visit_guide_dismissed_at').eq('id', user.id).single(),
+    supabase.from('profiles').select('first_name, last_name, username, avatar_url, is_verified, onboarding_completed, created_at, first_visit_members_at, first_visit_guide_dismissed_at').eq('id', user.id).single(),
     admin.from('intro_requests')
       .select('id, type, requester_id, target_id, facilitator_id, facilitator_note, expires_at')
       .or(`requester_id.eq.${user.id},facilitator_id.eq.${user.id},target_id.eq.${user.id}`)
@@ -199,6 +201,8 @@ export default async function DashboardPage() {
     { data: myMemberships },
     { data: crossConns },
     { count: availableInviteCount },
+    networkFeed,
+    platformActivity,
   ] = await Promise.all([
     connectionIds.length > 0
       ? admin.from('signals')
@@ -219,6 +223,8 @@ export default async function DashboardPage() {
       .eq('owner_id', user.id)
       .is('used_at', null)
       .is('shared_at', null),
+    buildFeedItems(admin, user.id, now, 10).catch(() => ({ items: [] as FeedItem[], hasMore: false })),
+    buildPlatformActivity(admin, user.id, connectionIds).catch(() => [] as PlatformActivityItem[]),
   ])
 
   // ── Matchmaker pair computation ───────────────────────────────────────────
@@ -252,33 +258,17 @@ export default async function DashboardPage() {
     ...pendingActions.flatMap(r => [r.requester_id, r.target_id, r.facilitator_id]),
     ...trackedIntros.flatMap(r => [r.requester_id, r.target_id, r.facilitator_id]),
   ].filter((id): id is string => typeof id === 'string')
-  const allProfileIds = Array.from(new Set([...activityIds, ...pendingPartyIds, ...matchmakerProfileIds]))
+  const allProfileIds = Array.from(new Set([...activityIds, ...pendingPartyIds, ...matchmakerProfileIds, ...connectionIds]))
 
   type ProfileRow = { id: string; first_name: string | null; last_name: string | null; avatar_url: string | null; username: string | null; is_verified: boolean }
-  type ConvRow = { id: string; user_a: string; user_b: string }
 
-  const [{ data: profiles }, { data: activityConvs }] = await Promise.all([
+  const { data: profiles } = await (
     allProfileIds.length > 0
       ? admin.from('profiles').select('id, first_name, last_name, avatar_url, username, is_verified').in('id', allProfileIds)
-      : Promise.resolve({ data: [] as ProfileRow[] }),
-    activityIds.length > 0
-      ? admin.from('conversations')
-          .select('id, user_a, user_b')
-          .or(activityIds.map(id => {
-            const [a, b] = [user.id, id].sort()
-            return `and(user_a.eq.${a},user_b.eq.${b})`
-          }).join(','))
-      : Promise.resolve({ data: [] as ConvRow[] }),
-  ])
+      : Promise.resolve({ data: [] as ProfileRow[] })
+  )
 
   const byId = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
-  const slug = (id: string) => byId[id]?.username ?? id
-
-  const convByUserId: Record<string, string> = {}
-  for (const c of activityConvs ?? []) {
-    const otherId = c.user_a === user.id ? c.user_b : c.user_a
-    convByUserId[otherId] = c.id
-  }
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const firstName      = profile?.first_name ?? null
@@ -292,26 +282,6 @@ export default async function DashboardPage() {
   const guideStep4     = (guideReceivedCount ?? 0) > 0 ||
     (Date.now() - new Date((profile as { created_at?: string } | null)?.created_at ?? 0).getTime() > 7 * 24 * 60 * 60 * 1000)
   const guideDismissed = !!(profile as { first_visit_guide_dismissed_at?: string | null } | null)?.first_visit_guide_dismissed_at
-  const networkActivity = activitySignals ?? []
-
-  const activityItems: ActivityItem[] = networkActivity.flatMap(signal => {
-    const p = byId[signal.user_id]
-    if (!p) return []
-    const name = displayName(p)
-    return [{
-      userId:         signal.user_id,
-      name,
-      avatarUrl:      p.avatar_url,
-      isVerified:     p.is_verified,
-      profileSlug:    slug(signal.user_id),
-      initials:       name.trim().split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase(),
-      workingOn:      signal.working_on,
-      needRightNow:   signal.need_right_now,
-      openTo:         (signal.open_to ?? []) as string[],
-      updatedAt:      signal.updated_at,
-      conversationId: convByUserId[signal.user_id] ?? null,
-    }]
-  })
 
   const matchPairs: MatchPair[] = candidatePairIds.map(([a, b]) => ({
     memberAId:   a,
@@ -351,6 +321,17 @@ export default async function DashboardPage() {
     })
     .filter((x): x is { initials: string; avatar_url: string | null } => x !== null)
 
+  // Connection list for ForwardModal (names + avatars already in byId)
+  const feedConnections = connectionIds.map(id => {
+    const p = byId[id]
+    return { id, name: displayName(p), avatarUrl: p?.avatar_url ?? null }
+  })
+
+  // Current user display info for DashboardNetworkFeed
+  const profileAny = profile as { last_name?: string | null; avatar_url?: string | null; is_verified?: boolean } | null
+  const currentUserFullName = [profile?.first_name, profileAny?.last_name].filter(Boolean).join(' ') || 'You'
+  const currentUserAvatarUrl = profileAny?.avatar_url ?? null
+  const currentUserIsVerified = profileAny?.is_verified ?? false
 
   // ── render ────────────────────────────────────────────────────────────────
   return (
@@ -372,8 +353,8 @@ export default async function DashboardPage() {
           className="absolute inset-0 pointer-events-none"
           style={{ background: 'radial-gradient(ellipse at 80% 50%, rgba(200,245,60,0.06) 0%, transparent 60%)' }}
         />
-        <div className="relative z-10 max-w-[1100px] mx-auto px-4 sm:px-6 py-8">
-          <div className="flex justify-end mb-6">
+        <div className="relative z-10 max-w-[1100px] mx-auto px-4 sm:px-6 py-4">
+          <div className="flex justify-end mb-3">
             <Link
               href="/score"
               className="flex items-baseline gap-1.5 hover:opacity-75 transition-opacity"
@@ -398,8 +379,22 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Masonry: cards fill columns automatically, balancing heights ── */}
+      {/* ── Main content ── */}
       <main className="max-w-[1100px] mx-auto px-4 sm:px-6 py-8">
+
+        {/* Network feed — full-width, above masonry grid */}
+        <DashboardNetworkFeed
+          feedItems={networkFeed.items}
+          platformActivity={platformActivity}
+          currentUserId={user.id}
+          currentUserName={currentUserFullName}
+          currentUserAvatarUrl={currentUserAvatarUrl}
+          currentUserIsVerified={currentUserIsVerified}
+          currentUserUsername={profile?.username ?? null}
+          connections={feedConnections}
+        />
+
+        {/* ── Masonry: cards fill columns automatically, balancing heights ── */}
         <div className="columns-1 lg:columns-2 gap-x-10">
 
           {/* Post-event capture prompt — priority when active */}
@@ -644,13 +639,6 @@ export default async function DashboardPage() {
           )}
 
         </div>
-
-        {hasConnections && (
-          <section className="card-enter mt-6" style={{ animationDelay: '0.4s' }}>
-            <Eyebrow label="Network activity" />
-            <NetworkActivityList items={activityItems.slice(0, 5)} hasMore={networkActivity.length > 5} />
-          </section>
-        )}
 
       </main>
     </>

@@ -19,14 +19,16 @@ type Props = {
   currentUserAvatarUrl: string | null
   currentUserIsVerified: boolean
   currentUserUsername: string | null
+  initialType?: 'ask' | 'offer'
 }
 
 export default function ComposeModal({
   onClose, onCreated,
   currentUserId, currentUserName, currentUserAvatarUrl, currentUserIsVerified, currentUserUsername,
+  initialType,
 }: Props) {
-  const [step, setStep]       = useState<Step>('pick')
-  const [postType, setPostType] = useState<PostType>('ask')
+  const [step, setStep]       = useState<Step>(initialType ? 'form' : 'pick')
+  const [postType, setPostType] = useState<PostType>(initialType ?? 'ask')
   const [f1, setF1]           = useState('')
   const [f2, setF2]           = useState('')
   const [f3, setF3]           = useState('')
