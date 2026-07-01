@@ -59,16 +59,17 @@ type Tab = 'can_help' | 'know_someone' | 'forwards'
 type Props = {
   post: FeedPost
   onClose: () => void
+  defaultTab?: 'can_help' | 'know_someone'
 }
 
-export default function PostReactionsModal({ post, onClose }: Props) {
+export default function PostReactionsModal({ post, onClose, defaultTab }: Props) {
   const { reactions } = post
   const tabs: Tab[] = []
   if (reactions.can_help.length > 0)    tabs.push('can_help')
   if (reactions.know_someone.length > 0) tabs.push('know_someone')
   if (reactions.forward_count > 0)       tabs.push('forwards')
 
-  const [activeTab, setActiveTab] = useState<Tab>(tabs[0] ?? 'can_help')
+  const [activeTab, setActiveTab] = useState<Tab>(defaultTab ?? tabs[0] ?? 'can_help')
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }

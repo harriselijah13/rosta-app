@@ -91,26 +91,9 @@ type Props = {
   reacting: boolean
 }
 
-// ── Small icons for own-post reaction chips ────────────────────────────────────
-const ChipHandIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v0M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8l3 3h8" />
-  </svg>
-)
-const ChipPersonIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-  </svg>
-)
-const ChipArrowIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M5 12h14M12 5l7 7-7 7" />
-  </svg>
-)
-
 export default function PostCard({ post, onReact, onForward, onDelete, reacting }: Props) {
   const [showReactions, setShowReactions] = useState(false)
+  const [reactionsDefaultTab, setReactionsDefaultTab] = useState<'can_help' | 'know_someone' | null>(null)
   const authorHref = post.authorUsername ? `/profile/${post.authorUsername}` : `/profile/${post.authorId}`
 
   const FIELD_LABELS = {
@@ -177,89 +160,106 @@ export default function PostCard({ post, onReact, onForward, onDelete, reacting 
         </div>
       </div>
 
-      {/* Reaction summary strip — own posts only */}
-      {post.isOwnPost && (() => {
-        const { can_help, know_someone, forward_count } = post.reactions
-        const hasActivity = can_help.length > 0 || know_someone.length > 0 || forward_count > 0
-        if (!hasActivity) return null
-        return (
-          <div className="flex items-center gap-2 flex-wrap border-t border-border pt-2">
-            {can_help.length > 0 && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 border border-navy/20 rounded-full text-[13px] font-medium text-navy/70">
-                <ChipHandIcon />{can_help.length} can help
-              </span>
-            )}
-            {know_someone.length > 0 && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 border border-navy/20 rounded-full text-[13px] font-medium text-navy/70">
-                <ChipPersonIcon />{know_someone.length} know someone
-              </span>
-            )}
-            {forward_count > 0 && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 border border-navy/20 rounded-full text-[13px] font-medium text-navy/70">
-                <ChipArrowIcon />{forward_count} {forward_count === 1 ? 'forward' : 'forwards'}
-              </span>
-            )}
-            <button
-              onClick={() => setShowReactions(true)}
-              className="ml-auto text-xs text-navy/60 hover:text-navy transition-colors whitespace-nowrap"
-            >
-              View reactions →
-            </button>
-          </div>
-        )
-      })()}
-
       {/* Actions */}
       <div className="flex items-center justify-between border-t border-border pt-3 -mb-1">
-        {post.isOwnPost ? (
-          <button
-            onClick={onDelete}
-            className="text-xs text-body-grey hover:text-navy transition-colors"
-          >
-            Delete post
-          </button>
-        ) : (
-          <div className="flex items-center gap-1">
-            <ReactionButton
-              label={post.reaction_counts.can_help > 0 ? `I can help (${post.reaction_counts.can_help})` : 'I can help'}
-              icon={<HandIcon filled={post.myReactions.includes('can_help')} />}
-              active={post.myReactions.includes('can_help')}
-              disabled={reacting}
-              onClick={() => handleReact('can_help')}
-            />
-            <ReactionButton
-              label={post.reaction_counts.know_someone > 0 ? `I know someone (${post.reaction_counts.know_someone})` : 'I know someone'}
-              icon={<PersonIcon filled={post.myReactions.includes('know_someone')} />}
-              active={post.myReactions.includes('know_someone')}
-              disabled={reacting}
-              onClick={() => handleReact('know_someone')}
-            />
-            <ReactionButton
-              label={post.reaction_counts.noted > 0 ? `Noted (${post.reaction_counts.noted})` : 'Noted'}
-              icon={<BookmarkIcon filled={post.myReactions.includes('noted')} />}
-              active={post.myReactions.includes('noted')}
-              disabled={reacting}
-              onClick={() => handleReact('noted')}
-            />
-          </div>
-        )}
+        <div className="flex items-center gap-1">
+          {post.isOwnPost ? (
+            <>
+              <ReactionButton
+                label={post.reaction_counts.can_help > 0 ? `I can help (${post.reaction_counts.can_help})` : 'I can help'}
+                icon={<HandIcon filled={false} />}
+                active={false}
+                disabled={false}
+                onClick={() => {
+                  if (post.reaction_counts.can_help > 0) {
+                    setReactionsDefaultTab('can_help')
+                    setShowReactions(true)
+                  }
+                }}
+              />
+              <ReactionButton
+                label={post.reaction_counts.know_someone > 0 ? `I know someone (${post.reaction_counts.know_someone})` : 'I know someone'}
+                icon={<PersonIcon filled={false} />}
+                active={false}
+                disabled={false}
+                onClick={() => {
+                  if (post.reaction_counts.know_someone > 0) {
+                    setReactionsDefaultTab('know_someone')
+                    setShowReactions(true)
+                  }
+                }}
+              />
+              <span className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg text-body-grey cursor-default">
+                <span className="w-5 h-5 flex items-center justify-center">
+                  <BookmarkIcon filled={false} />
+                </span>
+                <span className="text-[11px] font-medium leading-none whitespace-nowrap">
+                  {post.reaction_counts.noted > 0 ? `Noted (${post.reaction_counts.noted})` : 'Noted'}
+                </span>
+              </span>
+            </>
+          ) : (
+            <>
+              <ReactionButton
+                label={post.reaction_counts.can_help > 0 ? `I can help (${post.reaction_counts.can_help})` : 'I can help'}
+                icon={<HandIcon filled={post.myReactions.includes('can_help')} />}
+                active={post.myReactions.includes('can_help')}
+                disabled={reacting}
+                onClick={() => handleReact('can_help')}
+              />
+              <ReactionButton
+                label={post.reaction_counts.know_someone > 0 ? `I know someone (${post.reaction_counts.know_someone})` : 'I know someone'}
+                icon={<PersonIcon filled={post.myReactions.includes('know_someone')} />}
+                active={post.myReactions.includes('know_someone')}
+                disabled={reacting}
+                onClick={() => handleReact('know_someone')}
+              />
+              <ReactionButton
+                label={post.reaction_counts.noted > 0 ? `Noted (${post.reaction_counts.noted})` : 'Noted'}
+                icon={<BookmarkIcon filled={post.myReactions.includes('noted')} />}
+                active={post.myReactions.includes('noted')}
+                disabled={reacting}
+                onClick={() => handleReact('noted')}
+              />
+            </>
+          )}
+        </div>
 
         <div className="flex items-center gap-3">
-          {/* Forward button — only for non-own, non-already-forwarded direct posts */}
-          {post.isForwardable && !post.isOwnPost && (
-            <button
-              onClick={onForward}
-              className="text-xs text-body-grey hover:text-navy transition-colors"
-            >
-              Forward
-            </button>
+          {post.isOwnPost ? (
+            <>
+              <button
+                onClick={onDelete}
+                className="text-xs text-body-grey hover:text-navy transition-colors"
+              >
+                Delete post
+              </button>
+              {post.reactions.forward_count > 0 && (
+                <p className="text-[11px] text-body-grey">
+                  → {post.reactions.forward_count} {post.reactions.forward_count === 1 ? 'forward' : 'forwards'}
+                </p>
+              )}
+            </>
+          ) : (
+            post.isForwardable && (
+              <button
+                onClick={onForward}
+                className="text-xs text-body-grey hover:text-navy transition-colors"
+              >
+                Forward
+              </button>
+            )
           )}
           <p className="text-[11px] text-body-grey">{expiryLabel(post.expiresAt)}</p>
         </div>
       </div>
 
       {showReactions && (
-        <PostReactionsModal post={post} onClose={() => setShowReactions(false)} />
+        <PostReactionsModal
+          post={post}
+          defaultTab={reactionsDefaultTab ?? undefined}
+          onClose={() => { setShowReactions(false); setReactionsDefaultTab(null) }}
+        />
       )}
     </article>
   )
