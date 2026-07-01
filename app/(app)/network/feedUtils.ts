@@ -27,6 +27,8 @@ export type FeedPost = {
   forwardedBy: { id: string; name: string } | null
   isForwardable: boolean
   myReactions: Array<'can_help' | 'know_someone' | 'noted'>
+  // aggregate counts visible to all viewers (including the poster)
+  reaction_counts: { can_help: number; know_someone: number; noted: number }
   // reactions always present; can_help/know_someone only populated for own posts
   reactions: { can_help: Reactor[]; know_someone: Reactor[]; forward_count: number }
 }
@@ -153,6 +155,24 @@ export async function buildFeedItems(
     myReactionsByPostId[r.post_id].push(r.reaction_type)
   }
 
+  // ── 6b. Aggregate reaction counts for all posts ───────────────────────────
+  const { data: allCountRows } = allPostIds.length > 0
+    ? await (admin as any)
+        .from('network_post_reactions')
+        .select('post_id, reaction_type')
+        .in('post_id', allPostIds)
+    : { data: [] }
+
+  const reactionCountsByPostId: Record<string, { can_help: number; know_someone: number; noted: number }> = {}
+  for (const r of (allCountRows ?? []) as any[]) {
+    if (!reactionCountsByPostId[r.post_id]) {
+      reactionCountsByPostId[r.post_id] = { can_help: 0, know_someone: 0, noted: 0 }
+    }
+    if (r.reaction_type === 'can_help')    reactionCountsByPostId[r.post_id].can_help++
+    if (r.reaction_type === 'know_someone') reactionCountsByPostId[r.post_id].know_someone++
+    if (r.reaction_type === 'noted')        reactionCountsByPostId[r.post_id].noted++
+  }
+
   // ── 7. Reactor data for own posts ─────────────────────────────────────────
   const ownPostIds = allPostRows.filter(p => p.author_id === userId).map(p => p.id)
 
@@ -268,6 +288,7 @@ export async function buildFeedItems(
         : null,
       isForwardable: !forwarderById[post.id] && !isOwn && !alreadyForwardedSet.has(post.id),
       myReactions: myReactionsByPostId[post.id] ?? [],
+      reaction_counts: reactionCountsByPostId[post.id] ?? { can_help: 0, know_someone: 0, noted: 0 },
       reactions: {
         can_help: ownReactions.can_help,
         know_someone: ownReactions.know_someone,

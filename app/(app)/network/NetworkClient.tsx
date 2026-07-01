@@ -75,14 +75,24 @@ export default function NetworkClient({
     if (reactingIds.has(itemId)) return
     setReactingIds(prev => new Set(prev).add(itemId))
 
-    // Optimistic update
+    // Optimistic update — myReactions + reaction_counts
     setItems(prev => prev.map(item => {
-      if (item.id !== itemId) return item
-      const reactions = item.myReactions
-      const updated = action === 'add'
-        ? Array.from(new Set([...reactions, reactionType]))
-        : reactions.filter(r => r !== reactionType)
-      return { ...item, myReactions: updated } as FeedItem
+      if (item.id !== itemId || item.kind !== 'post') return item
+      const myReactions = item.myReactions
+      const updatedReactions = action === 'add'
+        ? Array.from(new Set([...myReactions, reactionType]))
+        : myReactions.filter(r => r !== reactionType)
+      const delta = action === 'add' ? 1 : -1
+      const rc = item.reaction_counts
+      return {
+        ...item,
+        myReactions: updatedReactions,
+        reaction_counts: {
+          can_help:    rc.can_help    + (reactionType === 'can_help'    ? delta : 0),
+          know_someone: rc.know_someone + (reactionType === 'know_someone' ? delta : 0),
+          noted:       rc.noted       + (reactionType === 'noted'       ? delta : 0),
+        },
+      } as FeedItem
     }))
 
     try {
@@ -102,13 +112,23 @@ export default function NetworkClient({
       }
     } catch {
       // Revert optimistic update on failure
+      const revertDelta = action === 'add' ? -1 : 1
       setItems(prev => prev.map(item => {
-        if (item.id !== itemId) return item
-        const reactions = item.myReactions
-        const reverted = action === 'add'
-          ? reactions.filter(r => r !== reactionType)
-          : Array.from(new Set([...reactions, reactionType]))
-        return { ...item, myReactions: reverted } as FeedItem
+        if (item.id !== itemId || item.kind !== 'post') return item
+        const myReactions = item.myReactions
+        const revertedReactions = action === 'add'
+          ? myReactions.filter(r => r !== reactionType)
+          : Array.from(new Set([...myReactions, reactionType]))
+        const rc = item.reaction_counts
+        return {
+          ...item,
+          myReactions: revertedReactions,
+          reaction_counts: {
+            can_help:    rc.can_help    + (reactionType === 'can_help'    ? revertDelta : 0),
+            know_someone: rc.know_someone + (reactionType === 'know_someone' ? revertDelta : 0),
+            noted:       rc.noted       + (reactionType === 'noted'       ? revertDelta : 0),
+          },
+        } as FeedItem
       }))
     } finally {
       setReactingIds(prev => { const next = new Set(prev); next.delete(itemId); return next })

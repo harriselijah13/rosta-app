@@ -221,21 +221,21 @@ export default function PostCard({ post, onReact, onForward, onDelete, reacting 
         ) : (
           <div className="flex items-center gap-1">
             <ReactionButton
-              label="I can help"
+              label={post.reaction_counts.can_help > 0 ? `I can help (${post.reaction_counts.can_help})` : 'I can help'}
               icon={<HandIcon filled={post.myReactions.includes('can_help')} />}
               active={post.myReactions.includes('can_help')}
               disabled={reacting}
               onClick={() => handleReact('can_help')}
             />
             <ReactionButton
-              label="I know someone"
+              label={post.reaction_counts.know_someone > 0 ? `I know someone (${post.reaction_counts.know_someone})` : 'I know someone'}
               icon={<PersonIcon filled={post.myReactions.includes('know_someone')} />}
               active={post.myReactions.includes('know_someone')}
               disabled={reacting}
               onClick={() => handleReact('know_someone')}
             />
             <ReactionButton
-              label="Noted"
+              label={post.reaction_counts.noted > 0 ? `Noted (${post.reaction_counts.noted})` : 'Noted'}
               icon={<BookmarkIcon filled={post.myReactions.includes('noted')} />}
               active={post.myReactions.includes('noted')}
               disabled={reacting}
