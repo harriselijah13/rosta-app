@@ -2,6 +2,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createNotification } from '@/lib/notifications'
 
 export async function POST(
   request: NextRequest,
@@ -27,7 +28,7 @@ export async function POST(
   // Verify the post exists and the user can see it (direct connection or forwarded)
   const { data: post } = await (admin as any)
     .from('network_posts')
-    .select('id, author_id')
+    .select('id, author_id, post_type, field_1')
     .eq('id', postId)
     .is('deleted_at', null)
     .maybeSingle()
@@ -43,6 +44,42 @@ export async function POST(
     if (error && error.code !== '23505') { // ignore unique constraint violations
       console.error('[network/react] insert error', error)
       return NextResponse.json({ error: 'Failed to add reaction' }, { status: 500 })
+    }
+
+    // Notify post author on new can_help / know_someone reactions (not noted — silent by design)
+    if (!error && (reaction_type === 'can_help' || reaction_type === 'know_someone')) {
+      try {
+        const notifType = `reaction_${reaction_type}` as 'reaction_can_help' | 'reaction_know_someone'
+        const [{ data: reactorProfile }, { data: existingNotif }] = await Promise.all([
+          admin.from('profiles').select('first_name, last_name, avatar_url').eq('id', user.id).single(),
+          (admin as any)
+            .from('notifications')
+            .select('id')
+            .eq('user_id', post.author_id)
+            .eq('type', notifType)
+            .filter('payload', 'cs', JSON.stringify({ post_id: postId, reactor_id: user.id }))
+            .maybeSingle(),
+        ])
+
+        if (!existingNotif) {
+          const p = reactorProfile as any
+          const reactorName = [p?.first_name, p?.last_name].filter(Boolean).join(' ') || 'A member'
+          await createNotification({
+            userId: post.author_id,
+            type: notifType,
+            payload: {
+              post_id: postId,
+              post_field_1: post.field_1,
+              post_type: post.post_type,
+              reactor_id: user.id,
+              reactor_name: reactorName,
+              reactor_avatar_url: p?.avatar_url ?? null,
+            },
+          })
+        }
+      } catch (notifErr) {
+        console.error('[network/react] notification error', notifErr)
+      }
     }
   } else {
     await (admin as any)

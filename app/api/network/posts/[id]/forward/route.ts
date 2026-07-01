@@ -2,6 +2,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createNotification } from '@/lib/notifications'
 
 export async function POST(
   request: NextRequest,
@@ -22,7 +23,7 @@ export async function POST(
   // Verify post exists and the forwarder received it directly (not via another forward)
   const { data: post } = await (admin as any)
     .from('network_posts')
-    .select('id, author_id')
+    .select('id, author_id, post_type, field_1')
     .eq('id', postId)
     .is('deleted_at', null)
     .maybeSingle()
@@ -62,6 +63,23 @@ export async function POST(
     if (error.code === '23505') return NextResponse.json({ error: 'Already forwarded to this person' }, { status: 409 })
     console.error('[network/forward] insert error', error)
     return NextResponse.json({ error: 'Failed to forward' }, { status: 500 })
+  }
+
+  // Notify post author — forwarder identity deliberately omitted from payload
+  if (user.id !== post.author_id) {
+    try {
+      await createNotification({
+        userId: post.author_id,
+        type: 'post_forwarded',
+        payload: {
+          post_id: postId,
+          post_field_1: post.field_1,
+          post_type: post.post_type,
+        },
+      })
+    } catch (notifErr) {
+      console.error('[network/forward] notification error', notifErr)
+    }
   }
 
   return NextResponse.json({ ok: true })

@@ -92,8 +92,7 @@ export default function ComposeModal({
         forwardedBy:        null,
         isForwardable:      false,
         myReactions:        [],
-        canHelpCount:       0,
-        knowSomeoneCount:   0,
+        reactions:          { can_help: [], know_someone: [], forward_count: 0 },
       }
       onCreated(post)
     } catch (err) {

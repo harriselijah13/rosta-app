@@ -1,7 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import type { FeedPost } from './feedUtils'
+import PostReactionsModal from './PostReactionsModal'
 
 function relativeTime(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime()
@@ -89,7 +91,26 @@ type Props = {
   reacting: boolean
 }
 
+// ── Small icons for own-post reaction chips ────────────────────────────────────
+const ChipHandIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v0M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8l3 3h8" />
+  </svg>
+)
+const ChipPersonIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+)
+const ChipArrowIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 12h14M12 5l7 7-7 7" />
+  </svg>
+)
+
 export default function PostCard({ post, onReact, onForward, onDelete, reacting }: Props) {
+  const [showReactions, setShowReactions] = useState(false)
   const authorHref = post.authorUsername ? `/profile/${post.authorUsername}` : `/profile/${post.authorId}`
 
   const FIELD_LABELS = {
@@ -156,17 +177,37 @@ export default function PostCard({ post, onReact, onForward, onDelete, reacting 
         </div>
       </div>
 
-      {/* Reaction counts — own posts only */}
-      {post.isOwnPost && (post.canHelpCount > 0 || post.knowSomeoneCount > 0) && (
-        <div className="flex gap-3 text-xs text-body-grey border-t border-border pt-2">
-          {post.canHelpCount > 0 && (
-            <span>{post.canHelpCount} can help</span>
-          )}
-          {post.knowSomeoneCount > 0 && (
-            <span>{post.knowSomeoneCount} know someone</span>
-          )}
-        </div>
-      )}
+      {/* Reaction summary strip — own posts only */}
+      {post.isOwnPost && (() => {
+        const { can_help, know_someone, forward_count } = post.reactions
+        const hasActivity = can_help.length > 0 || know_someone.length > 0 || forward_count > 0
+        if (!hasActivity) return null
+        return (
+          <div className="flex items-center gap-2 flex-wrap border-t border-border pt-2">
+            {can_help.length > 0 && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 border border-navy/20 rounded-full text-[13px] font-medium text-navy/70">
+                <ChipHandIcon />{can_help.length} can help
+              </span>
+            )}
+            {know_someone.length > 0 && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 border border-navy/20 rounded-full text-[13px] font-medium text-navy/70">
+                <ChipPersonIcon />{know_someone.length} know someone
+              </span>
+            )}
+            {forward_count > 0 && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 border border-navy/20 rounded-full text-[13px] font-medium text-navy/70">
+                <ChipArrowIcon />{forward_count} {forward_count === 1 ? 'forward' : 'forwards'}
+              </span>
+            )}
+            <button
+              onClick={() => setShowReactions(true)}
+              className="ml-auto text-xs text-navy/60 hover:text-navy transition-colors whitespace-nowrap"
+            >
+              View reactions →
+            </button>
+          </div>
+        )
+      })()}
 
       {/* Actions */}
       <div className="flex items-center justify-between border-t border-border pt-3 -mb-1">
@@ -216,6 +257,10 @@ export default function PostCard({ post, onReact, onForward, onDelete, reacting 
           <p className="text-[11px] text-body-grey">{expiryLabel(post.expiresAt)}</p>
         </div>
       </div>
+
+      {showReactions && (
+        <PostReactionsModal post={post} onClose={() => setShowReactions(false)} />
+      )}
     </article>
   )
 }

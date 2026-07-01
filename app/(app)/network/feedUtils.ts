@@ -1,6 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+export type Reactor = {
+  id: string
+  name: string
+  avatar_url: string | null
+  username: string | null
+  reacted_at: string
+}
+
 export type FeedPost = {
   kind: 'post'
   id: string
@@ -19,8 +27,8 @@ export type FeedPost = {
   forwardedBy: { id: string; name: string } | null
   isForwardable: boolean
   myReactions: Array<'can_help' | 'know_someone' | 'noted'>
-  canHelpCount: number
-  knowSomeoneCount: number
+  // reactions always present; can_help/know_someone only populated for own posts
+  reactions: { can_help: Reactor[]; know_someone: Reactor[]; forward_count: number }
 }
 
 export type FeedSignalUpdate = {
@@ -145,20 +153,59 @@ export async function buildFeedItems(
     myReactionsByPostId[r.post_id].push(r.reaction_type)
   }
 
-  // ── 7. Reaction counts for own posts ──────────────────────────────────────
+  // ── 7. Reactor data for own posts ─────────────────────────────────────────
   const ownPostIds = allPostRows.filter(p => p.author_id === userId).map(p => p.id)
+
   const { data: ownReactionRows } = ownPostIds.length > 0
     ? await (admin as any)
         .from('network_post_reactions')
-        .select('post_id, reaction_type')
+        .select('post_id, reaction_type, reactor_id, created_at')
         .in('post_id', ownPostIds)
     : { data: [] }
 
-  const ownReactionCounts: Record<string, { can_help: number; know_someone: number }> = {}
+  // Deduplicate reactor IDs without Set spread (avoid TS downlevelIteration issue)
+  const allReactorIds = (ownReactionRows ?? []).map((r: any) => r.reactor_id as string)
+  const reactorIds = allReactorIds.filter((id: string, i: number) => allReactorIds.indexOf(id) === i)
+
+  const { data: reactorProfileRows } = reactorIds.length > 0
+    ? await admin
+        .from('profiles')
+        .select('id, first_name, last_name, avatar_url, username')
+        .in('id', reactorIds)
+    : { data: [] }
+
+  const reactorProfileMap: Record<string, any> = Object.fromEntries(
+    (reactorProfileRows ?? []).map(p => [p.id, p])
+  )
+
+  const ownReactionsByPostId: Record<string, { can_help: Reactor[]; know_someone: Reactor[] }> = {}
   for (const r of (ownReactionRows ?? []) as any[]) {
-    if (!ownReactionCounts[r.post_id]) ownReactionCounts[r.post_id] = { can_help: 0, know_someone: 0 }
-    if (r.reaction_type === 'can_help') ownReactionCounts[r.post_id].can_help++
-    if (r.reaction_type === 'know_someone') ownReactionCounts[r.post_id].know_someone++
+    if (r.reaction_type !== 'can_help' && r.reaction_type !== 'know_someone') continue
+    if (!ownReactionsByPostId[r.post_id]) {
+      ownReactionsByPostId[r.post_id] = { can_help: [], know_someone: [] }
+    }
+    const p = reactorProfileMap[r.reactor_id]
+    const reactor: Reactor = {
+      id: r.reactor_id,
+      name: displayName(p),
+      avatar_url: p?.avatar_url ?? null,
+      username: p?.username ?? null,
+      reacted_at: r.created_at,
+    }
+    ownReactionsByPostId[r.post_id][r.reaction_type as 'can_help' | 'know_someone'].push(reactor)
+  }
+
+  // ── 7b. Forward counts for own posts ──────────────────────────────────────
+  const { data: ownForwardRows } = ownPostIds.length > 0
+    ? await (admin as any)
+        .from('network_post_forwards')
+        .select('post_id')
+        .in('post_id', ownPostIds)
+    : { data: [] }
+
+  const forwardCountByPostId: Record<string, number> = {}
+  for (const r of (ownForwardRows ?? []) as any[]) {
+    forwardCountByPostId[r.post_id] = (forwardCountByPostId[r.post_id] ?? 0) + 1
   }
 
   // ── 8. Posts already forwarded by this user (to skip forward button) ──────
@@ -197,7 +244,10 @@ export async function buildFeedItems(
     const author = profileMap[post.author_id]
     const forwarderId = forwarderById[post.id]
     const forwarder = forwarderId ? profileMap[forwarderId] : null
-    const counts = ownReactionCounts[post.id] ?? { can_help: 0, know_someone: 0 }
+    const isOwn = post.author_id === userId
+    const ownReactions = isOwn
+      ? (ownReactionsByPostId[post.id] ?? { can_help: [], know_someone: [] })
+      : { can_help: [], know_someone: [] }
     return {
       kind: 'post' as const,
       id: post.id,
@@ -212,14 +262,17 @@ export async function buildFeedItems(
       field3: post.field_3,
       createdAt: post.created_at,
       expiresAt: post.expires_at,
-      isOwnPost: post.author_id === userId,
+      isOwnPost: isOwn,
       forwardedBy: forwarder
         ? { id: forwarderId!, name: displayName(forwarder) }
         : null,
-      isForwardable: !forwarderById[post.id] && post.author_id !== userId && !alreadyForwardedSet.has(post.id),
+      isForwardable: !forwarderById[post.id] && !isOwn && !alreadyForwardedSet.has(post.id),
       myReactions: myReactionsByPostId[post.id] ?? [],
-      canHelpCount: counts.can_help,
-      knowSomeoneCount: counts.know_someone,
+      reactions: {
+        can_help: ownReactions.can_help,
+        know_someone: ownReactions.know_someone,
+        forward_count: isOwn ? (forwardCountByPostId[post.id] ?? 0) : 0,
+      },
     }
   })
 

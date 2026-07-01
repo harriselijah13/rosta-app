@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getUnreadCount } from '@/lib/notifications'
 import MobileNav from './MobileNav'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -23,19 +24,25 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const admin = createAdminClient()
   const now = new Date().toISOString()
 
-  const [{ count: pendingFacilitator }, { count: pendingOpenDoor }, { data: userConvs }, { count: availableInvites }] =
-    await Promise.all([
-      admin.from('intro_requests')
-        .select('id', { count: 'exact', head: true })
-        .eq('facilitator_id', user.id).eq('status', 'pending').gt('expires_at', now),
-      admin.from('intro_requests')
-        .select('id', { count: 'exact', head: true })
-        .eq('target_id', user.id).eq('type', 'open_door').eq('status', 'pending').gt('expires_at', now),
-      admin.from('conversations').select('id').or(`user_a.eq.${user.id},user_b.eq.${user.id}`),
-      admin.from('invite_codes')
-        .select('id', { count: 'exact', head: true })
-        .eq('owner_id', user.id).eq('type', 'founding_invite').is('used_at', null),
-    ])
+  const [
+    { count: pendingFacilitator },
+    { count: pendingOpenDoor },
+    { data: userConvs },
+    { count: availableInvites },
+    unreadNotifications,
+  ] = await Promise.all([
+    admin.from('intro_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('facilitator_id', user.id).eq('status', 'pending').gt('expires_at', now),
+    admin.from('intro_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('target_id', user.id).eq('type', 'open_door').eq('status', 'pending').gt('expires_at', now),
+    admin.from('conversations').select('id').or(`user_a.eq.${user.id},user_b.eq.${user.id}`),
+    admin.from('invite_codes')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', user.id).eq('type', 'founding_invite').is('used_at', null),
+    getUnreadCount(user.id),
+  ])
 
   const pendingIntros = (pendingFacilitator ?? 0) + (pendingOpenDoor ?? 0)
   const convIds = (userConvs ?? []).map(c => c.id)
@@ -62,6 +69,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         profileSlug={profile.username ?? user.id}
         pendingIntros={pendingIntros}
         unreadMessages={unreadMessages}
+        unreadNotifications={unreadNotifications}
         availableInvites={availableInvites ?? 0}
       />
       <div className="flex-1">{children}</div>

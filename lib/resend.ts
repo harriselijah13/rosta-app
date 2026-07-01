@@ -714,6 +714,76 @@ export async function notifyAdminOnSignup({
   )
 }
 
+// ── Network activity digest (reactions + forwards on own posts) ───────────────
+
+export function networkActivityDigestEmail({
+  firstName,
+  canHelpCount,
+  knowSomeoneCount,
+  forwardCount,
+}: {
+  firstName: string
+  canHelpCount: number
+  knowSomeoneCount: number
+  forwardCount: number
+}): string {
+  const sans  = "'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
+  const serif = "'Fraunces',Georgia,'Times New Roman',serif"
+  const safeName = escapeHtml(firstName)
+
+  const bullets: string[] = []
+  if (canHelpCount > 0) {
+    const label = canHelpCount === 1 ? 'person can help' : 'people can help'
+    bullets.push(`${canHelpCount} ${label} with your posts`)
+  }
+  if (knowSomeoneCount > 0) {
+    const label = knowSomeoneCount === 1 ? 'person knows someone' : 'people know someone'
+    bullets.push(`${knowSomeoneCount} ${label}`)
+  }
+  if (forwardCount > 0) {
+    bullets.push(`${forwardCount} ${forwardCount === 1 ? 'forward' : 'forwards'}`)
+  }
+
+  const bulletHtml = bullets
+    .map(b => `<p style="color:#0F1B3C;font-size:15px;font-weight:500;line-height:1.6;margin:0 0 8px;font-family:${sans};">&bull;&nbsp;${escapeHtml(b)}</p>`)
+    .join('')
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=Plus+Jakarta+Sans:wght@400;600&display=swap');
+  </style>
+</head>
+<body style="margin:0;padding:0;background:#F5F2EE;">
+  <div style="font-family:${sans};max-width:480px;margin:0 auto;padding:48px 24px;background:#F5F2EE;">
+
+    <p style="font-size:22px;font-weight:700;color:#0F1B3C;margin:0 0 4px;font-family:${serif};">ROSTA<span style="color:#C8F53C;">.</span></p>
+    <hr style="border:none;border-top:1px solid #E5E1DB;margin:20px 0 32px;"/>
+
+    <h1 style="font-size:26px;color:#0F1B3C;margin:0 0 20px;font-weight:900;line-height:1.15;font-family:${serif};">Activity on your posts, ${safeName}.</h1>
+
+    <p style="color:rgba(15,27,60,0.7);font-size:15px;line-height:1.5;margin:0 0 20px;font-family:${sans};">Here&rsquo;s what&rsquo;s happened in the last 24 hours:</p>
+
+    <div style="margin:0 0 32px;">${bulletHtml}</div>
+
+    <a href="${BASE}/notifications" style="display:inline-block;background:#0F1B3C;color:#ffffff;padding:13px 28px;border-radius:100px;text-decoration:none;font-weight:600;font-size:15px;font-family:${sans};">See who reacted</a>
+
+    <p style="color:rgba(15,27,60,0.6);font-size:13px;line-height:1.6;margin:28px 0 0;font-family:${sans};">This digest lands once a day. You can turn it off in Settings anytime.</p>
+    <!-- TODO Phase 6: Add Settings toggle for digest email opt-out. Users cannot currently opt out. -->
+
+    <p style="color:rgba(15,27,60,0.7);font-size:14px;line-height:1.5;margin:28px 0 32px;font-family:${sans};">&mdash; Harris<br/>ROSTA</p>
+
+    <hr style="border:none;border-top:1px solid #E5E1DB;margin:0 0 16px;"/>
+    <p style="color:#6B7280;font-size:12px;margin:0;line-height:1.5;font-family:${sans};"><a href="${BASE}/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; onrosta.com</p>
+
+  </div>
+</body>
+</html>`
+}
+
 // ── Network digest email ──────────────────────────────────────────────────────
 export function networkDigestEmail(
   firstName: string,

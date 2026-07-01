@@ -9,10 +9,18 @@ type Props = {
   profileSlug: string
   pendingIntros: number
   unreadMessages: number
+  unreadNotifications: number
   availableInvites: number
 }
 
-export default function MobileNav({ profileSlug, pendingIntros, unreadMessages, availableInvites }: Props) {
+const BellIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  </svg>
+)
+
+export default function MobileNav({ profileSlug, pendingIntros, unreadMessages, unreadNotifications, availableInvites }: Props) {
   const [open, setOpen]           = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [toast, setToast]         = useState<string | null>(null)
@@ -75,6 +83,14 @@ export default function MobileNav({ profileSlug, pendingIntros, unreadMessages, 
               </span>
             )}
           </Link>
+          <Link href="/notifications" aria-label="Notifications" className="relative text-body-grey hover:text-navy transition-colors">
+            <BellIcon />
+            {unreadNotifications > 0 && (
+              <span className="absolute -top-1.5 -right-3 w-4 h-4 rounded-full bg-lime text-navy text-[10px] font-bold flex items-center justify-center">
+                {unreadNotifications > 9 ? '9+' : unreadNotifications}
+              </span>
+            )}
+          </Link>
           <Link href="/scan" aria-label="Scan card" className="text-body-grey hover:text-navy transition-colors">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
@@ -105,9 +121,9 @@ export default function MobileNav({ profileSlug, pendingIntros, unreadMessages, 
           onClick={() => setOpen(v => !v)}
           aria-label={open ? 'Close menu' : 'Open menu'}
         >
-          {(pendingIntros + unreadMessages > 0) && !open && (
+          {(pendingIntros + unreadMessages + unreadNotifications > 0) && !open && (
             <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-lime text-navy text-[10px] font-bold flex items-center justify-center">
-              {pendingIntros + unreadMessages > 9 ? '9+' : pendingIntros + unreadMessages}
+              {pendingIntros + unreadMessages + unreadNotifications > 9 ? '9+' : pendingIntros + unreadMessages + unreadNotifications}
             </span>
           )}
           {open ? (
@@ -177,6 +193,18 @@ export default function MobileNav({ profileSlug, pendingIntros, unreadMessages, 
               {unreadMessages > 0 && (
                 <span className="w-5 h-5 rounded-full bg-lime text-navy text-[10px] font-bold flex items-center justify-center">
                   {unreadMessages > 9 ? '9+' : unreadMessages}
+                </span>
+              )}
+            </Link>
+            <Link
+              href="/notifications"
+              onClick={close}
+              className="py-3 text-sm font-medium text-navy border-b border-border flex items-center justify-between"
+            >
+              Notifications
+              {unreadNotifications > 0 && (
+                <span className="w-5 h-5 rounded-full bg-lime text-navy text-[10px] font-bold flex items-center justify-center">
+                  {unreadNotifications > 9 ? '9+' : unreadNotifications}
                 </span>
               )}
             </Link>
