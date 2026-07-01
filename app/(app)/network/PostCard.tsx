@@ -93,7 +93,7 @@ type Props = {
 
 export default function PostCard({ post, onReact, onForward, onDelete, reacting }: Props) {
   const [showReactions, setShowReactions] = useState(false)
-  const [reactionsDefaultTab, setReactionsDefaultTab] = useState<'can_help' | 'know_someone' | null>(null)
+  const [reactionsDefaultTab, setReactionsDefaultTab] = useState<'can_help' | 'know_someone' | 'noted' | null>(null)
   const [notePromptFor, setNotePromptFor] = useState<'can_help' | 'know_someone' | null>(null)
   const [noteText, setNoteText] = useState('')
   const [noteSending, setNoteSending] = useState(false)
@@ -206,10 +206,8 @@ export default function PostCard({ post, onReact, onForward, onDelete, reacting 
                 active={false}
                 disabled={false}
                 onClick={() => {
-                  if (post.reaction_counts.can_help > 0) {
-                    setReactionsDefaultTab('can_help')
-                    setShowReactions(true)
-                  }
+                  setReactionsDefaultTab('can_help')
+                  setShowReactions(true)
                 }}
               />
               <ReactionButton
@@ -218,20 +216,20 @@ export default function PostCard({ post, onReact, onForward, onDelete, reacting 
                 active={false}
                 disabled={false}
                 onClick={() => {
-                  if (post.reaction_counts.know_someone > 0) {
-                    setReactionsDefaultTab('know_someone')
-                    setShowReactions(true)
-                  }
+                  setReactionsDefaultTab('know_someone')
+                  setShowReactions(true)
                 }}
               />
-              <span className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg text-body-grey cursor-default">
-                <span className="w-5 h-5 flex items-center justify-center">
-                  <BookmarkIcon filled={false} />
-                </span>
-                <span className="text-[11px] font-medium leading-none whitespace-nowrap">
-                  {post.reaction_counts.noted > 0 ? `Noted (${post.reaction_counts.noted})` : 'Noted'}
-                </span>
-              </span>
+              <ReactionButton
+                label={post.reaction_counts.noted > 0 ? `Noted (${post.reaction_counts.noted})` : 'Noted'}
+                icon={<BookmarkIcon filled={false} />}
+                active={false}
+                disabled={false}
+                onClick={() => {
+                  setReactionsDefaultTab('noted')
+                  setShowReactions(true)
+                }}
+              />
             </>
           ) : (
             <>
@@ -336,6 +334,7 @@ export default function PostCard({ post, onReact, onForward, onDelete, reacting 
           onClose={() => { setShowReactions(false); setReactionsDefaultTab(null) }}
         />
       )}
+
     </article>
   )
 }

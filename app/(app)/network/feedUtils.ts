@@ -30,8 +30,8 @@ export type FeedPost = {
   myReactions: Array<'can_help' | 'know_someone' | 'noted'>
   // aggregate counts visible to all viewers (including the poster)
   reaction_counts: { can_help: number; know_someone: number; noted: number }
-  // reactions always present; can_help/know_someone only populated for own posts
-  reactions: { can_help: Reactor[]; know_someone: Reactor[]; forward_count: number }
+  // reactions always present; can_help/know_someone/noted only populated for own posts
+  reactions: { can_help: Reactor[]; know_someone: Reactor[]; noted: Reactor[]; forward_count: number }
 }
 
 export type FeedSignalUpdate = {
@@ -199,11 +199,11 @@ export async function buildFeedItems(
     (reactorProfileRows ?? []).map(p => [p.id, p])
   )
 
-  const ownReactionsByPostId: Record<string, { can_help: Reactor[]; know_someone: Reactor[] }> = {}
+  const ownReactionsByPostId: Record<string, { can_help: Reactor[]; know_someone: Reactor[]; noted: Reactor[] }> = {}
   for (const r of (ownReactionRows ?? []) as any[]) {
-    if (r.reaction_type !== 'can_help' && r.reaction_type !== 'know_someone') continue
+    if (r.reaction_type !== 'can_help' && r.reaction_type !== 'know_someone' && r.reaction_type !== 'noted') continue
     if (!ownReactionsByPostId[r.post_id]) {
-      ownReactionsByPostId[r.post_id] = { can_help: [], know_someone: [] }
+      ownReactionsByPostId[r.post_id] = { can_help: [], know_someone: [], noted: [] }
     }
     const p = reactorProfileMap[r.reactor_id]
     const reactor: Reactor = {
@@ -214,7 +214,7 @@ export async function buildFeedItems(
       reacted_at: r.created_at,
       note: r.note ?? null,
     }
-    ownReactionsByPostId[r.post_id][r.reaction_type as 'can_help' | 'know_someone'].push(reactor)
+    ownReactionsByPostId[r.post_id][r.reaction_type as 'can_help' | 'know_someone' | 'noted'].push(reactor)
   }
 
   // ── 7b. Forward counts for own posts ──────────────────────────────────────
@@ -268,8 +268,8 @@ export async function buildFeedItems(
     const forwarder = forwarderId ? profileMap[forwarderId] : null
     const isOwn = post.author_id === userId
     const ownReactions = isOwn
-      ? (ownReactionsByPostId[post.id] ?? { can_help: [], know_someone: [] })
-      : { can_help: [], know_someone: [] }
+      ? (ownReactionsByPostId[post.id] ?? { can_help: [], know_someone: [], noted: [] })
+      : { can_help: [], know_someone: [], noted: [] }
     return {
       kind: 'post' as const,
       id: post.id,
@@ -294,6 +294,7 @@ export async function buildFeedItems(
       reactions: {
         can_help: ownReactions.can_help,
         know_someone: ownReactions.know_someone,
+        noted: ownReactions.noted,
         forward_count: isOwn ? (forwardCountByPostId[post.id] ?? 0) : 0,
       },
     }

@@ -59,12 +59,31 @@ function ReactorRow({ reactor }: { reactor: Reactor }) {
   )
 }
 
-type Tab = 'can_help' | 'know_someone' | 'forwards'
+// Noted rows: same layout but no Message button — Noted is passive
+function NotedRow({ reactor }: { reactor: Reactor }) {
+  const profileHref = reactor.username ? `/profile/${reactor.username}` : `/profile/${reactor.id}`
+
+  return (
+    <div className="flex items-center gap-3 py-3 border-b border-border last:border-0">
+      <Link href={profileHref} className="shrink-0">
+        <Avatar name={reactor.name} avatarUrl={reactor.avatar_url} />
+      </Link>
+      <div className="flex-1 min-w-0">
+        <Link href={profileHref} className="text-sm font-semibold text-navy hover:underline block truncate">
+          {reactor.name}
+        </Link>
+        <p className="text-xs text-body-grey">{relativeTime(reactor.reacted_at)}</p>
+      </div>
+    </div>
+  )
+}
+
+type Tab = 'can_help' | 'know_someone' | 'noted' | 'forwards'
 
 type Props = {
   post: FeedPost
   onClose: () => void
-  defaultTab?: 'can_help' | 'know_someone'
+  defaultTab?: 'can_help' | 'know_someone' | 'noted'
 }
 
 export default function PostReactionsModal({ post, onClose, defaultTab }: Props) {
@@ -72,9 +91,14 @@ export default function PostReactionsModal({ post, onClose, defaultTab }: Props)
   const tabs: Tab[] = []
   if (reactions.can_help.length > 0)    tabs.push('can_help')
   if (reactions.know_someone.length > 0) tabs.push('know_someone')
+  if (reactions.noted.length > 0)        tabs.push('noted')
   if (reactions.forward_count > 0)       tabs.push('forwards')
 
-  const [activeTab, setActiveTab] = useState<Tab>(defaultTab ?? tabs[0] ?? 'can_help')
+  // Honour defaultTab if its tab is populated; otherwise fall back to first populated tab
+  const resolvedDefault: Tab =
+    (defaultTab && tabs.includes(defaultTab)) ? defaultTab : (tabs[0] ?? 'can_help')
+
+  const [activeTab, setActiveTab] = useState<Tab>(resolvedDefault)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
@@ -85,6 +109,7 @@ export default function PostReactionsModal({ post, onClose, defaultTab }: Props)
   const tabLabel: Record<Tab, string> = {
     can_help:     `I can help (${reactions.can_help.length})`,
     know_someone: `I know someone (${reactions.know_someone.length})`,
+    noted:        `Noted (${reactions.noted.length})`,
     forwards:     `Forwards (${reactions.forward_count})`,
   }
 
@@ -119,7 +144,7 @@ export default function PostReactionsModal({ post, onClose, defaultTab }: Props)
             </button>
           </div>
 
-          {/* Tab pills */}
+          {/* Tab pills — shown whenever there are multiple tabs */}
           {tabs.length > 1 && (
             <div className="flex gap-1.5 mt-4 flex-wrap">
               {tabs.map(tab => (
@@ -151,6 +176,10 @@ export default function PostReactionsModal({ post, onClose, defaultTab }: Props)
 
           {activeTab === 'know_someone' && reactions.know_someone.map(r => (
             <ReactorRow key={r.id} reactor={r} />
+          ))}
+
+          {activeTab === 'noted' && reactions.noted.map(r => (
+            <NotedRow key={r.id} reactor={r} />
           ))}
 
           {activeTab === 'forwards' && (
