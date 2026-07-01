@@ -64,15 +64,12 @@ export async function buildFeedItems(
     c.user_a === userId ? c.user_b : c.user_a
   )
 
-  if (connectionIds.length === 0) {
-    return { items: [], hasMore: false }
-  }
-
-  // ── 2. Direct posts from connections ──────────────────────────────────────
+  // ── 2. Direct posts from connections + own posts ─────────────────────────
+  const authorIds = [...connectionIds, userId]
   const { data: directPosts } = await (admin as any)
     .from('network_posts')
     .select('id, author_id, post_type, field_1, field_2, field_3, created_at, expires_at')
-    .in('author_id', connectionIds)
+    .in('author_id', authorIds)
     .is('archived_at', null)
     .is('deleted_at', null)
     .gt('expires_at', now)
@@ -101,11 +98,11 @@ export async function buildFeedItems(
         .lt('created_at', beforeCursor)
     : { data: [] }
 
-  // ── 4. Signal updates from connections ────────────────────────────────────
+  // ── 4. Signal updates from connections + self ────────────────────────────
   const { data: signalUpdates } = await (admin as any)
     .from('signal_updates')
     .select('id, member_id, signal_type, new_value, created_at')
-    .in('member_id', connectionIds)
+    .in('member_id', authorIds)
     .gt('created_at', thirtyDaysAgo)
     .lt('created_at', beforeCursor)
     .order('created_at', { ascending: false })
