@@ -94,6 +94,10 @@ type Props = {
 export default function PostCard({ post, onReact, onForward, onDelete, reacting }: Props) {
   const [showReactions, setShowReactions] = useState(false)
   const [reactionsDefaultTab, setReactionsDefaultTab] = useState<'can_help' | 'know_someone' | null>(null)
+  const [notePromptFor, setNotePromptFor] = useState<'can_help' | 'know_someone' | null>(null)
+  const [noteText, setNoteText] = useState('')
+  const [noteSending, setNoteSending] = useState(false)
+  const [noteConfirmed, setNoteConfirmed] = useState(false)
   const authorHref = post.authorUsername ? `/profile/${post.authorUsername}` : `/profile/${post.authorId}`
 
   const FIELD_LABELS = {
@@ -102,9 +106,40 @@ export default function PostCard({ post, onReact, onForward, onDelete, reacting 
   }
   const labels = FIELD_LABELS[post.postType]
 
-  function handleReact(type: ReactionType) {
+  async function handleReact(type: ReactionType) {
     const alreadyReacted = post.myReactions.includes(type)
-    onReact(type, alreadyReacted ? 'remove' : 'add')
+    const action = alreadyReacted ? 'remove' : 'add'
+    if (action === 'remove') {
+      setNotePromptFor(null)
+      setNoteText('')
+      setNoteConfirmed(false)
+    }
+    await onReact(type, action)
+    if (action === 'add' && (type === 'can_help' || type === 'know_someone')) {
+      setNotePromptFor(type)
+      setNoteText('')
+      setNoteConfirmed(false)
+    }
+  }
+
+  async function handleSendNote() {
+    if (!noteText.trim() || !notePromptFor || noteSending) return
+    setNoteSending(true)
+    try {
+      await fetch(`/api/network/posts/${post.id}/react`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reaction_type: notePromptFor, action: 'note', note: noteText.trim() }),
+      })
+      setNotePromptFor(null)
+      setNoteText('')
+      setNoteConfirmed(true)
+      setTimeout(() => setNoteConfirmed(false), 3000)
+    } catch {
+      // Note didn't save; reaction still stands
+    } finally {
+      setNoteSending(false)
+    }
   }
 
   return (
@@ -253,6 +288,46 @@ export default function PostCard({ post, onReact, onForward, onDelete, reacting 
           <p className="text-[11px] text-body-grey">{expiryLabel(post.expiresAt)}</p>
         </div>
       </div>
+
+      {/* Reaction note prompt — viewer's card only, after fresh reaction */}
+      {notePromptFor && (
+        <div className="border-t border-border pt-3 flex flex-col gap-2">
+          <p className="text-xs text-navy/60">
+            {notePromptFor === 'can_help' ? 'Add one line — what can you offer?' : 'Add one line — who do you know?'}
+          </p>
+          <textarea
+            autoFocus
+            value={noteText}
+            onChange={e => setNoteText(e.target.value.slice(0, 240))}
+            maxLength={240}
+            rows={2}
+            placeholder=""
+            className="w-full bg-warm-white border border-navy/20 rounded-lg px-3 py-2 text-sm text-navy placeholder:text-navy/30 resize-none focus:outline-none focus:border-navy/40"
+          />
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] text-navy/40">{noteText.length}/240</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => { setNotePromptFor(null); setNoteText('') }}
+                className="text-xs text-navy/60 hover:text-navy transition-colors"
+              >
+                Skip
+              </button>
+              <button
+                onClick={handleSendNote}
+                disabled={!noteText.trim() || noteSending}
+                className="px-4 py-1.5 bg-lime text-navy text-xs font-semibold rounded-full disabled:opacity-40 hover:opacity-90 transition-opacity"
+              >
+                {noteSending ? 'Sending…' : 'Send'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {noteConfirmed && (
+        <p className="text-xs text-navy/60 border-t border-border pt-3">Note sent.</p>
+      )}
 
       {showReactions && (
         <PostReactionsModal

@@ -10,6 +10,7 @@ export type ReactionCanHelpPayload = {
   reactor_id: string
   reactor_name: string
   reactor_avatar_url: string | null
+  note?: string
 }
 
 export type ReactionKnowSomeonePayload = {
@@ -19,6 +20,7 @@ export type ReactionKnowSomeonePayload = {
   reactor_id: string
   reactor_name: string
   reactor_avatar_url: string | null
+  note?: string
 }
 
 export type PostForwardedPayload = {
@@ -129,6 +131,48 @@ export async function markAllRead(userId: string): Promise<void> {
       .is('read_at', null)
   } catch (err) {
     console.error('[notifications] markAllRead error', err)
+  }
+}
+
+export async function deleteNotification(
+  userId: string,
+  notificationId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const admin = createAdminClient()
+    const { error } = await (admin as any)
+      .from('notifications')
+      .delete()
+      .eq('id', notificationId)
+      .eq('user_id', userId)
+    if (error) {
+      console.error('[notifications] deleteNotification error', error)
+      return { success: false, error: error.message }
+    }
+    return { success: true }
+  } catch (err) {
+    console.error('[notifications] deleteNotification unexpected error', err)
+    return { success: false, error: 'Unexpected error' }
+  }
+}
+
+export async function deleteAllNotifications(
+  userId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const admin = createAdminClient()
+    const { error } = await (admin as any)
+      .from('notifications')
+      .delete()
+      .eq('user_id', userId)
+    if (error) {
+      console.error('[notifications] deleteAllNotifications error', error)
+      return { success: false, error: error.message }
+    }
+    return { success: true }
+  } catch (err) {
+    console.error('[notifications] deleteAllNotifications unexpected error', err)
+    return { success: false, error: 'Unexpected error' }
   }
 }
 

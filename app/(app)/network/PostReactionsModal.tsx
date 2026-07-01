@@ -43,6 +43,11 @@ function ReactorRow({ reactor }: { reactor: Reactor }) {
           {reactor.name}
         </Link>
         <p className="text-xs text-body-grey">{relativeTime(reactor.reacted_at)}</p>
+        {reactor.note && (
+          <p className="font-display italic text-[13px] text-navy/70 mt-1 leading-snug">
+            &ldquo;{reactor.note}&rdquo;
+          </p>
+        )}
       </div>
       <Link
         href={convHref}

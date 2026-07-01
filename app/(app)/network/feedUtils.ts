@@ -7,6 +7,7 @@ export type Reactor = {
   avatar_url: string | null
   username: string | null
   reacted_at: string
+  note?: string | null
 }
 
 export type FeedPost = {
@@ -179,7 +180,7 @@ export async function buildFeedItems(
   const { data: ownReactionRows } = ownPostIds.length > 0
     ? await (admin as any)
         .from('network_post_reactions')
-        .select('post_id, reaction_type, reactor_id, created_at')
+        .select('post_id, reaction_type, reactor_id, created_at, note')
         .in('post_id', ownPostIds)
     : { data: [] }
 
@@ -211,6 +212,7 @@ export async function buildFeedItems(
       avatar_url: p?.avatar_url ?? null,
       username: p?.username ?? null,
       reacted_at: r.created_at,
+      note: r.note ?? null,
     }
     ownReactionsByPostId[r.post_id][r.reaction_type as 'can_help' | 'know_someone'].push(reactor)
   }
