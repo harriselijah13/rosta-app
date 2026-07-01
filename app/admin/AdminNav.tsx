@@ -5,20 +5,21 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const NAV = [
-  { label: 'Overview',       href: '/admin/overview' },
-  { label: 'Members',        href: '/admin/members' },
-  { label: 'Verification',   href: '/admin/verification' },
-  { label: 'Invite Codes',   href: '/admin/invite-codes' },
-  { label: 'Network Health', href: '/admin/network-health' },
-  { label: 'Geography',      href: '/admin/geography' },
-  { label: 'Signups',        href: '/admin/signups' },
-  { label: 'Online Now',     href: '/admin/online' },
-  { label: 'Event Tools',    href: '/admin/event-tools' },
-  { label: 'Email Tools',    href: '/admin/email-tools' },
-  { label: 'System Health',  href: '/admin/system-health' },
+  { label: 'Overview',         href: '/admin/overview' },
+  { label: 'Members',          href: '/admin/members' },
+  { label: 'Verification',     href: '/admin/verification' },
+  { label: 'Invite Codes',     href: '/admin/invite-codes' },
+  { label: 'Invite Requests',  href: '/admin/invite-requests' },
+  { label: 'Network Health',   href: '/admin/network-health' },
+  { label: 'Geography',        href: '/admin/geography' },
+  { label: 'Signups',          href: '/admin/signups' },
+  { label: 'Online Now',       href: '/admin/online' },
+  { label: 'Event Tools',      href: '/admin/event-tools' },
+  { label: 'Email Tools',      href: '/admin/email-tools' },
+  { label: 'System Health',    href: '/admin/system-health' },
 ]
 
-export default function AdminNav() {
+export default function AdminNav({ pendingInviteRequestCount = 0 }: { pendingInviteRequestCount?: number }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
 
@@ -38,20 +39,29 @@ export default function AdminNav() {
           <p className="text-xs text-body-grey mt-0.5 tracking-widest uppercase">Admin</p>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-0.5">
-          {links.map(({ label, href, active }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                active
-                  ? 'bg-navy text-warm-white font-medium'
-                  : 'text-body-grey hover:text-navy hover:bg-surface'
-              }`}
-            >
-              {active && <span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />}
-              {label}
-            </Link>
-          ))}
+          {links.map(({ label, href, active }) => {
+            const hasPendingDot =
+              !active &&
+              href === '/admin/invite-requests' &&
+              pendingInviteRequestCount > 0
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  active
+                    ? 'bg-navy text-warm-white font-medium'
+                    : 'text-body-grey hover:text-navy hover:bg-surface'
+                }`}
+              >
+                {active && <span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />}
+                {label}
+                {hasPendingDot && (
+                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
+                )}
+              </Link>
+            )
+          })}
         </nav>
         <div className="px-5 py-4 border-t border-border">
           <Link href="/dashboard" className="text-xs text-body-grey hover:text-navy transition-colors">
@@ -89,21 +99,30 @@ export default function AdminNav() {
       {open && (
         <div className="md:hidden fixed inset-0 top-[53px] z-40 bg-white border-t border-border overflow-y-auto">
           <nav className="px-4 py-4 space-y-0.5">
-            {links.map(({ label, href, active }) => (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setOpen(false)}
-                className={`flex items-center gap-2 px-3 py-3 rounded-lg text-sm transition-colors ${
-                  active
-                    ? 'bg-navy text-warm-white font-medium'
-                    : 'text-body-grey hover:text-navy hover:bg-surface'
-                }`}
-              >
-                {active && <span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />}
-                {label}
-              </Link>
-            ))}
+            {links.map(({ label, href, active }) => {
+              const hasPendingDot =
+                !active &&
+                href === '/admin/invite-requests' &&
+                pendingInviteRequestCount > 0
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setOpen(false)}
+                  className={`flex items-center gap-2 px-3 py-3 rounded-lg text-sm transition-colors ${
+                    active
+                      ? 'bg-navy text-warm-white font-medium'
+                      : 'text-body-grey hover:text-navy hover:bg-surface'
+                  }`}
+                >
+                  {active && <span className="w-1.5 h-1.5 rounded-full bg-lime shrink-0" />}
+                  {label}
+                  {hasPendingDot && (
+                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-lime shrink-0" />
+                  )}
+                </Link>
+              )
+            })}
             <div className="pt-4 border-t border-border mt-4">
               <Link href="/dashboard" className="text-xs text-body-grey" onClick={() => setOpen(false)}>
                 ← Back to app

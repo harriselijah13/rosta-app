@@ -591,6 +591,57 @@ export function badgeEarnedEmail(
 </html>`
 }
 
+// ── Invite request approval email ────────────────────────────────────────────
+
+export function inviteApprovalEmail(
+  toFullName: string,
+  code: string,
+  joinUrl: string,
+): string {
+  const firstName = escapeHtml(toFullName.split(' ')[0])
+  const safeCode  = escapeHtml(code)
+  const safeUrl   = escapeHtml(joinUrl)
+  const sans  = "'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
+  const serif = "'Fraunces',Georgia,'Times New Roman',serif"
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=Plus+Jakarta+Sans:wght@400;600&display=swap');
+  </style>
+</head>
+<body style="margin:0;padding:0;background:#F5F2EE;">
+  <div style="font-family:${sans};max-width:480px;margin:0 auto;padding:48px 24px;background:#F5F2EE;">
+
+    <p style="font-size:22px;font-weight:700;color:#0F1B3C;margin:0 0 4px;font-family:${serif};">ROSTA<span style="color:#C8F53C;">.</span></p>
+    <hr style="border:none;border-top:1px solid #E5E1DB;margin:20px 0 32px;"/>
+
+    <h1 style="font-size:26px;color:#0F1B3C;margin:0 0 20px;font-weight:900;line-height:1.15;font-family:${serif};">Welcome to ROSTA, ${firstName}.</h1>
+
+    <p style="color:rgba(15,27,60,0.7);font-size:15px;line-height:1.6;margin:0 0 8px;font-family:${sans};">You asked to join. We reviewed. You&rsquo;re in.</p>
+    <p style="color:rgba(15,27,60,0.7);font-size:15px;line-height:1.6;margin:0 0 24px;font-family:${sans};">Your invite code is:</p>
+
+    <div style="text-align:center;margin:0 0 28px;">
+      <span style="display:inline-block;background:#C8F53C;color:#0F1B3C;font-family:'Courier New',Courier,monospace;font-size:22px;font-weight:700;letter-spacing:0.12em;padding:14px 32px;border-radius:100px;">${safeCode}</span>
+    </div>
+
+    <a href="${safeUrl}" style="display:inline-block;background:#0F1B3C;color:#ffffff;padding:13px 28px;border-radius:100px;text-decoration:none;font-weight:600;font-size:15px;font-family:${sans};">Join ROSTA</a>
+
+    <p style="color:rgba(15,27,60,0.6);font-size:13px;line-height:1.6;margin:28px 0 0;font-family:${sans};">The code is yours to use &mdash; no expiry. Once you&rsquo;ve built your profile, you&rsquo;ll get three of your own codes each month to bring in people you trust.<br/><br/>Any trouble getting in, reply to this email.</p>
+
+    <p style="color:rgba(15,27,60,0.7);font-size:14px;line-height:1.5;margin:28px 0 32px;font-family:${sans};">&mdash; Harris<br/>Founder, ROSTA</p>
+
+    <hr style="border:none;border-top:1px solid #E5E1DB;margin:0 0 16px;"/>
+    <p style="color:#6B7280;font-size:12px;margin:0;line-height:1.5;font-family:${sans};"><a href="https://app.onrosta.com/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; onrosta.com</p>
+
+  </div>
+</body>
+</html>`
+}
+
 // ── Founding invite email ─────────────────────────────────────────────────────
 
 export function inviteByEmailHtml(
