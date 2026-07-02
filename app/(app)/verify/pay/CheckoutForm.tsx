@@ -39,7 +39,15 @@ export default function CheckoutForm({ verificationRequestId, tier, tierLabel, a
   const [error,    setError]    = useState<string | null>(null)
 
   useEffect(() => {
-    setCurrency(detectDefaultCurrency())
+    const detected = detectDefaultCurrency()
+    if (amounts[detected] !== null) {
+      setCurrency(detected)
+      return
+    }
+    const firstAvailable = CURRENCIES.find(({ key }) => amounts[key] !== null)
+    if (firstAvailable) {
+      setCurrency(firstAvailable.key)
+    }
   }, [])
 
   async function handleContinue() {
