@@ -11,7 +11,7 @@ export type VerRequest = {
   status: string
   stripe_payment_status: string | null
   rejection_reason: string | null
-  created_at: string
+  created_at: string  // mapped from submitted_at at the page level
   tier: string | null
   price_aed: number | null
   first_name: string | null

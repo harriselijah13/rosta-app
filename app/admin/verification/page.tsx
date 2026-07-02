@@ -18,10 +18,10 @@ export default async function VerificationPage() {
   const { data: rawRequests } = await admin
     .from('verification_requests')
     .select(`
-      id, user_id, statement, status, stripe_payment_status, rejection_reason, created_at, price_id_used,
+      id, user_id, statement, status, stripe_payment_status, rejection_reason, submitted_at, price_id_used,
       profiles!inner ( first_name, last_name, username )
     `)
-    .order('created_at', { ascending: false })
+    .order('submitted_at', { ascending: false })
 
   const { data: pricing } = await admin
     .from('verification_pricing')
@@ -55,7 +55,7 @@ export default async function VerificationPage() {
       status:               r.status,
       stripe_payment_status: r.stripe_payment_status,
       rejection_reason:     r.rejection_reason,
-      created_at:           r.created_at,
+      created_at:           r.submitted_at,
       tier:                 tierInfo?.tier ?? null,
       price_aed:            tierInfo?.price_aed ?? null,
       first_name:           p.first_name,
