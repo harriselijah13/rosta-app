@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import Stripe from 'stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendEmail, verificationPaidEmail } from '@/lib/resend'
+import { sendEmail, verificationPaidEmail, verificationPaidAdminEmail } from '@/lib/resend'
 
 export const dynamic = 'force-dynamic'
 
@@ -84,7 +84,8 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
 
   // Cast through unknown to handle new columns not yet in the generated Supabase types
   type VerificationUpdate = { stripe_payment_status: string }
-  await admin
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: updateError } = await (admin as any)
     .from('verification_requests')
     .update({
       stripe_payment_status:      'paid',
@@ -92,15 +93,43 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
       payment_currency:           session.currency ?? null,
       payment_amount:             session.amount_total != null ? session.amount_total / 100 : null,
       paid_at:                    now,
-    } as unknown as VerificationUpdate)
+    } as VerificationUpdate)
     .eq('id', requestId)
+
+  if (updateError) {
+    // Payment confirmed in Stripe — continue to verify the profile, but log the drift risk
+    console.error('[stripe-webhook] verification_requests update failed', { requestId, error: updateError })
+  }
 
   await admin
     .from('profiles')
     .update({ is_verified: true, verification_status: 'approved' })
     .eq('id', userId)
 
-  await sendConfirmationEmail(admin, userId)
+  const { name: memberName, email: memberEmail } = await sendConfirmationEmail(admin, userId)
+
+  // Admin notification
+  try {
+    const tier     = session.metadata?.tier ?? 'standard'
+    const currency = (session.currency ?? 'aed').toUpperCase()
+    const amount   = session.amount_total != null ? session.amount_total / 100 : null
+
+    await sendEmail(
+      'harris@onrosta.com',
+      `New ROSTA verification: ${memberName}`,
+      verificationPaidAdminEmail({
+        memberName,
+        memberEmail: memberEmail ?? '(unknown)',
+        tier,
+        currency,
+        amount,
+        rowUpdateFailed: !!updateError,
+      }),
+    )
+  } catch (adminEmailErr) {
+    console.error('[stripe-webhook] admin notification email failed', adminEmailErr)
+  }
+
   console.log('[stripe-webhook] checkout complete — verified user', userId, 'session', session.id)
 }
 
@@ -157,7 +186,7 @@ async function handlePaymentIntentSucceeded(pi: Stripe.PaymentIntent) {
 async function sendConfirmationEmail(
   admin: ReturnType<typeof createAdminClient>,
   userId: string,
-) {
+): Promise<{ name: string; email: string | undefined }> {
   const [{ data: profile }, authResult] = await Promise.all([
     admin.from('profiles').select('first_name').eq('id', userId).single(),
     admin.auth.admin.getUserById(userId),
@@ -167,4 +196,5 @@ async function sendConfirmationEmail(
   if (email) {
     await sendEmail(email, 'You are now a Verified ROSTA member', verificationPaidEmail(name))
   }
+  return { name, email }
 }

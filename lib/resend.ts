@@ -714,6 +714,81 @@ export async function notifyAdminOnSignup({
   )
 }
 
+// ── Admin: verification payment notification ──────────────────────────────────
+
+export function verificationPaidAdminEmail({
+  memberName,
+  memberEmail,
+  tier,
+  currency,
+  amount,
+  rowUpdateFailed = false,
+}: {
+  memberName: string
+  memberEmail: string
+  tier: string
+  currency: string
+  amount: number | null
+  rowUpdateFailed?: boolean
+}): string {
+  const sans  = "'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
+  const serif = "'Fraunces',Georgia,'Times New Roman',serif"
+
+  const tierLabel = tier === 'founding' ? 'Founding Member' : tier === 'connector' ? 'Connector' : 'Standard'
+  const amountDisplay = amount != null
+    ? `${currency} ${currency === 'AED' ? Math.round(amount).toString() : amount.toFixed(2)}`
+    : `${currency} (amount unknown)`
+
+  const rows: [string, string][] = [
+    ['Tier',   escapeHtml(tierLabel)],
+    ['Amount', escapeHtml(amountDisplay)],
+    ['Email',  `<a href="mailto:${escapeHtml(memberEmail)}" style="color:#0F1B3C;text-decoration:none;">${escapeHtml(memberEmail)}</a>`],
+  ]
+
+  const tableRows = rows.map(([label, value]) =>
+    `<tr>
+      <td style="font-size:13px;color:#6B7280;padding:3px 16px 3px 0;white-space:nowrap;vertical-align:top;font-family:${sans};">${label}</td>
+      <td style="font-size:13px;color:#0F1B3C;padding:3px 0;font-family:${sans};">${value}</td>
+    </tr>`,
+  ).join('')
+
+  const warningHtml = rowUpdateFailed
+    ? `<p style="color:#B45309;font-size:13px;font-weight:600;margin:20px 0 0;font-family:${sans};">Warning: The verification_requests row failed to update. Manual reconciliation may be needed — check the Supabase dashboard.</p>`
+    : ''
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=Plus+Jakarta+Sans:wght@400;600&display=swap');
+  </style>
+</head>
+<body style="margin:0;padding:0;background:#F5F2EE;">
+  <div style="font-family:${sans};max-width:480px;margin:0 auto;padding:48px 24px;background:#F5F2EE;">
+
+    <p style="font-size:22px;font-weight:700;color:#0F1B3C;margin:0 0 4px;font-family:${serif};">ROSTA<span style="color:#C8F53C;">.</span></p>
+    <hr style="border:none;border-top:1px solid #E5E1DB;margin:20px 0 32px;"/>
+
+    <h1 style="font-size:26px;color:#0F1B3C;margin:0 0 16px;font-weight:900;line-height:1.15;font-family:${serif};">${escapeHtml(memberName)} just got verified.</h1>
+
+    <table style="border-collapse:collapse;margin:0 0 28px;">
+      ${tableRows}
+    </table>
+
+    ${warningHtml}
+
+    <a href="https://app.onrosta.com/admin/verification" style="display:inline-block;background:#0F1B3C;color:#ffffff;padding:13px 28px;border-radius:100px;text-decoration:none;font-weight:600;font-size:15px;font-family:${sans};">Review in admin</a>
+
+    <hr style="border:none;border-top:1px solid #E5E1DB;margin:32px 0 16px;"/>
+    <p style="color:#6B7280;font-size:12px;margin:0;line-height:1.5;font-family:${sans};"><a href="https://app.onrosta.com/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; onrosta.com</p>
+
+  </div>
+</body>
+</html>`
+}
+
 // ── Network activity digest (reactions + forwards on own posts) ───────────────
 
 export function networkActivityDigestEmail({
