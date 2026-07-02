@@ -19,9 +19,9 @@ export default async function MembersPage() {
       .order('created_at', { ascending: false }),
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
     admin.from('signals').select('user_id, open_to'),
-    // Stripe-verified members may only have an approved verification_request row,
-    // with profiles.is_verified still null/false — include them as verified.
-    admin.from('verification_requests').select('user_id').eq('status', 'approved'),
+    // Include members verified via Stripe payment or admin grant.
+    // 'approved' status alone is not sufficient — it also means "awaiting payment".
+    (admin as any).from('verification_requests').select('user_id').in('stripe_payment_status', ['paid', 'admin_granted']),
   ])
 
   const emailById  = Object.fromEntries(users.map(u => [u.id, u.email ?? '']))
@@ -34,7 +34,6 @@ export default async function MembersPage() {
     const explicitlyRemoved = p.verification_status === 'none'
     const isVerified = !explicitlyRemoved && (
       (p.is_verified ?? false) ||
-      p.verification_status === 'approved' ||
       approvedVrIds.has(p.id)
     )
     return {
