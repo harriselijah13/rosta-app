@@ -19,7 +19,7 @@ export default async function VerificationPage() {
     .from('verification_requests')
     .select(`
       id, user_id, statement, status, stripe_payment_status, rejection_reason, submitted_at, price_id_used,
-      profiles!inner ( first_name, last_name, username )
+      profiles!verification_requests_user_id_fkey ( first_name, last_name, username )
     `)
     .order('submitted_at', { ascending: false })
 
