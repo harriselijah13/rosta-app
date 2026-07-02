@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { computeConnectorScore } from '@/lib/connector-score'
+import { sendEmail, verificationSubmittedAdminEmail } from '@/lib/resend'
 
 export async function submitVerificationRequest(statement: string): Promise<{ error?: string }> {
   const supabase = createClient()
@@ -65,6 +66,19 @@ export async function submitVerificationRequest(statement: string): Promise<{ er
     .from('profiles')
     .update({ verification_status: 'pending' })
     .eq('id', user.id)
+
+  // Admin notification — failure must not break the submission
+  try {
+    const memberName = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Member'
+    const memberEmail = user.email ?? '(unknown)'
+    await sendEmail(
+      'harris@onrosta.com',
+      `New verification request from ${memberName}`,
+      verificationSubmittedAdminEmail({ memberName, memberEmail, statement: statement.trim() }),
+    )
+  } catch (err) {
+    console.error('[verify] admin notification email failed', err)
+  }
 
   revalidatePath('/verify')
   revalidatePath(`/profile/${user.id}`)
