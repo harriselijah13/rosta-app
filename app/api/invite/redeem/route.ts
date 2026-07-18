@@ -13,7 +13,6 @@ export async function POST() {
 
   const inviteToken = (user.user_metadata?.invite_code as string | undefined)?.trim().toUpperCase()
   if (!inviteToken) {
-    const admin = createAdminClient()
     await ensureInviteCodes(user.id)
     return NextResponse.json({ ok: true })
   }
