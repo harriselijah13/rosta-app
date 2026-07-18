@@ -21,12 +21,13 @@ export default async function MembersPage() {
     admin.from('signals').select('user_id, open_to'),
     // Include members verified via Stripe payment or admin grant.
     // 'approved' status alone is not sufficient — it also means "awaiting payment".
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (admin as any).from('verification_requests').select('user_id').in('stripe_payment_status', ['paid', 'admin_granted']),
   ])
 
   const emailById  = Object.fromEntries(users.map(u => [u.id, u.email ?? '']))
   const signalById = Object.fromEntries((signalRows ?? []).map(s => [s.user_id, s.open_to as string[] | null]))
-  const approvedVrIds = new Set((approvedVrRows ?? []).map(r => r.user_id))
+  const approvedVrIds = new Set((approvedVrRows ?? []).map((r: { user_id: string }) => r.user_id))
 
   const members: AdminMember[] = (profiles ?? []).map(p => {
     const hasSignals = Object.prototype.hasOwnProperty.call(signalById, p.id)

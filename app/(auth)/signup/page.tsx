@@ -27,12 +27,6 @@ function SignupForm() {
     setLoading(true)
     setError('')
 
-    if (!inviteCode.trim()) {
-      setError('An invite code is required to join ROSTA.')
-      setLoading(false)
-      return
-    }
-
     const res = await fetch('/api/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -56,7 +50,7 @@ function SignupForm() {
         <h1 className="font-display text-3xl font-bold text-navy mb-2">
           Create your account
         </h1>
-        <p className="text-body-grey mb-8">Join the ROSTA network.</p>
+        <p className="text-body-grey mb-8">Founding member spots are limited.</p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <Input
@@ -82,13 +76,12 @@ function SignupForm() {
           />
           <div>
             <Input
-              label="Invite code"
+              label="Invite code (optional)"
               id="invite-code"
               type="text"
               placeholder="e.g. MSCA2GAC"
               value={inviteCode}
               onChange={e => setInviteCode(e.target.value.toUpperCase())}
-              required
             />
             {prefillCode && (
               <p className="text-xs text-body-grey mt-1">
@@ -108,7 +101,6 @@ function SignupForm() {
             loading={loading}
             size="lg"
             className="w-full mt-1"
-            disabled={!inviteCode.trim()}
           >
             Create account
           </Button>

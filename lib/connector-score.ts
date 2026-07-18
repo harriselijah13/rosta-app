@@ -62,7 +62,7 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
 
     // +1 per completed Open Table room
     admin.from('open_table_members')
-      .select('id', { count: 'exact', head: true })
+      .select('id, open_table_rooms!inner(expires_at)', { count: 'exact', head: true })
       .eq('user_id', userId)
       .lt('open_table_rooms.expires_at', today.toISOString()),
 

@@ -19,12 +19,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
   }
 
-  // ── Step 1b: invite code — always required, always validated ───────────
-  if (!inviteCode) {
-    return NextResponse.json({ error: 'An invite code is required to join ROSTA' }, { status: 400 })
-  }
-
-  {
+  // ── Step 1b: invite code — optional referral, validated only if provided ──
+  if (inviteCode) {
     const { createAdminClient } = await import('@/lib/supabase/admin')
     const admin = createAdminClient()
     const { data: code } = await admin

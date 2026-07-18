@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     .from('messages')
     .select('id, conversation_id, sender_id, body, created_at')
     .is('read_at', null)
+    .eq('message_type', 'text')
     .gte('created_at', windowStart)
     .lte('created_at', windowEnd)
     .limit(200)

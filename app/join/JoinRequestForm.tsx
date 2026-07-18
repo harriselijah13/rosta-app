@@ -19,18 +19,24 @@ export default function JoinRequestForm({ ref_ }: { ref_: string }) {
     }
     setLoading(true)
     setError('')
-    const res = await fetch('/api/join/request', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim(), email: email.trim(), why: why.trim(), ref: ref_ }),
-    })
-    if (!res.ok) {
-      const d = await res.json().catch(() => null)
-      setError(d?.error ?? 'Something went wrong. Try again.')
+    try {
+      const res = await fetch('/api/join/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), email: email.trim(), why: why.trim(), ref: ref_ }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => null)
+        setError(d?.error ?? 'Something went wrong. Try again.')
+        setLoading(false)
+        return
+      }
       setLoading(false)
-      return
+      setSent(true)
+    } catch {
+      setError('Something went wrong. Try again.')
+      setLoading(false)
     }
-    setSent(true)
   }
 
   if (sent) {

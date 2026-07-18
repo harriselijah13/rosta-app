@@ -73,13 +73,22 @@ export async function POST(request: NextRequest) {
   const targetName = name(byId[targetId])
   const targetEmail = targetAuth.data.user?.email
 
-  if (targetEmail) {
-    await sendEmail(
+  await Promise.all([
+    targetEmail ? sendEmail(
       targetEmail,
       `${requesterName} wants to connect`,
       openDoorRequestEmail(targetName, requesterName, note.trim(), introReq.id),
-    )
-  }
+    ) : Promise.resolve(),
+    admin.from('notifications').insert({
+      user_id: targetId,
+      type:    'connection_request',
+      data:    {
+        from_user_id:  user.id,
+        from_name:     requesterName,
+        connection_id: introReq.id,
+      },
+    }),
+  ])
 
   return NextResponse.json({ id: introReq.id })
 }

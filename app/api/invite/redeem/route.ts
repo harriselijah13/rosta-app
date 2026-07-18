@@ -13,11 +13,9 @@ export async function POST() {
 
   const inviteToken = (user.user_metadata?.invite_code as string | undefined)?.trim().toUpperCase()
   if (!inviteToken) {
-    // No invite code — still grant founding member status to current cohort
     const admin = createAdminClient()
-    await admin.from('profiles').update({ founding_member: true }).eq('id', user.id)
     await ensureInviteCodes(user.id)
-    return NextResponse.json({ ok: true, founding: true })
+    return NextResponse.json({ ok: true })
   }
 
   const admin = createAdminClient()
@@ -39,7 +37,7 @@ export async function POST() {
 
   await Promise.all([
     admin.from('invite_codes').update({ used_by: user.id, used_at: now }).eq('id', code.id),
-    admin.from('profiles').update({ founding_member: true, invite_code: inviteToken }).eq('id', user.id),
+    admin.from('profiles').update({ invite_code: inviteToken }).eq('id', user.id),
   ])
 
   // Generate 5 codes for the new member

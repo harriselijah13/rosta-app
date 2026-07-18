@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/resend'
 
 export async function POST(request: NextRequest) {
@@ -7,6 +8,18 @@ export async function POST(request: NextRequest) {
 
   if (!name || !email || !why) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+  }
+
+  const admin = createAdminClient()
+  const { error: dbError } = await admin.from('invite_requests').insert({
+    full_name:     name.trim(),
+    email:         email.trim().toLowerCase(),
+    what_building: why.trim(),
+  })
+
+  if (dbError) {
+    console.error('[join/request] insert failed:', dbError.message)
+    return NextResponse.json({ error: 'Could not save your request.' }, { status: 500 })
   }
 
   await sendEmail(
