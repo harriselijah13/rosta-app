@@ -4,7 +4,6 @@ const SECTIONS = [
   { id: 'signals',         label: 'Signals' },
   { id: 'connections',     label: 'Connections' },
   { id: 'intro-credits',   label: 'Intro credits' },
-  { id: 'open-tables',     label: 'Open Tables' },
   { id: 'connector-score', label: 'Connector Score' },
   { id: 'verified',        label: 'Verified' },
 ]
@@ -68,7 +67,7 @@ export default function HelpPage() {
           <section id="open-tables">
             <h2 className="font-display text-2xl font-bold text-navy mb-4">Open Tables</h2>
             <p className="text-[15px] text-body-grey leading-relaxed">
-              Open Tables are monthly small-group conversations. Opt in and ROSTA matches you with 4 to 6 members based on your signals. You get a private room for 7 days. There&apos;s a simple prompt to start — after that the conversation goes where it goes. Rooms close after 7 days and aren&apos;t archived. If something useful comes from it, mark the outcome and it counts toward your Connector Score.
+              Coming soon.
             </p>
           </section>
 

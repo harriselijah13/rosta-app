@@ -617,12 +617,12 @@ export default async function DashboardPage() {
             </div>
           )}
 
-          {/* Your Open Table */}
-          {myOpenTableRoom && (
+          {/* Your Open Table — hidden while feature is paused; restore by uncommenting */}
+          {/* {myOpenTableRoom && (
             <div className="card-enter break-inside-avoid mb-6" style={{ animationDelay: '0.3s' }}>
               <OpenTableCard roomId={myOpenTableRoom.id} expiresAt={myOpenTableRoom.expires_at} />
             </div>
-          )}
+          )} */}
 
           {/* Empty state — no connections and nothing pending */}
           {!hasConnections && pendingActions.length === 0 && (

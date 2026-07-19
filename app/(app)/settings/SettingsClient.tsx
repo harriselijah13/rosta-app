@@ -566,39 +566,12 @@ export default function SettingsClient({ userId, profile, signals, openTableOpte
         )}
       </section>
 
-      {/* ── Open Table section ── */}
-      <section id="open-table" className="bg-white border border-border rounded-2xl p-6 mb-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="font-display text-xl font-bold text-navy mb-1">Open Table</h2>
-            <p className="text-sm text-body-grey">
-              On the 1st of each month, opted-in members are grouped into small rooms of 4–6 based
-              on complementary signals. Each group gets 7 days to connect. Opt-in resets monthly —
-              you choose every month.
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={optedIn}
-            onClick={handleOpenTableToggle}
-            disabled={optInSaving}
-            className={`relative shrink-0 w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-navy/20 disabled:opacity-50 ${
-              optedIn ? 'bg-navy' : 'bg-border'
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                optedIn ? 'translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </button>
+      {/* ── Open Table section — coming soon; restore toggle to re-enable ── */}
+      <section id="open-table" className="bg-white border border-border rounded-2xl p-6 mb-4 opacity-60">
+        <div>
+          <h2 className="font-display text-xl font-bold text-navy mb-1">Open Table</h2>
+          <p className="text-sm text-body-grey">Coming soon.</p>
         </div>
-        {optedIn && (
-          <p className="mt-3 text-sm font-medium text-navy">
-            You&apos;re in for this month&apos;s Open Table
-          </p>
-        )}
       </section>
 
       {/* Feedback + submit */}
