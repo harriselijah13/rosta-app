@@ -81,6 +81,7 @@ export default function SettingsClient({ userId, profile, signals, openTableOpte
 
   // Open Table opt-in (fires immediately, independent of the main save)
   const [optedIn, setOptedIn] = useState(openTableOptedIn)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [optInSaving, setOptInSaving] = useState(false)
 
   // AI signal coaching
@@ -126,6 +127,7 @@ export default function SettingsClient({ userId, profile, signals, openTableOpte
     if (suggestions?.need_right_now) { setNeedRightNow(suggestions.need_right_now); setAcceptedNeedRightNow(true) }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function handleOpenTableToggle() {
     setOptInSaving(true)
     try {

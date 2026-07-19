@@ -74,6 +74,7 @@ function StatCard({
   return href ? <Link href={href}>{inner}</Link> : inner
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function OpenTableCard({ roomId, expiresAt }: { roomId: string; expiresAt: string }) {
   const daysLeft = Math.max(1, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86400000))
   return (
@@ -295,6 +296,7 @@ export default async function DashboardPage() {
   const myOpenTo = (mySignals?.open_to ?? []).filter((v: string) => v !== 'open_door')
 
   type RoomRef = { id: string; expires_at: string }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const myOpenTableRoom = (myMemberships ?? [])
     .map(m => {
       const raw = (m as unknown as { open_table_rooms: RoomRef | RoomRef[] | null }).open_table_rooms
