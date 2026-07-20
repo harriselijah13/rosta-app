@@ -31,6 +31,7 @@ const HOW_IT_WORKS = [
   { pts: '+2', event: 'Thank you received',             note: 'Someone thanked you for an introduction you made for them.' },
   { pts: '+1', event: 'Open Table completed',           note: 'You participated in a monthly Open Table group conversation.' },
   { pts: '+2', event: 'Signal update bonus',            note: 'Signals updated within the last 7 days. The bonus renews with each update.' },
+  { pts: '+2', event: 'Lend a Hand follow-through',    note: 'You reacted "I can help" to a member\'s ask and followed up with a message to that member.' },
 ]
 
 export default async function ScorePage() {
@@ -101,6 +102,11 @@ export default async function ScorePage() {
     label: 'Signal update bonus',
     detail: lastAwarded ? `expires ${formatExpiry(lastAwarded)}` : 'active this week',
     points: score.signalBonus,
+  })
+  if (score.lendAHand > 0) breakdown.push({
+    label: 'Lend a Hand follow-through',
+    detail: `${score.lendAHand} × 2 pts`,
+    points: score.lendAHand * 2,
   })
 
   return (

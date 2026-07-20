@@ -9,6 +9,7 @@ export type ScoreBreakdown = {
   thankYous:        number   // +2 each received as facilitator
   openTables:       number   // +1 each completed
   signalBonus:      number   // +2 if signal updated this week
+  lendAHand:        number   // +2 each (can_help reaction + follow-up message to post author)
   total:            number
 }
 
@@ -26,6 +27,7 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
     { count: thankYous },
     { count: openTables },
     { data: profile },
+    { data: lendAHandReactions },
   ] = await Promise.all([
     // +5 per redeemed invite code owned by this user
     admin.from('invite_codes')
@@ -71,6 +73,12 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
       .select('signal_score_last_awarded')
       .eq('id', userId)
       .single(),
+
+    // +2 per can_help reaction where the reactor also sent a message to the post author
+    admin.from('network_post_reactions')
+      .select('post_id, created_at, network_posts!inner(author_id)')
+      .eq('reactor_id', userId)
+      .eq('reaction_type', 'can_help'),
   ])
 
   // Deep convos + outcomes from facilitated intros
@@ -117,6 +125,33 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
   const lastAwarded = profile?.signal_score_last_awarded
   const signalBonus = lastAwarded && new Date(lastAwarded) >= new Date(weekAgo) ? 2 : 0
 
+  // Lend a Hand: +2 per can_help reaction followed by a message to the post author
+  let lendAHand = 0
+  if (lendAHandReactions?.length) {
+    const results = await Promise.all(
+      lendAHandReactions.map(async (rxn) => {
+        const authorId = (rxn as any).network_posts?.author_id as string | undefined
+        if (!authorId || authorId === userId) return false
+        const [ua, ub] = [userId, authorId].sort()
+        const { data: conv } = await admin
+          .from('conversations')
+          .select('id')
+          .eq('user_a', ua)
+          .eq('user_b', ub)
+          .maybeSingle()
+        if (!conv) return false
+        const { count } = await admin
+          .from('messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('conversation_id', conv.id)
+          .eq('sender_id', userId)
+          .gt('created_at', rxn.created_at)
+        return (count ?? 0) > 0
+      })
+    )
+    lendAHand = results.filter(Boolean).length
+  }
+
   const total =
     (invitesRedeemed ?? 0) * 5 +
     (introRequests ?? 0)   * 1 +
@@ -126,7 +161,8 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
     (thankYous ?? 0)       * 2 +
     // weekly challenge: placeholder 0
     (openTables ?? 0)      * 1 +
-    signalBonus
+    signalBonus            +
+    lendAHand              * 2
 
   return {
     invitesRedeemed: invitesRedeemed ?? 0,
@@ -137,6 +173,7 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
     thankYous:       thankYous ?? 0,
     openTables:      openTables ?? 0,
     signalBonus,
+    lendAHand,
     total,
   }
 }
