@@ -8,7 +8,6 @@ const NAV = [
   { label: 'Overview',         href: '/admin/overview' },
   { label: 'Members',          href: '/admin/members' },
   { label: 'Verification',     href: '/admin/verification' },
-  { label: 'Invite Codes',     href: '/admin/invite-codes' },
   { label: 'Invite Requests',  href: '/admin/invite-requests' },
   { label: 'Network Health',        href: '/admin/network-health' },
   { label: 'Conversation Outcomes', href: '/admin/conversation-outcomes' },

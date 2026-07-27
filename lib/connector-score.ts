@@ -1,7 +1,7 @@
 import { createAdminClient } from './supabase/admin'
 
 export type ScoreBreakdown = {
-  invitesRedeemed:  number   // +5 each (invite code used_at IS NOT NULL)
+  referrals:        number   // +5 each (joined via this member's referral link)
   introRequests:    number   // +1 each (as requester, accepted)
   deepConvos:       number   // +3 each (3+ msgs both sides, from facilitated intros)
   qrConnections:    number   // +5 each
@@ -20,7 +20,7 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
   const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
   const [
-    { count: invitesRedeemed },
+    { count: referrals },
     { count: introRequests },
     { data: facilitatedIntros },
     { count: qrConnections },
@@ -29,11 +29,10 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
     { data: profile },
     { data: lendAHandReactions },
   ] = await Promise.all([
-    // +5 per redeemed invite code owned by this user
-    admin.from('invite_codes')
+    // +5 per person who joined through this member's referral link
+    admin.from('referrals')
       .select('id', { count: 'exact', head: true })
-      .eq('owner_id', userId)
-      .not('used_at', 'is', null),
+      .eq('referrer_id', userId),
 
     // +1 per accepted intro request made as requester
     admin.from('intro_requests')
@@ -153,7 +152,7 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
   }
 
   const total =
-    (invitesRedeemed ?? 0) * 5 +
+    (referrals ?? 0) * 5 +
     (introRequests ?? 0)   * 1 +
     deepConvos             * 3 +
     (qrConnections ?? 0)   * 5 +
@@ -165,7 +164,7 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
     lendAHand              * 2
 
   return {
-    invitesRedeemed: invitesRedeemed ?? 0,
+    referrals:       referrals ?? 0,
     introRequests:   introRequests ?? 0,
     deepConvos,
     qrConnections:   qrConnections ?? 0,

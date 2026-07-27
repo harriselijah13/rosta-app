@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Button from '@/components/ui/Button'
@@ -8,19 +8,13 @@ import Input from '@/components/ui/Input'
 
 function SignupForm() {
   const searchParams = useSearchParams()
-  const prefillCode  = searchParams.get('invite') ?? ''
+  const refId        = searchParams.get('ref') ?? ''
 
-  const [email,      setEmail]      = useState('')
-  const [password,   setPassword]   = useState('')
-  const [inviteCode, setInviteCode] = useState('')
-  const [error,      setError]      = useState('')
-  const [loading,    setLoading]    = useState(false)
+  const [email,    setEmail]    = useState('')
+  const [password, setPassword] = useState('')
+  const [error,    setError]    = useState('')
+  const [loading,  setLoading]  = useState(false)
   const router = useRouter()
-
-  // Pre-fill from ?invite= param on mount
-  useEffect(() => {
-    if (prefillCode) setInviteCode(prefillCode.toUpperCase())
-  }, [prefillCode])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -30,7 +24,7 @@ function SignupForm() {
     const res = await fetch('/api/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, inviteCode }),
+      body: JSON.stringify({ email, password, ref: refId || undefined }),
     })
 
     const data = await res.json()
@@ -74,22 +68,6 @@ function SignupForm() {
             required
             autoComplete="new-password"
           />
-          <div>
-            <Input
-              label="Invite code (optional)"
-              id="invite-code"
-              type="text"
-              placeholder="e.g. MSCA2GAC"
-              value={inviteCode}
-              onChange={e => setInviteCode(e.target.value.toUpperCase())}
-            />
-            {prefillCode && (
-              <p className="text-xs text-body-grey mt-1">
-                Code pre-filled from your invite link.
-              </p>
-            )}
-          </div>
-
           {error && (
             <p className="text-sm text-red-500 bg-red-50 px-4 py-3 rounded-xl">
               {error}

@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function POST(request: NextRequest) {
   // ── Step 1: parse body ──────────────────────────────────────────────────
-  let body: { email?: string; password?: string; inviteCode?: string } = {}
+  let body: { email?: string; password?: string; ref?: string } = {}
   try {
     body = await request.json()
   } catch {
@@ -11,31 +11,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { email, password, inviteCode } = body
-  console.log('[signup] Request received', { email, hasPassword: !!password, hasInviteCode: !!inviteCode })
+  const { email, password, ref } = body
+  console.log('[signup] Request received', { email, hasPassword: !!password, hasRef: !!ref })
 
   if (!email || !password) {
     console.error('[signup] Missing email or password')
     return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
   }
 
-  // ── Step 1b: invite code — optional referral, validated only if provided ──
-  if (inviteCode) {
-    const { createAdminClient } = await import('@/lib/supabase/admin')
-    const admin = createAdminClient()
-    const { data: code } = await admin
-      .from('invite_codes')
-      .select('id')
-      .eq('token', (inviteCode as string).trim().toUpperCase())
-      .eq('type', 'founding_invite')
-      .is('used_at', null)
-      .maybeSingle()
-    if (!code) {
-      return NextResponse.json({ error: 'Invalid or already-used invite code' }, { status: 400 })
-    }
-  }
-
   // ── Step 2: call supabase.auth.signUp ───────────────────────────────────
+  // If a ref (referrer user_id) was captured from ?ref= on the landing page,
+  // store it in user metadata. A database trigger on profiles inserts the
+  // referral row once the profile is created.
   console.log('[signup] Calling supabase.auth.signUp...')
   const supabase = createClient()
 
@@ -44,7 +31,7 @@ export async function POST(request: NextRequest) {
     password,
     options: {
       emailRedirectTo: 'https://app.onrosta.com/auth/callback',
-      data: inviteCode ? { invite_code: inviteCode } : undefined,
+      data: ref ? { ref } : undefined,
     },
   })
 
