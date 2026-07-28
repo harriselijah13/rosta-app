@@ -43,6 +43,18 @@ Deno.serve(async (req) => {
     'Accept':        'application/json',
   }
 
+  // Rate limit: 10 calls per user per hour
+  const rlRes = await fetch(`${supabaseUrl}/rest/v1/rpc/check_ai_rate_limit`, {
+    method: 'POST',
+    headers: { ...dbHeaders, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ _uid: userId, _fn_name: 'ai-suggest-match', _max_calls: 10, _window_minutes: 60 }),
+  })
+  if (!(await rlRes.json().catch(() => false))) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again later.' }), {
+      status: 429, headers: { ...CORS, 'Content-Type': 'application/json' },
+    })
+  }
+
   // ── 1. Fetch the current user's connections ────────────────────────────────
   const connRes = await fetch(
     `${supabaseUrl}/rest/v1/connections?or=(user_a.eq.${userId},user_b.eq.${userId})&removed_at=is.null&select=user_a,user_b&limit=${POOL_CAP}`,

@@ -15,6 +15,12 @@ export async function POST(request: NextRequest) {
 
   const admin = createAdminClient()
 
+  // Rate limit: 30 calls per user per hour
+  const { data: allowed } = await admin.rpc('check_ai_rate_limit', {
+    _uid: user.id, _fn_name: 'draft-intro-web', _max_calls: 30, _window_minutes: 60,
+  })
+  if (!allowed) return NextResponse.json({ error: 'Rate limit exceeded. Try again later.' }, { status: 429 })
+
   const [{ data: requester }, { data: target }] = await Promise.all([
     admin.from('profiles')
       .select('first_name, what_i_do, building_now, who_i_want_to_meet')

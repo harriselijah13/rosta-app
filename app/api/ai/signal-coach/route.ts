@@ -11,6 +11,12 @@ export async function POST() {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const admin = createAdminClient()
+
+  // Rate limit: 10 calls per user per hour
+  const { data: allowed } = await admin.rpc('check_ai_rate_limit', {
+    _uid: user.id, _fn_name: 'signal-coach-web', _max_calls: 10, _window_minutes: 60,
+  })
+  if (!allowed) return NextResponse.json({ error: 'Rate limit exceeded. Try again later.' }, { status: 429 })
   const [{ data: profile }, { data: signal }] = await Promise.all([
     admin.from('profiles')
       .select('first_name, what_i_do, building_now, who_i_want_to_meet, where_i_operate')

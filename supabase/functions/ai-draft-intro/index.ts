@@ -45,6 +45,18 @@ Deno.serve(async (req) => {
     'Accept':        'application/json',
   }
 
+  // Rate limit: 30 calls per user per hour
+  const rlRes = await fetch(`${supabaseUrl}/rest/v1/rpc/check_ai_rate_limit`, {
+    method: 'POST',
+    headers: { ...dbHeaders, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ _uid: userId, _fn_name: 'ai-draft-intro', _max_calls: 30, _window_minutes: 60 }),
+  })
+  if (!(await rlRes.json().catch(() => false))) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again later.' }), {
+      status: 429, headers: { ...CORS, 'Content-Type': 'application/json' },
+    })
+  }
+
   const [requesterRes, targetRes] = await Promise.all([
     fetch(
       `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=first_name,what_i_do,building_now,who_i_want_to_meet&limit=1`,
