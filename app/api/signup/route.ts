@@ -1,3 +1,4 @@
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
 
@@ -17,6 +18,16 @@ export async function POST(request: NextRequest) {
   if (!email || !password) {
     console.error('[signup] Missing email or password')
     return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
+  }
+
+  // ── Rate limit by IP: 5 attempts per IP per hour ────────────────────────
+  const ip    = request.headers.get('x-forwarded-for') ?? request.ip ?? 'unknown'
+  const admin = createAdminClient()
+  const { data: signupAllowed } = await admin.rpc('check_signup_rate_limit', {
+    _ip: ip, _max_attempts: 5, _window_minutes: 60,
+  })
+  if (!signupAllowed) {
+    return NextResponse.json({ error: 'Too many signup attempts. Try again later.' }, { status: 429 })
   }
 
   // ── Step 2: call supabase.auth.signUp ───────────────────────────────────
