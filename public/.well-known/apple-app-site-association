@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "RUQV46KZ26.com.hazonethree.rosta-native",
+        "paths": ["/profile/*"]
+      }
+    ]
+  }
+}
