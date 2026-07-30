@@ -129,7 +129,8 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
   if (lendAHandReactions?.length) {
     const results = await Promise.all(
       lendAHandReactions.map(async (rxn) => {
-        const authorId = (rxn as any).network_posts?.author_id as string | undefined
+        const rxnRow = rxn as unknown as { network_posts: { author_id: string }[] | null }
+        const authorId = Array.isArray(rxnRow.network_posts) ? rxnRow.network_posts[0]?.author_id : undefined
         if (!authorId || authorId === userId) return false
         const [ua, ub] = [userId, authorId].sort()
         const { data: conv } = await admin
