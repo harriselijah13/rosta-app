@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
   }
 
   // Prompt identical to /api/ai/signal-coach in rosta-app
-  const prompt = `You are a professional networking coach helping a ROSTA member improve their profile signals. ROSTA is an invite-only network for founders, operators, and creatives.
+  const prompt = `You are a professional networking coach helping a ROSTA member improve their profile signals. ROSTA is a professional network for people who are actually building things. Signup is open, but every connection happens through a warm introduction — never a cold message. There's no public feed and no follower counts; profiles are present-tense, showing what someone's building right now rather than a career history.
 
 Member profile:
 - Name: ${profile.first_name ?? 'unknown'}

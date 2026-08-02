@@ -60,10 +60,10 @@ export default function GuestProfileView({
         {/* CTAs */}
         <div className="flex flex-col gap-3">
           <Link
-            href={`/join?ref=${encodeURIComponent(handle)}`}
+            href="/signup"
             className="w-full py-3.5 bg-lime text-navy font-semibold text-sm rounded-full text-center hover:bg-lime/90 transition-colors"
           >
-            Request an invite
+            Create your account
           </Link>
           <a
             href={`/api/qr/${encodeURIComponent(handle)}/vcard`}

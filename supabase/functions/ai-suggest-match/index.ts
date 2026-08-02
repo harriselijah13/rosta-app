@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
     : ''
 
   const prompt =
-`You are helping a ROSTA member identify the single best introduction they could make within their network. ROSTA is an invite-only network for founders, operators, and creatives.
+`You are helping a ROSTA member identify the single best introduction they could make within their network. ROSTA is a professional network for people who are actually building things. Signup is open, but every connection happens through a warm introduction — never a cold message. There's no public feed and no follower counts; profiles are present-tense, showing what someone's building right now rather than a career history.
 
 Find two people with strong complementary signals — meaning what one person needs right now or is working on closely matches what the other person does, is building, or is open to. Prioritise semantic compatibility, not just keyword overlap. A good match has bidirectional value: person A benefits from meeting person B and vice versa.
 
