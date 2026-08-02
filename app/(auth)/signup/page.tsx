@@ -9,6 +9,7 @@ import Input from '@/components/ui/Input'
 function SignupForm() {
   const searchParams = useSearchParams()
   const refId        = searchParams.get('ref') ?? ''
+  const inviteCode   = searchParams.get('invite') ?? ''
 
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
@@ -24,7 +25,12 @@ function SignupForm() {
     const res = await fetch('/api/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, ref: refId || undefined }),
+      body: JSON.stringify({
+        email,
+        password,
+        ref:         refId      || undefined,
+        invite_code: inviteCode || undefined,
+      }),
     })
 
     const data = await res.json()

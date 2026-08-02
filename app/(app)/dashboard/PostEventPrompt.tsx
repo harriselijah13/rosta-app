@@ -52,7 +52,7 @@ function buildMessage(name: string, context: string, code: string): string {
   return `Hey ${name} — great chat yesterday. I thought you’d find ROSTA worth a look — it’s a small professional network built around real introductions. No feed, no cold connects.
 
 Your invite code: ${code}
-Join here: https://app.onrosta.com/join?code=${code}${contextLine}`
+Join here: https://app.onrosta.com/signup?invite=${code}${contextLine}`
 }
 
 function newRow(): CapturedRow {

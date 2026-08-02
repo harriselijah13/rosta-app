@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function POST(request: NextRequest) {
   // ── Step 1: parse body ──────────────────────────────────────────────────
-  let body: { email?: string; password?: string; ref?: string } = {}
+  let body: { email?: string; password?: string; ref?: string; invite_code?: string } = {}
   try {
     body = await request.json()
   } catch {
@@ -12,8 +12,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { email, password, ref } = body
-  console.log('[signup] Request received', { email, hasPassword: !!password, hasRef: !!ref })
+  const { email, password, ref, invite_code } = body
+  console.log('[signup] Request received', { email, hasPassword: !!password, hasRef: !!ref, hasInviteCode: !!invite_code })
 
   if (!email || !password) {
     console.error('[signup] Missing email or password')
@@ -37,12 +37,16 @@ export async function POST(request: NextRequest) {
   console.log('[signup] Calling supabase.auth.signUp...')
   const supabase = createClient()
 
+  const metadata: Record<string, string> = {}
+  if (ref)         metadata.ref         = ref
+  if (invite_code) metadata.invite_code = invite_code.trim().toUpperCase()
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: 'https://app.onrosta.com/auth/callback',
-      data: ref ? { ref } : undefined,
+      data: Object.keys(metadata).length > 0 ? metadata : undefined,
     },
   })
 
