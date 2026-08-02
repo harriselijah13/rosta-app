@@ -125,7 +125,7 @@ export default function Home() {
               Create your profile
             </Link>
             <p className="text-warm-white/35 text-sm mt-5">
-              Invite only · Free to join
+              Free to join
             </p>
           </div>
         </section>

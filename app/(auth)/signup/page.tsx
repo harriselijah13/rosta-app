@@ -44,7 +44,6 @@ function SignupForm() {
         <h1 className="font-display text-3xl font-bold text-navy mb-2">
           Create your account
         </h1>
-        <p className="text-body-grey mb-8">Founding member spots are limited.</p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <Input
