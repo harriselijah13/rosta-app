@@ -62,6 +62,11 @@ function buildPushContent(
         title: 'New profile view',
         body:  data.from_name ? `${data.from_name} viewed your profile` : 'Someone viewed your profile',
       }
+    case 'lend_a_hand':
+      return {
+        title: 'New ask from your network',
+        body:  data.from_name ? `${data.from_name} has a new ask` : 'Someone in your network posted an ask',
+      }
     default:
       // Unknown or future type — skip push rather than send a confusing message
       return null
