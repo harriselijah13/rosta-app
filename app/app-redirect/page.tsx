@@ -6,9 +6,10 @@ import Link from 'next/link'
 // Deep-link scheme for the ROSTA iOS app (defined in app.json → expo.scheme)
 const APP_SCHEME = 'rostanative://'
 
-// Replace with the live App Store URL once the app is published.
-// Format: https://apps.apple.com/app/id<YOUR_APP_ID>
-const APP_STORE_URL = 'https://apps.apple.com/app/rosta'
+// TestFlight link — the only way to install the app until it's publicly listed on the App Store.
+// Once ROSTA is live on the App Store, replace this with the App Store URL:
+// https://apps.apple.com/app/id<YOUR_APP_ID>
+const APP_STORE_URL = 'https://testflight.apple.com/join/KtVFV4w8'
 
 export default function AppRedirectPage() {
   const [attempted, setAttempted] = useState(false)
