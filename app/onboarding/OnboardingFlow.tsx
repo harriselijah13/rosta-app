@@ -212,7 +212,7 @@ export default function OnboardingFlow({ userId, initialFirstName, initialLastNa
       fetch('/api/invite/redeem', { method: 'POST' }).catch(() => {})
       // TODO: Remove this admin notification once member volume makes it noise (likely past 100 members).
       fetch('/api/admin/notify-signup', { method: 'POST' }).catch(() => {})
-      router.push('/dashboard')
+      router.push('/app-redirect')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')
     } finally {
