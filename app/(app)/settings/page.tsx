@@ -23,7 +23,7 @@ export default async function SettingsPage() {
       .from('profiles')
       .select(
         `username, first_name, last_name, avatar_url, what_i_do, building_now,
-         who_i_want_to_meet, where_i_operate, fun_fact, founding_member,
+         who_i_want_to_meet, where_i_operate, fun_fact,
          signal_streak, signal_streak_last_week`
       )
       .eq('id', user.id)

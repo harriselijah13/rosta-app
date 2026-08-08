@@ -69,11 +69,27 @@ Deno.serve(async (req) => {
       ? new Date(event.purchased_at_ms).toISOString()
       : new Date().toISOString()
 
-    await patch({ is_premium: true, premium_since: purchasedAt })
+    // RENEWAL is passive — don't let it silently undo an explicit admin revoke.
+    // INITIAL_PURCHASE, PRODUCT_CHANGE, UNCANCELLATION all represent deliberate
+    // user action and should restore premium normally, clearing admin_revoked.
+    if (eventType === 'RENEWAL') {
+      const checkRes = await fetch(
+        `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=premium_source`,
+        { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceKey}`, apikey: serviceKey } }
+      )
+      const rows: { premium_source: string | null }[] = await checkRes.json()
+      if (rows?.[0]?.premium_source === 'admin_revoked') {
+        return new Response(JSON.stringify({ received: true, skipped: 'admin_revoked' }), {
+          headers: { ...CORS, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
+    await patch({ is_premium: true, premium_source: 'paid', premium_since: purchasedAt })
   } else if (eventType === 'EXPIRATION') {
     // CANCELLATION is not acted on here — the user retains access until their
     // paid period expires and RevenueCat fires EXPIRATION at that point.
-    await patch({ is_premium: false })
+    await patch({ is_premium: false, premium_source: null, premium_expires_at: null })
   }
 
   return new Response(JSON.stringify({ received: true }), {

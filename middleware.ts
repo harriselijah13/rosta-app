@@ -1,7 +1,41 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const MARKETING_SITE = 'https://onrosta.com'
+
+// (app)-group routes redirected externally to the marketing site.
+// Excluded intentionally:
+//   /verify*   — verification purchase flow stays live here
+//   /profile   — QR codes and native app universal links use app.onrosta.com/profile/[id]
+//   /qr exact  — handled separately below (public profile landing, not the user QR display)
+const GATED_APP_PREFIXES = [
+  '/dashboard', '/activity', '/connect', '/connections', '/intro', '/invite',
+  '/members', '/messages', '/network', '/notifications', '/open-tables',
+  '/scan', '/score', '/settings',
+]
+
+function isGatedAppRoute(pathname: string): boolean {
+  if (GATED_APP_PREFIXES.some(p => pathname === p || pathname.startsWith(p + '/'))) return true
+  // /qr (exact) is the user's own QR display page — gate it.
+  // /qr/[handle] is the public profile landing page — leave it alone.
+  if (pathname === '/qr') return true
+  return false
+}
+
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Root "/" redirects to the marketing site — it's the canonical home for ROSTA.
+  if (pathname === '/') {
+    return NextResponse.redirect(MARKETING_SITE)
+  }
+
+  // Gate all app routes (except /verify*, /profile/*) externally to the
+  // marketing site before any auth check or page render runs.
+  if (isGatedAppRoute(pathname)) {
+    return NextResponse.redirect(MARKETING_SITE)
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -29,10 +63,9 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl
-
+  // /dashboard removed from isProtected — caught by isGatedAppRoute above.
   const isProtected =
-    pathname.startsWith('/dashboard') || pathname.startsWith('/onboarding') || pathname.startsWith('/admin')
+    pathname.startsWith('/onboarding') || pathname.startsWith('/admin')
   const isAuthPage = pathname === '/login' || pathname === '/signup'
 
   if (isProtected && !user) {
@@ -41,10 +74,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Logged-in users on auth pages go to the marketing site directly.
   if (isAuthPage && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+    return NextResponse.redirect(MARKETING_SITE)
   }
 
   return supabaseResponse

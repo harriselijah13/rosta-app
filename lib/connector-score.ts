@@ -9,7 +9,8 @@ export type ScoreBreakdown = {
   thankYous:        number   // +2 each received as facilitator
   openTables:       number   // +1 each completed
   signalBonus:      number   // +2 if signal updated this week
-  lendAHand:        number   // +2 each (can_help reaction + follow-up message to post author)
+  lendAHand:        number   // +10 each (can_help reaction + follow-up message to post author)
+  blueprint:        number   // +15 if member has published a Blueprint (one-time)
   total:            number
 }
 
@@ -28,6 +29,7 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
     { count: openTables },
     { data: profile },
     { data: lendAHandReactions },
+    { count: blueprintCount },
   ] = await Promise.all([
     // +5 per person who joined through this member's referral link
     admin.from('referrals')
@@ -73,11 +75,14 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
       .eq('id', userId)
       .single(),
 
-    // +2 per can_help reaction where the reactor also sent a message to the post author
+    // +10 per can_help reaction where the reactor also sent a message to the post author
     admin.from('network_post_reactions')
       .select('post_id, created_at, network_posts!inner(author_id)')
       .eq('reactor_id', userId)
       .eq('reaction_type', 'can_help'),
+
+    // +15 if member has published a Blueprint (one-time; 0 or 1 rows)
+    admin.from('blueprints').select('id', { count: 'exact', head: true }).eq('user_id', userId),
   ])
 
   // Deep convos + outcomes from facilitated intros
@@ -159,10 +164,10 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
     (qrConnections ?? 0)   * 5 +
     outcomes               * 8 +
     (thankYous ?? 0)       * 2 +
-    // weekly challenge: placeholder 0
     (openTables ?? 0)      * 1 +
     signalBonus            +
-    lendAHand              * 2
+    lendAHand              * 10 +
+    ((blueprintCount ?? 0) > 0 ? 15 : 0)
 
   return {
     referrals:       referrals ?? 0,
@@ -174,6 +179,7 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
     openTables:      openTables ?? 0,
     signalBonus,
     lendAHand,
+    blueprint:       (blueprintCount ?? 0) > 0 ? 1 : 0,
     total,
   }
 }

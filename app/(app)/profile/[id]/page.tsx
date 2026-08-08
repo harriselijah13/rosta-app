@@ -34,7 +34,7 @@ export default async function ProfilePage({
 
   const PROFILE_SELECT = `id, username, first_name, last_name, avatar_url, what_i_do, building_now,
        who_i_want_to_meet, where_i_operate, fun_fact, profile_mode,
-       onboarding_completed, founding_member, is_verified, verification_status, updated_at`
+       onboarding_completed, is_verified, verification_status, updated_at`
 
   const isUuid = UUID_RE.test(params.id)
   const { data: profile } = await supabase
@@ -166,11 +166,6 @@ export default async function ProfilePage({
                 {profile.is_verified && <VerifiedBadge size="md" />}
               </div>
               <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                {profile.founding_member && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-navy bg-lime/30 border border-lime/50 px-2 py-0.5 rounded-full">
-                    Founding member
-                  </span>
-                )}
                 <span className="inline-flex items-center gap-1.5 text-xs text-body-grey">
                   <span
                     className={`w-2 h-2 rounded-full ${active ? 'bg-green-500' : 'bg-body-grey/40'}`}

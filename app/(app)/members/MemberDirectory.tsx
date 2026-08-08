@@ -159,11 +159,6 @@ function MemberCard({ member, isSelf, isConnected }: { member: Profile; isSelf: 
                 Connected
               </span>
             )}
-            {member.founding_member && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-navy bg-lime/30 border border-lime/50 px-1.5 py-0.5 rounded-full">
-                Founding
-              </span>
-            )}
             {hasOpenDoor && (
               <span className="inline-flex items-center gap-1 text-xs text-navy font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-lime inline-block" />

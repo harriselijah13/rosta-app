@@ -39,7 +39,7 @@ export default function TermsPage() {
 
         <Section heading="Your Account">
           <p>
-            You are responsible for keeping your account credentials secure. You must provide accurate information. You may only have one account. Founding member status is permanent and non-transferable once granted.
+            You are responsible for keeping your account credentials secure. You must provide accurate information. You may only have one account.
           </p>
         </Section>
 

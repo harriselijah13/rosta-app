@@ -16,7 +16,7 @@ export async function submitVerificationRequest(statement: string): Promise<{ er
   // Check not already verified or pending
   const { data: profile } = await admin
     .from('profiles')
-    .select('is_verified, verification_status, founding_member, building_now, first_name, last_name, what_i_do, where_i_operate, profile_mode, created_at')
+    .select('is_verified, verification_status, building_now, first_name, last_name, what_i_do, where_i_operate, profile_mode, created_at')
     .eq('id', user.id)
     .single()
 
@@ -34,12 +34,8 @@ export async function submitVerificationRequest(statement: string): Promise<{ er
 
   // Determine price tier
   let tier = 'standard'
-  if (profile.founding_member) {
-    tier = 'founding'
-  } else {
-    const score = await computeConnectorScore(user.id)
-    if (score.total >= 50) tier = 'connector'
-  }
+  const score = await computeConnectorScore(user.id)
+  if (score.total >= 50) tier = 'connector'
 
   const { data: pricing } = await admin
     .from('verification_pricing')

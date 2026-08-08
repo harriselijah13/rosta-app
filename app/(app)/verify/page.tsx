@@ -9,7 +9,6 @@ export const dynamic = 'force-dynamic'
 
 const TIER_LABELS: Record<string, string> = {
   standard:  'Standard',
-  founding:  'Founding Member',
   connector: 'Connector',
 }
 
@@ -30,7 +29,7 @@ export default async function VerifyPage() {
   const [{ data: profile }, { data: pricing }] = await Promise.all([
     admin
       .from('profiles')
-      .select('is_verified, verification_status, founding_member, first_name, last_name, building_now, what_i_do, where_i_operate, profile_mode, created_at, username')
+      .select('is_verified, verification_status, first_name, last_name, building_now, what_i_do, where_i_operate, profile_mode, created_at, username')
       .eq('id', user.id)
       .single(),
     admin.from('verification_pricing').select('tier, price_aed, stripe_price_id').eq('is_active', true),
@@ -40,12 +39,8 @@ export default async function VerifyPage() {
 
   // Determine tier
   let tier = 'standard'
-  if (profile.founding_member) {
-    tier = 'founding'
-  } else {
-    const score = await computeConnectorScore(user.id)
-    if (score.total >= 50) tier = 'connector'
-  }
+  const score = await computeConnectorScore(user.id)
+  if (score.total >= 50) tier = 'connector'
 
   const pricingMap = Object.fromEntries((pricing ?? []).map(p => [p.tier, p]))
   const applicablePrice = pricingMap[tier]

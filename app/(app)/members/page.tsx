@@ -18,13 +18,13 @@ export default async function MembersPage() {
   // signals is intentionally fetched separately — no FK from signals.user_id to profiles.id
   // means PostgREST can't resolve the embedded join (PGRST200). Separate fetch + merge below.
   const MEMBERS_SELECT = `id, username, first_name, last_name, avatar_url, what_i_do, building_now,
-                          where_i_operate, profile_mode, onboarding_completed, founding_member, is_verified, updated_at`
+                          where_i_operate, profile_mode, onboarding_completed, is_verified, updated_at`
 
   // Current user's own profile uses a simpler select (no signals join) via their session
   // client — the same pattern as the app layout, which is known to work. Using .maybeSingle()
   // so a missing row returns null instead of an error.
   const SELF_SELECT = `id, first_name, last_name, avatar_url, what_i_do, building_now,
-                       where_i_operate, profile_mode, onboarding_completed, founding_member, is_verified, updated_at,
+                       where_i_operate, profile_mode, onboarding_completed, is_verified, updated_at,
                        first_visit_members_at`
 
   const [

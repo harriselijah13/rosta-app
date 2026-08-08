@@ -24,7 +24,7 @@ export async function checkAndAwardBadges(userId: string): Promise<void> {
     { data: authData },
   ] = await Promise.all([
     admin.from('profiles')
-      .select('founding_member, is_verified, signal_streak, onboarding_completed, username')
+      .select('is_verified, signal_streak, onboarding_completed, username')
       .eq('id', userId)
       .single(),
 
@@ -97,7 +97,6 @@ export async function checkAndAwardBadges(userId: string): Promise<void> {
 
   await Promise.all([
     // Status badges
-    maybeAward('founding-member', !!profile?.founding_member),
     maybeAward('verified',        !!profile?.is_verified),
 
     // Activity badges

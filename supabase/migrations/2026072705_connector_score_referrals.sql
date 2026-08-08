@@ -125,7 +125,7 @@ BEGIN
     _thank_yous  * 2 +
     _open_tables * 1 +
     _signal_bonus +
-    _lend_a_hand * 2;
+    _lend_a_hand * 10;
 
   RETURN jsonb_build_object(
     'total',         _total,
