@@ -23,15 +23,17 @@ function ChevronRight() {
 }
 
 const HOW_IT_WORKS = [
-  { pts: '+5', event: 'Referral',                        note: 'Someone joined through your invite link.' },
-  { pts: '+1', event: 'Accepted intro request',         note: 'Your warm intro request was accepted by the recipient.' },
-  { pts: '+3', event: 'Deep conversation from intro',   note: 'Two members you introduced exchanged 3 or more messages each — a real conversation.' },
-  { pts: '+8', event: 'Outcome from facilitated intro', note: 'A connection you facilitated marked an outcome — something real came from it.' },
-  { pts: '+5', event: 'QR connection',                  note: 'You connected with someone in person via QR scan.' },
-  { pts: '+2', event: 'Thank you received',             note: 'Someone thanked you for an introduction you made for them.' },
-  { pts: '+1', event: 'Open Table completed',           note: 'You participated in a monthly Open Table group conversation.' },
-  { pts: '+2', event: 'Signal update bonus',            note: 'Signals updated within the last 7 days. The bonus renews with each update.' },
-  { pts: '+2', event: 'Lend a Hand follow-through',    note: 'You reacted "I can help" to a member\'s ask and followed up with a message to that member.' },
+  { pts: '+5',       event: 'Referral',                        note: 'Someone joined through your invite link.' },
+  { pts: '+1',       event: 'Accepted intro request',          note: 'Your warm intro request was accepted by the recipient.' },
+  { pts: '+3',       event: 'Deep conversation from intro',    note: 'Two members you introduced exchanged 3 or more messages each — a real conversation.' },
+  { pts: '+8',       event: 'Outcome from facilitated intro',  note: 'A connection you facilitated marked an outcome — something real came from it.' },
+  { pts: '+5',       event: 'QR connection',                   note: 'You connected with someone in person via QR scan.' },
+  { pts: '+2',       event: 'Thank you received',              note: 'Someone thanked you for an introduction you made for them.' },
+  { pts: '+2',       event: 'Signal update bonus',             note: 'Signals updated within the last 7 days. The bonus renews with each update.' },
+  { pts: '+10',      event: 'Lend a Hand follow-through',      note: 'You reacted "I can help" to a member\'s ask and followed up with a message to that member.' },
+  { pts: '+15',      event: 'Blueprint published',             note: 'You published a Blueprint showcasing what you\'re building. One-off.' },
+  { pts: '+5',       event: 'Signal Complete',                 note: 'You filled in all three signal fields for the first time. One-off.' },
+  { pts: '+10',      event: 'Premium member',                  note: 'Awarded once when your account becomes Premium. One-off.' },
 ]
 
 export default async function ScorePage() {
@@ -93,11 +95,6 @@ export default async function ScorePage() {
     detail: `${score.thankYous} × 2 pts`,
     points: score.thankYous * 2,
   })
-  if (score.openTables > 0) breakdown.push({
-    label: 'Open Tables completed',
-    detail: `${score.openTables} × 1 pt`,
-    points: score.openTables * 1,
-  })
   if (score.signalBonus > 0) breakdown.push({
     label: 'Signal update bonus',
     detail: lastAwarded ? `expires ${formatExpiry(lastAwarded)}` : 'active this week',
@@ -105,8 +102,23 @@ export default async function ScorePage() {
   })
   if (score.lendAHand > 0) breakdown.push({
     label: 'Lend a Hand follow-through',
-    detail: `${score.lendAHand} × 2 pts`,
-    points: score.lendAHand * 2,
+    detail: `${score.lendAHand} × 10 pts`,
+    points: score.lendAHand * 10,
+  })
+  if (score.blueprint > 0) breakdown.push({
+    label: 'Blueprint published',
+    detail: 'one-off',
+    points: score.blueprint * 15,
+  })
+  if (score.signalComplete > 0) breakdown.push({
+    label: 'Signal Complete',
+    detail: 'one-off',
+    points: score.signalComplete,
+  })
+  if (score.premiumBonus > 0) breakdown.push({
+    label: 'Premium member bonus',
+    detail: 'one-off',
+    points: score.premiumBonus,
   })
 
   return (
