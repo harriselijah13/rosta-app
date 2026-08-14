@@ -17,7 +17,6 @@ export async function checkAndAwardBadges(userId: string): Promise<void> {
     { data: earnedRows },
     { count: connectionCount },
     { count: facilitatedCount },
-    { count: openTableCount },
     { count: thankYousReceived },
     { count: outcomesCount },
     score,
@@ -41,10 +40,6 @@ export async function checkAndAwardBadges(userId: string): Promise<void> {
       .eq('facilitator_id', userId)
       .eq('status', 'accepted')
       .eq('type', 'warm_intro'),
-
-    admin.from('open_table_members')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId),
 
     admin.from('intro_requests')
       .select('id', { count: 'exact', head: true })
@@ -96,6 +91,9 @@ export async function checkAndAwardBadges(userId: string): Promise<void> {
   const connScore = score.total
 
   await Promise.all([
+    // Cache the current score on profiles for facilitator-picker sorting
+    admin.from('profiles').update({ connector_score: connScore }).eq('id', userId),
+
     // Status badges
     maybeAward('verified',        !!profile?.is_verified),
 
@@ -110,7 +108,6 @@ export async function checkAndAwardBadges(userId: string): Promise<void> {
     // Milestone badges
     maybeAward('spark',           (outcomesCount ?? 0) >= 1),
     maybeAward('five-outcomes',   (outcomesCount ?? 0) >= 5),
-    maybeAward('table-setter',    (openTableCount ?? 0) >= 1),
     maybeAward('signal-strength', (profile?.signal_streak ?? 0) >= 4),
     maybeAward('thanked',         (thankYousReceived ?? 0) >= 3),
     maybeAward('all-in',          earned >= 5),

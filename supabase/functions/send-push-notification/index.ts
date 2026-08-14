@@ -41,6 +41,13 @@ function buildPushContent(
         title: 'New introduction',
         body:  'You have a new introduction waiting',
       }
+    case 'intro_declined':
+      return {
+        title: 'Intro update',
+        body:  data.facilitator_name
+          ? `${data.facilitator_name} wasn't able to make this intro`
+          : 'An intro request was declined',
+      }
     case 'invite_request':
       return {
         title: 'New invite request',
@@ -67,6 +74,14 @@ function buildPushContent(
         title: 'New ask from your network',
         body:  data.from_name ? `${data.from_name} has a new ask` : 'Someone in your network posted an ask',
       }
+    case 'badge_earned': {
+      const slug  = typeof data.badge_slug === 'string' ? data.badge_slug : null
+      const label = slug ? slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'badge'
+      return {
+        title: 'Badge unlocked',
+        body:  `You earned the ${label} badge`,
+      }
+    }
     default:
       // Unknown or future type — skip push rather than send a confusing message
       return null

@@ -1,17 +1,18 @@
 import { createAdminClient } from './supabase/admin'
 
 export type ScoreBreakdown = {
-  referrals:        number   // +5 each (joined via this member's referral link)
-  introRequests:    number   // +1 each (as requester, accepted)
-  deepConvos:       number   // +3 each (3+ msgs both sides, from facilitated intros)
-  qrConnections:    number   // +5 each
-  outcomes:         number   // +8 each (from facilitated intros)
-  thankYous:        number   // +2 each received as facilitator
-  openTables:       number   // +1 each completed
-  signalBonus:      number   // +2 if signal updated this week
-  lendAHand:        number   // +10 each (can_help reaction + follow-up message to post author)
-  blueprint:        number   // +15 if member has published a Blueprint (one-time)
-  total:            number
+  referrals:       number   // +5 each (joined via this member's referral link)
+  introRequests:   number   // +1 each (as requester, accepted)
+  deepConvos:      number   // +3 each (3+ msgs both sides, from facilitated intros)
+  qrConnections:   number   // +5 each
+  outcomes:        number   // +8 each (from facilitated intros)
+  thankYous:       number   // +2 each received as facilitator
+  signalBonus:     number   // +2 if signal updated this week
+  lendAHand:       number   // +10 each (can_help reaction + follow-up message to post author)
+  blueprint:       number   // +15 if member has published a Blueprint (one-time)
+  signalComplete:  number   // +5 one-time: all three signal fields filled for the first time
+  premiumBonus:    number   // +10 one-time: account ever became Premium
+  total:           number
 }
 
 export async function computeConnectorScore(userId: string): Promise<ScoreBreakdown> {
@@ -26,10 +27,10 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
     { data: facilitatedIntros },
     { count: qrConnections },
     { count: thankYous },
-    { count: openTables },
     { data: profile },
     { data: lendAHandReactions },
     { count: blueprintCount },
+    { data: signalRow },
   ] = await Promise.all([
     // +5 per person who joined through this member's referral link
     admin.from('referrals')
@@ -63,15 +64,9 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
       .eq('facilitator_id', userId)
       .not('thank_you_at', 'is', null),
 
-    // +1 per completed Open Table room
-    admin.from('open_table_members')
-      .select('id, open_table_rooms!inner(expires_at)', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .lt('open_table_rooms.expires_at', today.toISOString()),
-
-    // Signal bonus check
+    // Signal bonus check + premium bonus flag
     admin.from('profiles')
-      .select('signal_score_last_awarded')
+      .select('signal_score_last_awarded, premium_bonus_awarded')
       .eq('id', userId)
       .single(),
 
@@ -83,6 +78,9 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
 
     // +15 if member has published a Blueprint (one-time; 0 or 1 rows)
     admin.from('blueprints').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+
+    // Signal complete + premium bonus flags
+    admin.from('signals').select('complete_bonus_awarded').eq('user_id', userId).maybeSingle(),
   ])
 
   // Deep convos + outcomes from facilitated intros
@@ -126,7 +124,7 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
   }
 
   // Signal bonus: +2 if signal was updated in the past 7 days and hasn't been awarded this week
-  const lastAwarded = profile?.signal_score_last_awarded
+  const lastAwarded = (profile as { signal_score_last_awarded: string | null; premium_bonus_awarded: boolean } | null)?.signal_score_last_awarded
   const signalBonus = lastAwarded && new Date(lastAwarded) >= new Date(weekAgo) ? 2 : 0
 
   // Lend a Hand: +2 per can_help reaction followed by a message to the post author
@@ -157,6 +155,9 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
     lendAHand = results.filter(Boolean).length
   }
 
+  const signalComplete = (signalRow as { complete_bonus_awarded: boolean } | null)?.complete_bonus_awarded ? 5 : 0
+  const premiumBonus   = (profile as { signal_score_last_awarded: string | null; premium_bonus_awarded: boolean } | null)?.premium_bonus_awarded ? 10 : 0
+
   const total =
     (referrals ?? 0) * 5 +
     (introRequests ?? 0)   * 1 +
@@ -164,22 +165,24 @@ export async function computeConnectorScore(userId: string): Promise<ScoreBreakd
     (qrConnections ?? 0)   * 5 +
     outcomes               * 8 +
     (thankYous ?? 0)       * 2 +
-    (openTables ?? 0)      * 1 +
     signalBonus            +
     lendAHand              * 10 +
-    ((blueprintCount ?? 0) > 0 ? 15 : 0)
+    ((blueprintCount ?? 0) > 0 ? 15 : 0) +
+    signalComplete         +
+    premiumBonus
 
   return {
-    referrals:       referrals ?? 0,
-    introRequests:   introRequests ?? 0,
+    referrals:      referrals ?? 0,
+    introRequests:  introRequests ?? 0,
     deepConvos,
-    qrConnections:   qrConnections ?? 0,
+    qrConnections:  qrConnections ?? 0,
     outcomes,
-    thankYous:       thankYous ?? 0,
-    openTables:      openTables ?? 0,
+    thankYous:      thankYous ?? 0,
     signalBonus,
     lendAHand,
-    blueprint:       (blueprintCount ?? 0) > 0 ? 1 : 0,
+    blueprint:      (blueprintCount ?? 0) > 0 ? 1 : 0,
+    signalComplete,
+    premiumBonus,
     total,
   }
 }

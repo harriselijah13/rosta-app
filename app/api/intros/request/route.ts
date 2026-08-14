@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail, introRequestEmail } from '@/lib/resend'
+import { computeConnectorScore } from '@/lib/connector-score'
 
 function currentPeriod() {
   const d = new Date()
@@ -51,12 +52,17 @@ export async function POST(request: NextRequest) {
   if (existing) return NextResponse.json({ error: 'You already have a pending intro request to this person' }, { status: 400 })
 
   // Credit check + lazy monthly reset
+  // Members with Connector Score ≥ 50 get +2 bonus credits/month (5 total).
   const period = currentPeriod()
-  const { data: credits } = await admin.from('intro_credits')
-    .select('balance, period, lifetime_earned').eq('user_id', user.id).maybeSingle()
+  const [{ data: credits }, scoreBreakdown] = await Promise.all([
+    admin.from('intro_credits')
+      .select('balance, period, lifetime_earned').eq('user_id', user.id).maybeSingle(),
+    computeConnectorScore(user.id).catch(() => ({ total: 0 })),
+  ])
 
-  const isNewPeriod = !credits || credits.period !== period
-  const currentBalance = isNewPeriod ? 3 : credits.balance
+  const monthlyAllocation = scoreBreakdown.total >= 50 ? 5 : 3
+  const isNewPeriod    = !credits || credits.period !== period
+  const currentBalance = isNewPeriod ? monthlyAllocation : credits.balance
   if (currentBalance < 1) {
     return NextResponse.json({ error: 'No intro credits remaining this month' }, { status: 400 })
   }

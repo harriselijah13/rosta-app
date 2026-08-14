@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    await patch({ is_premium: true, premium_source: 'paid', premium_since: purchasedAt })
+    await patch({ is_premium: true, premium_source: 'paid', premium_since: purchasedAt, premium_bonus_awarded: true })
   } else if (eventType === 'EXPIRATION') {
     // CANCELLATION is not acted on here — the user retains access until their
     // paid period expires and RevenueCat fires EXPIRATION at that point.
