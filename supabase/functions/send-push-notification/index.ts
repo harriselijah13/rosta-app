@@ -82,6 +82,11 @@ function buildPushContent(
         body:  `You earned the ${label} badge`,
       }
     }
+    case 'campaign':
+      return {
+        title: typeof data.push_title === 'string' && data.push_title ? data.push_title : 'Message from ROSTA',
+        body:  typeof data.push_body  === 'string' ? data.push_body  : '',
+      }
     default:
       // Unknown or future type — skip push rather than send a confusing message
       return null
