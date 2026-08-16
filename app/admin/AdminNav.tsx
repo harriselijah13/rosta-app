@@ -16,6 +16,7 @@ const NAV = [
   { label: 'Online Now',       href: '/admin/online' },
   { label: 'Event Tools',      href: '/admin/event-tools' },
   { label: 'Email Tools',      href: '/admin/email-tools' },
+  { label: 'Campaigns',        href: '/admin/campaigns' },
   { label: 'System Health',    href: '/admin/system-health' },
 ]
 
