@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   createCampaign,
+  updateCampaign,
   pauseCampaign,
   resumeCampaign,
   deleteCampaign,
@@ -68,6 +69,13 @@ const MASCOT_POSES = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+function isoToLocalDt(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d   = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 function fullName(m: Member): string {
   return [m.first_name, m.last_name].filter(Boolean).join(' ') || '—'
 }
@@ -88,10 +96,10 @@ function scheduleLabel(c: Campaign): string {
 }
 
 const STATUS_PILL: Record<Campaign['status'], string> = {
-  draft:     'bg-surface text-body-grey border-border',
-  scheduled: 'bg-blue-50 text-blue-700 border-blue-200',
+  draft:     'bg-surface text-body-grey/60 border-border/60',
+  scheduled: 'bg-navy/10 text-navy border-navy/20',
   active:    'bg-lime/20 text-navy border-lime/50',
-  paused:    'bg-amber-50 text-amber-700 border-amber-200',
+  paused:    'bg-surface text-body-grey border-dashed border-body-grey/50',
   completed: 'bg-surface text-body-grey border-border',
 }
 
@@ -227,38 +235,57 @@ function MemberPicker({
 // ── Composer ──────────────────────────────────────────────────────────────────
 
 function CampaignComposer({
-  members, promoScreens, onClose,
-}: { members: Member[]; promoScreens: PromoScreen[]; onClose: () => void }) {
+  members, promoScreens, onClose, initialCampaign,
+}: {
+  members: Member[]
+  promoScreens: PromoScreen[]
+  onClose: () => void
+  initialCampaign?: Campaign
+}) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
   // Recipients
-  const [recipientMode, setRecipientMode] = useState<'all' | 'specific'>('all')
-  const [selectedIds, setSelectedIds]     = useState<Set<string>>(new Set())
+  const [recipientMode, setRecipientMode] = useState<'all' | 'specific'>(
+    initialCampaign?.recipient_mode ?? 'all',
+  )
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    new Set(initialCampaign?.recipient_ids ?? []),
+  )
 
   // Content
-  const [title,   setTitle]   = useState('')
-  const [message, setMessage] = useState('')
+  const [title,   setTitle]   = useState(initialCampaign?.title   ?? '')
+  const [message, setMessage] = useState(initialCampaign?.message ?? '')
 
   // Scheduling
-  const [sendMode,        setSendMode]        = useState<'immediate' | 'scheduled' | 'recurring'>('immediate')
-  const [scheduledAt,     setScheduledAt]     = useState('')
-  const [recurrenceRule,  setRecurrenceRule]  = useState<'daily' | 'weekly' | 'monthly'>('weekly')
-  const [recurrenceEnd,   setRecurrenceEnd]   = useState('')
+  const [sendMode, setSendMode] = useState<'immediate' | 'scheduled' | 'recurring'>(
+    initialCampaign?.send_mode ?? 'immediate',
+  )
+  const [scheduledAt,    setScheduledAt]    = useState(isoToLocalDt(initialCampaign?.scheduled_at))
+  const [recurrenceRule, setRecurrenceRule] = useState<'daily' | 'weekly' | 'monthly'>(
+    (initialCampaign?.recurrence_rule as 'daily' | 'weekly' | 'monthly') ?? 'weekly',
+  )
+  const [recurrenceEnd, setRecurrenceEnd] = useState(isoToLocalDt(initialCampaign?.recurrence_end))
 
   // Destination
-  const [destType,        setDestType]        = useState<'route' | 'promo_screen'>('route')
-  const [destRoute,       setDestRoute]       = useState(APP_ROUTES[0].value)
-  const [promoMode,       setPromoMode]       = useState<'create' | 'select'>('create')
-  const [promoScreenId,   setPromoScreenId]   = useState('')
+  const [destType,      setDestType]      = useState<'route' | 'promo_screen'>(
+    initialCampaign?.destination_type ?? 'route',
+  )
+  const [destRoute,     setDestRoute]     = useState(
+    initialCampaign?.destination_route ?? APP_ROUTES[0].value,
+  )
+  const [promoMode,     setPromoMode]     = useState<'create' | 'select'>(
+    initialCampaign?.promo_screen_id ? 'select' : 'create',
+  )
+  const [promoScreenId, setPromoScreenId] = useState(initialCampaign?.promo_screen_id ?? '')
 
-  // New promo screen fields
-  const [promoHeadline, setPromoHeadline] = useState('')
-  const [promoBody,     setPromoBody]     = useState('')
-  const [promoMascot,   setPromoMascot]   = useState('')
-  const [promoCtaLabel, setPromoCtaLabel] = useState('Got it')
-  const [promoCtaAction,setPromoCtaAction]= useState('')
-  const [promoExpiry,   setPromoExpiry]   = useState('')
+  // New promo screen fields (always blank — existing screen already selected above if editing)
+  const [promoHeadline,  setPromoHeadline]  = useState('')
+  const [promoBody,      setPromoBody]      = useState('')
+  const [promoMascot,    setPromoMascot]    = useState('')
+  const [promoCtaLabel,  setPromoCtaLabel]  = useState('Got it')
+  const [promoCtaAction, setPromoCtaAction] = useState('')
+  const [promoExpiry,    setPromoExpiry]    = useState('')
 
   const [error, setError] = useState<string | null>(null)
 
@@ -308,7 +335,9 @@ function CampaignComposer({
     }
 
     startTransition(async () => {
-      const result = await createCampaign(input)
+      const result = initialCampaign
+        ? await updateCampaign(initialCampaign.id, input)
+        : await createCampaign(input)
       if (!result.ok) {
         setError(result.error ?? 'Something went wrong.')
         return
@@ -633,7 +662,13 @@ function CampaignComposer({
           className="px-6 py-2.5 bg-navy text-warm-white text-sm font-medium rounded-full
                      hover:bg-navy/90 transition-colors disabled:opacity-40"
         >
-          {isPending ? 'Saving…' : sendMode === 'immediate' ? 'Queue campaign' : 'Save campaign'}
+          {isPending
+            ? 'Saving…'
+            : initialCampaign
+              ? 'Save changes'
+              : sendMode === 'immediate'
+                ? 'Queue campaign'
+                : 'Save campaign'}
         </button>
         <button
           type="button"
@@ -651,7 +686,9 @@ function CampaignComposer({
 
 // ── Campaign list ─────────────────────────────────────────────────────────────
 
-function CampaignRow({ campaign }: { campaign: Campaign }) {
+function CampaignRow({
+  campaign, onEdit,
+}: { campaign: Campaign; onEdit?: () => void }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -709,6 +746,15 @@ function CampaignRow({ campaign }: { campaign: Campaign }) {
       {/* Actions */}
       <td className="px-4 py-3 whitespace-nowrap">
         <div className="flex items-center gap-2">
+          {campaign.status === 'draft' && onEdit && (
+            <button
+              onClick={onEdit}
+              disabled={isPending}
+              className="text-xs font-medium text-navy hover:text-navy/70 transition-colors disabled:opacity-40"
+            >
+              Edit
+            </button>
+          )}
           {canPause && (
             <button
               onClick={handlePause}
@@ -731,7 +777,7 @@ function CampaignRow({ campaign }: { campaign: Campaign }) {
             <button
               onClick={handleDelete}
               disabled={isPending}
-              className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors disabled:opacity-40"
+              className="text-xs font-medium text-body-grey/60 hover:text-navy transition-colors disabled:opacity-40"
             >
               Delete
             </button>
@@ -751,7 +797,18 @@ export default function CampaignsClient({
   campaigns:    Campaign[]
   promoScreens: PromoScreen[]
 }) {
-  const [composerOpen, setComposerOpen] = useState(false)
+  const [composerOpen,    setComposerOpen]    = useState(false)
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null)
+
+  function openComposer(campaign?: Campaign) {
+    setEditingCampaign(campaign ?? null)
+    setComposerOpen(true)
+  }
+
+  function closeComposer() {
+    setEditingCampaign(null)
+    setComposerOpen(false)
+  }
 
   const activeCampaigns    = campaigns.filter(c => c.status === 'active')
   const scheduledCampaigns = campaigns.filter(c => c.status === 'scheduled')
@@ -779,7 +836,7 @@ export default function CampaignsClient({
         </div>
         {!composerOpen && (
           <button
-            onClick={() => setComposerOpen(true)}
+            onClick={() => openComposer()}
             className="shrink-0 px-5 py-2.5 bg-navy text-warm-white text-sm font-medium rounded-full
                        hover:bg-navy/90 transition-colors"
           >
@@ -791,11 +848,15 @@ export default function CampaignsClient({
       {/* Composer */}
       {composerOpen && (
         <section>
-          <h2 className="font-display text-lg font-bold text-navy mb-3">New campaign</h2>
+          <h2 className="font-display text-lg font-bold text-navy mb-3">
+            {editingCampaign ? 'Edit campaign' : 'New campaign'}
+          </h2>
           <CampaignComposer
+            key={editingCampaign?.id ?? 'new'}
             members={members}
             promoScreens={promoScreens}
-            onClose={() => setComposerOpen(false)}
+            initialCampaign={editingCampaign ?? undefined}
+            onClose={closeComposer}
           />
         </section>
       )}
@@ -825,7 +886,11 @@ export default function CampaignsClient({
                 </thead>
                 <tbody className="divide-y divide-border">
                   {campaigns.map(c => (
-                    <CampaignRow key={c.id} campaign={c} />
+                    <CampaignRow
+                      key={c.id}
+                      campaign={c}
+                      onEdit={c.status === 'draft' ? () => openComposer(c) : undefined}
+                    />
                   ))}
                 </tbody>
               </table>

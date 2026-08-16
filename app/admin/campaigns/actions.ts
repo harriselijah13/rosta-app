@@ -108,6 +108,75 @@ export async function createCampaign(
   return { ok: true }
 }
 
+export async function updateCampaign(
+  id: string,
+  input: CreateCampaignInput,
+): Promise<{ ok: boolean; error?: string }> {
+  const { admin } = await requireAdmin()
+
+  let promoScreenId: string | null = input.promo_screen_id || null
+
+  if (input.destination_type === 'promo_screen' && !promoScreenId && input.new_promo) {
+    const { data: screen, error: screenErr } = await admin
+      .from('temporary_screens')
+      .insert({
+        headline:    input.new_promo.headline,
+        body:        input.new_promo.body,
+        mascot_pose: input.new_promo.mascot_pose || null,
+        cta_label:   input.new_promo.cta_label   || 'Got it',
+        cta_action:  input.new_promo.cta_action   || null,
+        expires_at:  input.new_promo.expires_at   || null,
+      })
+      .select('id')
+      .single()
+
+    if (screenErr) return { ok: false, error: screenErr.message }
+    promoScreenId = screen.id
+  }
+
+  let status:       string
+  let next_send_at: string | null = null
+
+  if (input.send_mode === 'immediate') {
+    status       = 'active'
+    next_send_at = new Date().toISOString()
+  } else if (input.send_mode === 'scheduled') {
+    status       = 'scheduled'
+    next_send_at = input.scheduled_at || null
+  } else {
+    status       = 'active'
+    next_send_at = input.scheduled_at || null
+  }
+
+  const { error } = await admin
+    .from('notification_campaigns')
+    .update({
+      title:             input.title,
+      message:           input.message,
+      recipient_mode:    input.recipient_mode,
+      recipient_ids:     input.recipient_mode === 'specific' && input.recipient_ids.length
+                           ? input.recipient_ids
+                           : null,
+      send_mode:         input.send_mode,
+      scheduled_at:      input.scheduled_at  || null,
+      recurrence_rule:   input.recurrence_rule || null,
+      recurrence_end:    input.recurrence_end  || null,
+      destination_type:  input.destination_type,
+      destination_route: input.destination_route || null,
+      promo_screen_id:   promoScreenId,
+      status,
+      next_send_at,
+      updated_at:        new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('status', 'draft')   // guard: only drafts can be edited
+
+  if (error) return { ok: false, error: error.message }
+
+  revalidatePath('/admin/campaigns')
+  return { ok: true }
+}
+
 export async function pauseCampaign(id: string): Promise<void> {
   const { admin } = await requireAdmin()
   await admin
