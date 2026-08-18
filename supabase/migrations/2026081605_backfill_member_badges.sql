@@ -5,37 +5,42 @@
 -- award() upsert since the badges catalog table was never seeded. Migration
 -- 2026081604 dropped that FK. This script does the catch-up pass.
 --
+-- This script also adds badge_earned_shown_at (from 20260620_badge_earned_shown.sql)
+-- if it is missing from the live DB — that migration was never applied. The column
+-- is required by profile.tsx to determine which badge celebration modals to show.
+-- Using ADD COLUMN IF NOT EXISTS so this is safe whether or not the column exists.
+--
 -- What this deliberately suppresses:
 --   • Push notifications: on_badge_earned_notify trigger disabled in-session.
---   • In-app celebration modals: badge_earned_shown_at = now() so the app
---     treats each row as already seen.
+--   • In-app celebration modals: badge_earned_shown_at = now() on every backfilled
+--     row so the app treats each one as already seen. Only badges earned from this
+--     point forward will trigger the celebration sheet.
 --
 -- What this does NOT award:
 --   • founding-member: admin-granted only, no automated criterion.
 --   • table-setter:    not in checkAndAwardBadges, requires Open Table data.
 --
--- Connector-score badges use profiles.connector_score (cached on each scoring
--- event by checkAndAwardBadges; see 2026081305_profiles_connector_score_cached).
--- Members whose cached score is stale/0 will receive score-gated badges on their
--- next client-triggered checkAndAwardBadges call.
+-- Connector-score badges use profiles.connector_score (cached column).
+-- Members with stale/0 score get score-gated badges on next scoring event.
 --
--- Outcomes (spark / five-outcomes): uses the `outcomes` table — confirmed as the
--- single source queried by compute_connector_score() for the "+8 per outcome"
--- factor (SELECT COUNT(*) FROM outcomes WHERE conversation_id IN ...).
--- This table has a conversation_id column and is distinct from both
--- conversation_outcomes (per-user labels) and smart_match_outcomes (no
--- conversation_id column). Badge criterion mirrors badges.ts: counts outcome rows
--- from ANY conversation the user participated in (not restricted to facilitated
--- intros, unlike the score factor).
+-- Outcomes source: `outcomes` table — same table queried by compute_connector_score()
+-- for "+8 per outcome" (SELECT COUNT(*) FROM outcomes WHERE conversation_id IN ...).
+-- Distinct from conversation_outcomes (per-user labels) and smart_match_outcomes
+-- (no conversation_id column).
 --
--- Safe to re-run: every INSERT uses ON CONFLICT (user_id, badge_slug) DO NOTHING.
+-- Safe to re-run: ADD COLUMN uses IF NOT EXISTS; every INSERT uses
+-- ON CONFLICT (user_id, badge_slug) DO NOTHING.
 
 BEGIN;
+
+-- ── 0. Add the shown-at column if the 20260620 migration was never applied ────
+ALTER TABLE member_badges
+  ADD COLUMN IF NOT EXISTS badge_earned_shown_at TIMESTAMPTZ;
 
 -- ── 1. Silence badge notifications for this transaction ───────────────────────
 ALTER TABLE member_badges DISABLE TRIGGER on_badge_earned_notify;
 
--- ── 2. Log what we award so we can report counts at the end ───────────────────
+-- ── 2. Log awards for the final report ───────────────────────────────────────
 CREATE TEMP TABLE _backfill_log (
   badge_slug TEXT NOT NULL,
   user_id    UUID NOT NULL
@@ -55,7 +60,6 @@ WITH ins AS (
 INSERT INTO _backfill_log SELECT badge_slug, user_id FROM ins;
 
 -- ── first-connection ──────────────────────────────────────────────────────────
--- Mirrors checkAndAwardBadges: no removed_at filter (matches the TS query).
 WITH all_connected AS (
   SELECT user_a AS uid FROM connections
   UNION
@@ -143,12 +147,7 @@ WITH ins AS (
 )
 INSERT INTO _backfill_log SELECT badge_slug, user_id FROM ins;
 
--- ── spark (1+ outcome from any conversation the user was in) ──────────────────
--- Source: `outcomes` table — same table queried by compute_connector_score()
--- for the "+8 per outcome" factor. Has a conversation_id column.
--- Badge criterion (from badges.ts): counts outcomes in ALL conversations the
--- user participated in — broader than the score factor which restricts to
--- facilitated intros only.
+-- ── spark (1+ outcome) ────────────────────────────────────────────────────────
 WITH user_convs AS (
   SELECT id AS conv_id, user_a AS uid FROM conversations
   UNION ALL
@@ -196,7 +195,7 @@ ins AS (
 )
 INSERT INTO _backfill_log SELECT badge_slug, user_id FROM ins;
 
--- ── signal-strength (streak ≥ 4 consecutive weeks) ───────────────────────────
+-- ── signal-strength (streak ≥ 4 weeks) ───────────────────────────────────────
 WITH ins AS (
   INSERT INTO member_badges (user_id, badge_slug, badge_earned_shown_at)
   SELECT p.id, 'signal-strength', now()
@@ -209,7 +208,7 @@ WITH ins AS (
 )
 INSERT INTO _backfill_log SELECT badge_slug, user_id FROM ins;
 
--- ── thanked (3+ thank-yous received as facilitator) ──────────────────────────
+-- ── thanked (3+ thank-yous as facilitator) ────────────────────────────────────
 WITH ty_counts AS (
   SELECT facilitator_id AS uid, COUNT(*) AS cnt
   FROM   intro_requests
@@ -229,8 +228,7 @@ ins AS (
 )
 INSERT INTO _backfill_log SELECT badge_slug, user_id FROM ins;
 
--- ── all-in (5+ total badges) ──────────────────────────────────────────────────
--- Evaluated LAST so members who crossed 5 in this same transaction qualify now.
+-- ── all-in (5+ total badges) — evaluated last ────────────────────────────────
 WITH badge_totals AS (
   SELECT user_id AS uid, COUNT(*) AS cnt
   FROM   member_badges
