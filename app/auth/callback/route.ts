@@ -6,7 +6,10 @@ export async function GET(request: NextRequest) {
   const code      = searchParams.get('code')
   const tokenHash = searchParams.get('token_hash')
   const type      = searchParams.get('type') ?? ''
-  const next      = searchParams.get('next') ?? '/onboarding'
+  // ROSTA is native only — /onboarding is the retired web flow. Confirmation
+  // links are opened on a phone, so send people to /app-redirect, which fires
+  // the rostanative:// scheme and drops them back into the app.
+  const next      = searchParams.get('next') ?? '/app-redirect'
 
   console.log('[callback] Request received', {
     hasCode:      !!code,
@@ -42,7 +45,10 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('[callback] verifyOtp failed', { message: error.message, status: error.status })
     } else {
-      const dest = type === 'recovery' ? '/reset-password/update' : '/onboarding'
+      // Password resets have to finish in the browser (the form lives there).
+      // Everything else — signup confirmation, email change — should hand back
+      // to the native app.
+      const dest = type === 'recovery' ? '/reset-password/update' : '/app-redirect'
       console.log('[callback] verifyOtp success, redirecting to', dest)
       return NextResponse.redirect(`${origin}${dest}`)
     }

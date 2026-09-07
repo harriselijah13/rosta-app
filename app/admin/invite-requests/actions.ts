@@ -61,7 +61,7 @@ export async function approveInviteRequest(
 
     if (updateErr) return { error: updateErr.message }
 
-    const joinUrl = `https://app.onrosta.com/join?code=${token}`
+    const joinUrl = `https://app.onrosta.com/join?code=${token}`  // app surface: /join redirects to /signup
     const html = inviteApprovalEmail(request.full_name, token, joinUrl)
     await sendEmail(request.email, "You're in. Welcome to ROSTA.", html)
 

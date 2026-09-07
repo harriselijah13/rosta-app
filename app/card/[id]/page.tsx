@@ -136,9 +136,12 @@ export default async function MemberCardPage({ params }: { params: { id: string 
           textTransform: 'uppercase',
         }}>on ROSTA</p>
 
-        {/* CTA */}
+        {/* CTA — this is the first thing a non-member sees after scanning a
+            member's QR code, so the link has to be right.
+            App Store ID is 6796301656 (bundle com.hazonethree.rosta-native).
+            It previously pointed at 6743366481, which is a different app. */}
         <Link
-          href="https://apps.apple.com/app/rosta/id6743366481"
+          href="https://apps.apple.com/app/id6796301656"
           style={{
             display: 'block',
             width: '100%',

@@ -33,7 +33,7 @@ export async function GET(
     `N:${last};${first};;;`,
     `FN:${fullName}`,
     title ? `TITLE:${title}` : null,
-    `NOTE:Met via ROSTA — app.onrosta.com`,
+    `NOTE:Met via ROSTA — rosta.network`,
     `URL:https://app.onrosta.com/qr/${encodeURIComponent(handle)}`,
     'END:VCARD',
   ].filter(Boolean).join('\r\n')

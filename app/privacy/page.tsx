@@ -19,9 +19,9 @@ export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-warm-white">
       <header className="px-6 py-5 border-b border-border bg-warm-white">
-        <Link href="/dashboard" className="font-display text-xl font-bold text-navy">
+        <a href="https://rosta.network" className="font-display text-xl font-bold text-navy">
           ROSTA<span className="text-lime">.</span>
-        </Link>
+        </a>
       </header>
 
       <main className="max-w-[680px] mx-auto px-6 py-14">
@@ -33,7 +33,7 @@ export default function PrivacyPage() {
 
         <Section heading="What We Collect">
           <p>
-            When you create a ROSTA account we collect your name, email address, and the professional information you choose to add to your profile — what you do, what you&rsquo;re building, who you want to meet, your location, and your signals. If you pay for ROSTA Verified we collect payment information, which is processed by Stripe and never stored on our servers. If you connect at an event via Guest QR without an account, we collect your name, email, and one-line description.
+            When you create a ROSTA account we collect your name, email address, and the professional information you choose to add to your profile — what you do, what you&rsquo;re building, who you want to meet, your location, and your signals. If you subscribe to ROSTA Premium, the purchase is handled by Apple; we receive confirmation of your subscription status but never your payment details. If you connect at an event via Guest QR without an account, we collect your name, email, and one-line description.
           </p>
           <p>
             We also collect technical data automatically — your IP address, browser type, and how you use the platform. We use this to keep the platform secure and working correctly.
@@ -53,7 +53,7 @@ export default function PrivacyPage() {
           <ul className="list-disc list-outside pl-5 space-y-1.5">
             <li><strong className="font-semibold">Supabase</strong> — database and authentication hosting</li>
             <li><strong className="font-semibold">Resend</strong> — transactional email delivery</li>
-            <li><strong className="font-semibold">Stripe</strong> — payment processing for ROSTA Verified</li>
+            <li><strong className="font-semibold">Apple</strong> — subscription purchases and billing for ROSTA Premium</li>
             <li><strong className="font-semibold">Anthropic</strong> — AI features including intro drafting, signal matching, profile coaching, and weekly digest emails. Your profile data is sent to Anthropic&rsquo;s API to generate these features; Anthropic does not use this data to train their models.</li>
             <li><strong className="font-semibold">Vercel</strong> — platform hosting</li>
             <li><strong className="font-semibold">Loops</strong> — waitlist management</li>

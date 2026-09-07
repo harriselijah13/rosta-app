@@ -7,7 +7,6 @@ import { usePathname } from 'next/navigation'
 const NAV = [
   { label: 'Overview',         href: '/admin/overview' },
   { label: 'Members',          href: '/admin/members' },
-  { label: 'Verification',     href: '/admin/verification' },
   { label: 'Invite Requests',  href: '/admin/invite-requests' },
   { label: 'Network Health',        href: '/admin/network-health' },
   { label: 'Conversation Outcomes', href: '/admin/conversation-outcomes' },
@@ -65,8 +64,10 @@ export default function AdminNav({ pendingInviteRequestCount = 0 }: { pendingInv
           })}
         </nav>
         <div className="px-5 py-4 border-t border-border">
-          <Link href="/dashboard" className="text-xs text-body-grey hover:text-navy transition-colors">
-            ← Back to app
+          {/* The member-facing web app was retired — ROSTA is native only.
+              There is no /dashboard to go back to. */}
+          <Link href="/admin/overview" className="text-xs text-body-grey hover:text-navy transition-colors">
+            ← Overview
           </Link>
         </div>
       </aside>
@@ -125,8 +126,8 @@ export default function AdminNav({ pendingInviteRequestCount = 0 }: { pendingInv
               )
             })}
             <div className="pt-4 border-t border-border mt-4">
-              <Link href="/dashboard" className="text-xs text-body-grey" onClick={() => setOpen(false)}>
-                ← Back to app
+              <Link href="/admin/overview" className="text-xs text-body-grey" onClick={() => setOpen(false)}>
+                ← Overview
               </Link>
             </div>
           </nav>

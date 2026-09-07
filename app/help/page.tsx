@@ -4,8 +4,8 @@ const SECTIONS = [
   { id: 'signals',         label: 'Signals' },
   { id: 'connections',     label: 'Connections' },
   { id: 'intro-credits',   label: 'Intro credits' },
+  { id: 'open-tables',     label: 'Open Tables' },
   { id: 'connector-score', label: 'Connector Score' },
-  { id: 'verified',        label: 'Verified' },
 ]
 
 export default function HelpPage() {
@@ -14,15 +14,15 @@ export default function HelpPage() {
       <div className="max-w-2xl mx-auto px-6 py-12">
 
         {/* Header */}
-        <Link
-          href="/dashboard"
+        <a
+          href="https://rosta.network"
           className="inline-flex items-center gap-1.5 text-sm text-body-grey hover:text-navy transition-colors mb-10"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
-          Back to dashboard
-        </Link>
+          rosta.network
+        </a>
 
         <p className="text-xs font-semibold uppercase tracking-widest text-body-grey mb-2">ROSTA</p>
         <h1 className="font-display text-4xl font-bold text-navy mb-10">How it works</h1>
@@ -53,7 +53,7 @@ export default function HelpPage() {
           <section id="connections">
             <h2 className="font-display text-2xl font-bold text-navy mb-4">Connections</h2>
             <p className="text-[15px] text-body-grey leading-relaxed">
-              There are three ways to connect on ROSTA. A warm introduction — you request an intro through a mutual connection who facilitates it with context. Open Door — some members have this active, which means you can connect directly without a mutual connection. QR — at events, scan another member&apos;s QR code to connect instantly. Once you&apos;re connected, you can message each other directly.
+              There are three ways to connect on ROSTA. A warm introduction — you ask a mutual connection for an intro, and they facilitate it with context. This is the best route and the one most likely to get a yes. A direct request — you can ask any member to connect, and they accept or decline. QR — at events, scan another member&apos;s QR code to connect instantly. However the connection starts, both people have to agree to it, and you can only message someone once you are connected.
             </p>
           </section>
 
@@ -67,7 +67,7 @@ export default function HelpPage() {
           <section id="open-tables">
             <h2 className="font-display text-2xl font-bold text-navy mb-4">Open Tables</h2>
             <p className="text-[15px] text-body-grey leading-relaxed">
-              Coming soon.
+              Open Tables are small group conversations you can join alongside other members, rather than a one-to-one introduction. You will find them in the app.
             </p>
           </section>
 
@@ -75,13 +75,6 @@ export default function HelpPage() {
             <h2 className="font-display text-2xl font-bold text-navy mb-4">Connector Score</h2>
             <p className="text-[15px] text-body-grey leading-relaxed">
               Your Connector Score reflects how active you are in the network — specifically how much you give, not just take. You earn points for facilitating introductions, having conversations that go somewhere, marking real outcomes, and completing your weekly challenge. The score feeds into your badge progression. It&apos;s visible on your profile but it&apos;s not a leaderboard — it&apos;s a personal record of what you&apos;ve contributed.
-            </p>
-          </section>
-
-          <section id="verified">
-            <h2 className="font-display text-2xl font-bold text-navy mb-4">Verified</h2>
-            <p className="text-[15px] text-body-grey leading-relaxed">
-              ROSTA Verified is a one-time identity and profile check. It means the person is who they say they are and their profile accurately represents them. Verification is manual — applied for and reviewed. It shows as a tick next to your name.
             </p>
           </section>
 
@@ -94,7 +87,7 @@ export default function HelpPage() {
             <span>·</span>
             <Link href="/terms" className="hover:text-navy transition-colors">Terms</Link>
             <span>·</span>
-            <Link href="/dashboard" className="hover:text-navy transition-colors">Dashboard</Link>
+            <a href="https://rosta.network" className="hover:text-navy transition-colors">rosta.network</a>
           </p>
         </div>
 

@@ -19,9 +19,9 @@ export default function TermsPage() {
   return (
     <div className="min-h-screen bg-warm-white">
       <header className="px-6 py-5 border-b border-border bg-warm-white">
-        <Link href="/dashboard" className="font-display text-xl font-bold text-navy">
+        <a href="https://rosta.network" className="font-display text-xl font-bold text-navy">
           ROSTA<span className="text-lime">.</span>
-        </Link>
+        </a>
       </header>
 
       <main className="max-w-[680px] mx-auto px-6 py-14">
@@ -33,7 +33,7 @@ export default function TermsPage() {
 
         <Section heading="What ROSTA Is">
           <p>
-            ROSTA is an invite-only professional networking platform. It is designed for people aged 18 and over who are actively building things professionally. ROSTA is not a business directory, a social media platform, or a public network.
+            ROSTA is a professional networking platform. It is designed for people aged 18 and over who are actively building things professionally. Signup is open. ROSTA is not a business directory, a social media platform, or a public network.
           </p>
         </Section>
 
@@ -45,7 +45,7 @@ export default function TermsPage() {
 
         <Section heading="What You Can Do">
           <p>
-            You can create a profile, connect with other members, send and receive introductions, message connections, and participate in Open Tables. You can pay for ROSTA Verified to receive a verification badge on your profile.
+            You can create a profile, ask to connect with other members, send and receive introductions, message members you are connected to, and participate in Open Tables. A connection only exists once both members have agreed to it, and messaging is only available between connected members.
           </p>
         </Section>
 
@@ -65,9 +65,9 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section heading="Verification">
+        <Section heading="Subscriptions">
           <p>
-            ROSTA Verified is a one-time payment. The price is set in AED and may vary based on your membership tier. Verification is subject to review and approval. We reserve the right to revoke verification if a member&rsquo;s profile no longer meets our standards. Payments are non-refundable once verification is granted.
+            ROSTA is free to use. ROSTA Premium is an optional auto-renewing subscription offering additional features. Current pricing and subscription lengths are shown in the app before you purchase. Payment is charged to your Apple ID at confirmation of purchase, and the subscription renews automatically unless auto-renew is turned off at least 24 hours before the end of the current period. Where a free trial is offered, it converts to a paid subscription unless you cancel at least 24 hours before it ends. You can manage or cancel a subscription at any time in your Apple ID account settings. Purchases are handled by Apple and refunds are subject to Apple&rsquo;s policies.
           </p>
         </Section>
 

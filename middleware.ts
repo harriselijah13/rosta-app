@@ -1,13 +1,22 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const MARKETING_SITE = 'https://onrosta.com'
+// The public marketing site. Live on Netlify since 2026-09-02.
+// Do NOT change this to app.onrosta.com — that is the app surface, and the
+// apex onrosta.com serves nothing.
+const MARKETING_SITE = 'https://rosta.network'
 
-// (app)-group routes redirected externally to the marketing site.
+// The member-facing web app was deleted on 2026-09-01 — ROSTA is native only.
+// These prefixes are kept here as redirects rather than 404s so that old links,
+// bookmarks and search results still land somewhere sensible.
+//
 // Excluded intentionally:
-//   /verify*   — verification purchase flow stays live here
 //   /profile   — QR codes and native app universal links use app.onrosta.com/profile/[id]
 //   /qr exact  — handled separately below (public profile landing, not the user QR display)
+//
+// /verify* was removed from this list when ROSTA Verified was retired; the routes
+// no longer exist, so they now fall through to a 404. Add '/verify' below if you
+// would rather they redirect too.
 const GATED_APP_PREFIXES = [
   '/dashboard', '/activity', '/connect', '/connections', '/intro', '/invite',
   '/members', '/messages', '/network', '/notifications', '/open-tables',

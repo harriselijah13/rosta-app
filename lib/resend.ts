@@ -50,7 +50,7 @@ function wrap(
     <p style="${bodyStyle}">${body}</p>
     <a href="${ctaUrl}" style="display:inline-block;background:#0F1B3C;color:#ffffff;padding:13px 28px;border-radius:100px;text-decoration:none;font-weight:600;font-size:15px;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;">${ctaLabel}</a>
     <p style="color:#6B7280;font-size:12px;margin-top:32px;line-height:1.5;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;">You're receiving this because you're a member of ROSTA.</p>
-    <p style="color:#6B7280;font-size:12px;margin-top:6px;line-height:1.5;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;"><a href="https://app.onrosta.com/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; onrosta.com</p>
+    <p style="color:#6B7280;font-size:12px;margin-top:6px;line-height:1.5;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;"><a href="https://app.onrosta.com/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; rosta.network</p>
   </div>
 </body>
 </html>`
@@ -542,7 +542,7 @@ export function badgeEarnedEmail(
   const initial = badgeName.charAt(0).toUpperCase()
   const badgeNameEncoded = badgeName.replace(/\s+/g, '+')
   const profileUrl = `${BASE}/profile/${recipientUsername}`
-  const twitterUrl = `https://twitter.com/intent/tweet?text=Just+earned+the+${badgeNameEncoded}+badge+on+%40getrosta+%E2%80%94+the+professional+network+built+around+real+introductions.+onrosta.com`
+  const twitterUrl = `https://twitter.com/intent/tweet?text=Just+earned+the+${badgeNameEncoded}+badge+on+%40getrosta+%E2%80%94+the+professional+network+built+around+real+introductions.+rosta.network`
   const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${BASE}`
   const sans = "'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
   const serif = "'Fraunces',Georgia,'Times New Roman',serif"
@@ -584,7 +584,7 @@ export function badgeEarnedEmail(
     <a href="${profileUrl}" style="display:inline-block;background:#0F1B3C;color:#ffffff;padding:13px 28px;border-radius:100px;text-decoration:none;font-weight:600;font-size:15px;font-family:${sans};">View your profile</a>
 
     <p style="color:#6B7280;font-size:12px;margin-top:32px;line-height:1.5;font-family:${sans};">You're receiving this because you're a member of ROSTA.</p>
-    <p style="color:#6B7280;font-size:12px;margin-top:6px;line-height:1.5;font-family:${sans};"><a href="${BASE}/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; onrosta.com</p>
+    <p style="color:#6B7280;font-size:12px;margin-top:6px;line-height:1.5;font-family:${sans};"><a href="${BASE}/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; rosta.network</p>
 
   </div>
 </body>
@@ -635,7 +635,7 @@ export function inviteApprovalEmail(
     <p style="color:rgba(15,27,60,0.7);font-size:14px;line-height:1.5;margin:28px 0 32px;font-family:${sans};">&mdash; Harris<br/>ROSTA</p>
 
     <hr style="border:none;border-top:1px solid #E5E1DB;margin:0 0 16px;"/>
-    <p style="color:#6B7280;font-size:12px;margin:0;line-height:1.5;font-family:${sans};"><a href="https://app.onrosta.com/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; onrosta.com</p>
+    <p style="color:#6B7280;font-size:12px;margin:0;line-height:1.5;font-family:${sans};"><a href="https://app.onrosta.com/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; rosta.network</p>
 
   </div>
 </body>
@@ -760,7 +760,7 @@ export function verificationSubmittedAdminEmail({
     <a href="https://app.onrosta.com/admin/verification" style="display:inline-block;background:#0F1B3C;color:#ffffff;padding:13px 28px;border-radius:100px;text-decoration:none;font-weight:600;font-size:15px;font-family:${sans};">Review in admin</a>
 
     <hr style="border:none;border-top:1px solid #E5E1DB;margin:32px 0 16px;"/>
-    <p style="color:#6B7280;font-size:12px;margin:0;line-height:1.5;font-family:${sans};"><a href="https://app.onrosta.com/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; onrosta.com</p>
+    <p style="color:#6B7280;font-size:12px;margin:0;line-height:1.5;font-family:${sans};"><a href="https://app.onrosta.com/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; rosta.network</p>
 
   </div>
 </body>
@@ -835,7 +835,7 @@ export function verificationPaidAdminEmail({
     <a href="https://app.onrosta.com/admin/verification" style="display:inline-block;background:#0F1B3C;color:#ffffff;padding:13px 28px;border-radius:100px;text-decoration:none;font-weight:600;font-size:15px;font-family:${sans};">Review in admin</a>
 
     <hr style="border:none;border-top:1px solid #E5E1DB;margin:32px 0 16px;"/>
-    <p style="color:#6B7280;font-size:12px;margin:0;line-height:1.5;font-family:${sans};"><a href="https://app.onrosta.com/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; onrosta.com</p>
+    <p style="color:#6B7280;font-size:12px;margin:0;line-height:1.5;font-family:${sans};"><a href="https://app.onrosta.com/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; rosta.network</p>
 
   </div>
 </body>
@@ -905,7 +905,7 @@ export function networkActivityDigestEmail({
     <p style="color:rgba(15,27,60,0.7);font-size:14px;line-height:1.5;margin:28px 0 32px;font-family:${sans};">&mdash; Harris<br/>ROSTA</p>
 
     <hr style="border:none;border-top:1px solid #E5E1DB;margin:0 0 16px;"/>
-    <p style="color:#6B7280;font-size:12px;margin:0;line-height:1.5;font-family:${sans};"><a href="${BASE}/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; onrosta.com</p>
+    <p style="color:#6B7280;font-size:12px;margin:0;line-height:1.5;font-family:${sans};"><a href="${BASE}/privacy" style="color:#6B7280;text-decoration:underline;">Privacy Policy</a> &middot; rosta.network</p>
 
   </div>
 </body>

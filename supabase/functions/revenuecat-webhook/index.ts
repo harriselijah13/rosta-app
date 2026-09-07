@@ -53,6 +53,9 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
+  // Returns the PATCH response so callers can check it. A failed write must not
+  // be reported to RevenueCat as success, or the event is dropped and never
+  // retried — leaving a paying member without the access they paid for.
   const patch = (body: Record<string, unknown>) =>
     fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userId}`, {
       method:  'PATCH',
@@ -63,6 +66,16 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify(body),
     })
+
+  // 500 tells RevenueCat to retry with backoff.
+  const failed = async (res: Response, eventType: string) => {
+    const detail = await res.text().catch(() => '')
+    console.error(`[revenuecat-webhook] ${eventType} write failed for ${userId}: ${res.status} ${detail}`)
+    return new Response(JSON.stringify({ error: 'write_failed' }), {
+      status:  500,
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+    })
+  }
 
   if (GRANT_EVENTS.has(eventType)) {
     const purchasedAt = typeof event.purchased_at_ms === 'number'
@@ -85,11 +98,26 @@ Deno.serve(async (req) => {
       }
     }
 
-    await patch({ is_premium: true, premium_source: 'paid', premium_since: purchasedAt, premium_bonus_awarded: true })
+    // Record when access is due to lapse. Nothing gates on this column — the
+    // EXPIRATION event is what actually revokes — but keeping it accurate means
+    // the admin member screen shows the truth rather than a stale date.
+    const expiresAt = typeof event.expiration_at_ms === 'number'
+      ? new Date(event.expiration_at_ms).toISOString()
+      : null
+
+    const res = await patch({
+      is_premium:            true,
+      premium_source:        'paid',
+      premium_since:         purchasedAt,
+      premium_expires_at:    expiresAt,
+      premium_bonus_awarded: true,
+    })
+    if (!res.ok) return failed(res, eventType)
   } else if (eventType === 'EXPIRATION') {
     // CANCELLATION is not acted on here — the user retains access until their
     // paid period expires and RevenueCat fires EXPIRATION at that point.
-    await patch({ is_premium: false, premium_source: null, premium_expires_at: null })
+    const res = await patch({ is_premium: false, premium_source: null, premium_expires_at: null })
+    if (!res.ok) return failed(res, eventType)
   }
 
   return new Response(JSON.stringify({ received: true }), {

@@ -19,9 +19,9 @@ export default function CookiesPage() {
   return (
     <div className="min-h-screen bg-warm-white">
       <header className="px-6 py-5 border-b border-border bg-warm-white">
-        <Link href="/dashboard" className="font-display text-xl font-bold text-navy">
+        <a href="https://rosta.network" className="font-display text-xl font-bold text-navy">
           ROSTA<span className="text-lime">.</span>
-        </Link>
+        </a>
       </header>
 
       <main className="max-w-[680px] mx-auto px-6 py-14">

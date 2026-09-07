@@ -429,8 +429,10 @@ export default function OnboardingFlow({ userId, initialFirstName, initialLastNa
                   <span className="text-body-grey font-normal">(optional)</span>
                 </label>
                 <div className="flex items-center rounded-xl border border-border bg-white overflow-hidden focus-within:ring-2 focus-within:ring-navy/20 focus-within:border-navy transition-colors">
+                  {/* Profile URLs are served from the app subdomain, not the
+                      apex. This label was showing a URL that does not resolve. */}
                   <span className="pl-4 pr-1 text-body-grey text-sm select-none shrink-0">
-                    onrosta.com/profile/
+                    app.onrosta.com/profile/
                   </span>
                   <input
                     type="text"
