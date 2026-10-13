@@ -35,6 +35,14 @@ export async function GET(request: NextRequest) {
 
   // OTP flow — token_hash from our custom email hook (signup, recovery, email change)
   if (tokenHash && type) {
+    // Magic links are only used by ROSTA Host (members sign in with passwords).
+    // Forward them, unverified, so the session is created on host.onrosta.com.
+    if (type === 'magiclink') {
+      return NextResponse.redirect(
+        `https://host.onrosta.com/auth/callback?token_hash=${encodeURIComponent(tokenHash)}&type=magiclink`,
+      )
+    }
+
     const otpType = (type === 'email_change_current' || type === 'email_change_new')
       ? 'email_change'
       : type as 'signup' | 'recovery' | 'magiclink' | 'invite' | 'email'
