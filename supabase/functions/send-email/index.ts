@@ -1,3 +1,7 @@
+// Supabase Auth "Send Email" hook (deployed as the send-email Edge Function).
+// 1.0.5: signup emails now lead with the 6-digit code (entered in-app on the
+// verify-email screen) and keep the link as a fallback. The code is also in the
+// subject so it shows in the notification banner.
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!
@@ -12,7 +16,7 @@ const SUBJECTS: Record<string, string> = {
   reauthentication:       'Confirm reauthentication',
 }
 
-function buildHtml(actionType: string, url: string): string {
+function buildHtml(actionType: string, url: string, code?: string): string {
   const btn = `<a href="${url}" style="display:inline-block;background:#0F1B3C;color:#ffffff;padding:13px 28px;border-radius:100px;text-decoration:none;font-weight:600;font-size:15px;">{{label}}</a>`
 
   const wrap = (heading: string, body: string, cta: string, footnote: string) => `
@@ -27,6 +31,19 @@ function buildHtml(actionType: string, url: string): string {
 
   switch (actionType) {
     case 'signup':
+      if (code) {
+        return `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:48px 24px;background:#F5F2EE;">
+      <p style="font-size:22px;font-weight:700;color:#0F1B3C;margin:0 0 4px;">ROSTA<span style="color:#C8F53C;">.</span></p>
+      <hr style="border:none;border-top:1px solid #E5E1DB;margin:20px 0 32px;"/>
+      <h1 style="font-size:26px;color:#0F1B3C;margin:0 0 12px;font-weight:700;">Your verification code</h1>
+      <p style="color:#5F6672;font-size:15px;line-height:1.6;margin:0 0 20px;">Enter this code in the ROSTA app to confirm your email address.</p>
+      <p style="font-size:36px;font-weight:700;letter-spacing:8px;color:#0F1B3C;margin:0 0 28px;">${code}</p>
+      <p style="color:#5F6672;font-size:14px;line-height:1.6;margin:0 0 16px;">Or confirm with this link instead:</p>
+      ${btn.replace('{{label}}', 'Confirm email')}
+      <p style="color:#5F6672;font-size:12px;margin-top:32px;line-height:1.5;">The code expires in 1 hour. If you didn't create a ROSTA account, you can safely ignore this email.</p>
+    </div>`
+      }
       return wrap(
         'Confirm your account',
         'Welcome to ROSTA. Click below to verify your email address and activate your account.',
@@ -64,7 +81,7 @@ serve(async (req) => {
   try {
     const payload = await req.json()
     const { user, email_data } = payload
-    const { token_hash, token_hash_new, email_action_type } = email_data
+    const { token, token_hash, token_hash_new, email_action_type } = email_data
 
     // For email_change_new the new-address hash is in token_hash_new
     const hash = email_action_type === 'email_change_new' ? token_hash_new : token_hash
@@ -86,8 +103,11 @@ serve(async (req) => {
 
     const confirmUrl = `https://app.onrosta.com/auth/callback?token_hash=${hash}&type=${email_action_type}`
 
-    const subject = SUBJECTS[email_action_type] ?? 'ROSTA notification'
-    const html = buildHtml(email_action_type, confirmUrl)
+    const signupCode = email_action_type === 'signup' && token ? String(token) : undefined
+    const subject = signupCode
+      ? `${signupCode} is your ROSTA verification code`
+      : (SUBJECTS[email_action_type] ?? 'ROSTA notification')
+    const html = buildHtml(email_action_type, confirmUrl, signupCode)
 
     const resendPayload = { from: FROM, to: [user.email], subject, html: '[omitted]' }
     console.log('[send-email] Calling Resend API', resendPayload)
