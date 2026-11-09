@@ -43,10 +43,8 @@ function buildPushContent(
       }
     case 'intro_declined':
       return {
-        title: 'Intro update',
-        body:  data.facilitator_name
-          ? `${data.facilitator_name} wasn't able to make this intro`
-          : 'An intro request was declined',
+        title: 'Introduction declined',
+        body:  'An introduction you requested was declined',
       }
     case 'invite_request':
       return {
@@ -74,18 +72,41 @@ function buildPushContent(
         title: 'New ask from your network',
         body:  data.from_name ? `${data.from_name} has a new ask` : 'Someone in your network posted an ask',
       }
-    case 'badge_earned': {
-      const slug  = typeof data.badge_slug === 'string' ? data.badge_slug : null
-      const label = slug ? slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'badge'
+    case 'networking_nearby': {
+      // docs/networking-nearby.sql (app 1.0.7): someone in your network
+      // switched on Networking Mode near you.
+      const who   = data.from_name || 'Someone in your network'
+      const via   = data.via_name ? ` (you both know ${data.via_name})` : ''
+      const until = data.until ? ` until ${data.until}` : ''
       return {
-        title: 'Badge unlocked',
-        body:  `You earned the ${label} badge`,
+        title: 'Free to meet nearby',
+        body:  `${who}${via} is in Networking Mode near you${until}. Say hello?`,
       }
     }
-    case 'campaign':
+    case 'campaign': {
+      // Campaign copy is author-written and stored on the row by
+      // process_campaign_sends. Use it rather than a generic string.
+      const title = data.push_title || 'ROSTA'
+      const body  = data.push_body  || data.message || ''
+      if (!body) return null
+      return { title, body }
+    }
+    case 'badge_earned':
       return {
-        title: typeof data.push_title === 'string' && data.push_title ? data.push_title : 'Message from ROSTA',
-        body:  typeof data.push_body  === 'string' ? data.push_body  : '',
+        title: 'Badge earned',
+        body:  data.badge_name ? `You earned ${data.badge_name}` : 'You earned a new badge',
+      }
+    case 'network_now_open':
+      return {
+        title: 'ROSTA is now fully open',
+        body:  'Any member can send you a direct connection request. You can still accept or decline each one.',
+      }
+    case 'commitment_due':
+      return {
+        title: 'Follow-up due',
+        body:  data.commitment && data.subject_name
+          ? `${data.subject_name}: ${data.commitment}`
+          : data.commitment || 'You have a follow-up due',
       }
     default:
       // Unknown or future type — skip push rather than send a confusing message
